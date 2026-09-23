@@ -15,8 +15,24 @@ export default function DynamicStatement({ settings }) {
   const [sourceText, setSourceText] = useState(pairs[0]?.source || '');
   const [resultText, setResultText] = useState(pairs[0]?.result || '');
   const [phase, setPhase] = useState('idle');
+  const [animationReady, setAnimationReady] = useState(false);
   const motionReduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const timing = SPEEDS[settings?.speed] || SPEEDS.normal;
+
+  // Jangan mengubah kandidat LCP selama halaman pertama kali dimuat. Animasi baru
+  // dimulai setelah pengunjung benar-benar berinteraksi dengan dokumen.
+  useEffect(() => {
+    if (animationReady) return undefined;
+    const startAnimation = () => setAnimationReady(true);
+    window.addEventListener('pointerdown', startAnimation, { once: true, passive: true });
+    window.addEventListener('keydown', startAnimation, { once: true });
+    window.addEventListener('scroll', startAnimation, { once: true, passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', startAnimation);
+      window.removeEventListener('keydown', startAnimation);
+      window.removeEventListener('scroll', startAnimation);
+    };
+  }, [animationReady]);
 
   useEffect(() => {
     if (!pairs.length) return undefined;
@@ -25,7 +41,7 @@ export default function DynamicStatement({ settings }) {
     const next = pairs[(safeIndex + 1) % pairs.length];
     let delay = timing.type;
 
-    if (motionReduced || pairs.length < 2 || settings?.enabled === false) {
+    if (!animationReady || motionReduced || pairs.length < 2 || settings?.enabled === false) {
       setSourceText(current.source);
       setResultText(current.result);
       setPhase('idle');
@@ -60,7 +76,18 @@ export default function DynamicStatement({ settings }) {
       }
     }, delay);
     return () => window.clearTimeout(timer);
-  }, [pairIndex, pairs, phase, resultText, settings?.enabled, settings?.pauseDuration, sourceText, timing, motionReduced]);
+  }, [animationReady, pairIndex, pairs, phase, resultText, settings?.enabled, settings?.pauseDuration, sourceText, timing, motionReduced]);
+
+  // Kalimat terpanjang tetap mengambil ruang secara tidak terlihat. Dengan begitu,
+  // pergantian frasa tidak lagi mendorong konten di bawahnya dan memicu CLS.
+  const longestStatement = useMemo(() => {
+    const prefix = settings?.prefix || 'Gue';
+    const highlightedWord = settings?.highlightedWord || 'mengubah';
+    const connector = settings?.connector || 'menjadi';
+    return pairs
+      .map((pair) => `${prefix} ${highlightedWord} ${pair.source} ${connector} ${pair.result}`)
+      .reduce((longest, statement) => (statement.length > longest.length ? statement : longest), '');
+  }, [pairs, settings?.connector, settings?.highlightedWord, settings?.prefix]);
 
   if (settings?.enabled === false || !pairs.length) return null;
   const sizeClass = settings?.size === 'small'
@@ -74,16 +101,17 @@ export default function DynamicStatement({ settings }) {
   const accessibleStatement = `${settings?.prefix || 'Gue'} ${settings?.highlightedWord || 'mengubah'} ${currentPair?.source || ''} ${settings?.connector || 'menjadi'} ${currentPair?.result || ''}`;
 
   return (
-    <h1 className={`${sizeClass} mx-auto min-h-[2.3em] w-full max-w-[52rem] min-w-0 break-words text-left font-normal leading-[1.12] tracking-tight text-gray-900 dark:text-white`}>
+    <h1 className={`${sizeClass} relative mx-auto min-h-[2.3em] w-full max-w-[52rem] min-w-0 break-words text-left font-normal leading-[1.12] tracking-tight text-gray-900 dark:text-white`}>
       <span className="sr-only">{accessibleStatement}</span>
-      <span aria-hidden="true">
+      <span className="invisible block pointer-events-none select-none" aria-hidden="true">{longestStatement}</span>
+      <span className="absolute inset-0" aria-hidden="true">
         <span>{settings?.prefix || 'Gue'} </span>
         <mark className="bg-yellow-300/90 dark:bg-yellow-400/80 text-inherit px-[0.08em] box-decoration-clone">{settings?.highlightedWord || 'mengubah'}</mark>
         <span> </span>
         <span className={sourceSelected ? 'bg-[#2B579A] text-white' : ''}>{sourceText || '\u00a0'}</span>
         <span> {settings?.connector || 'menjadi'} </span>
         <span className={resultSelected ? 'bg-[#2B579A] text-white' : ''}>{resultText || '\u00a0'}</span>
-        {!sourceSelected && !resultSelected && <span className="typing-caret" />}
+        {animationReady && !sourceSelected && !resultSelected && <span className="typing-caret" />}
       </span>
     </h1>
   );
