@@ -1,316 +1,194 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import InteractiveText from '../components/InteractiveText';
 
-// Posisi visual tiap "lapisan" tumpukan, dari paling depan (index 0) ke paling belakang.
-// Sengaja dibikin ACAK/berantakan (offset & sudut miring yang gak simetris ke segala arah)
-// biar kesannya kayak numpuk buku fisik ditaro asal di meja, bukan susunan kipas yang rapi.
-const STACK_LAYERS = [
-  { x: 4, y: -16, rotate: -4 },  // depan — paling atas, paling gede, & sedikit "terangkat"
-  { x: 58, y: 10, rotate: 9 },   // nyembul ke kanan
-  { x: -20, y: 22, rotate: -8 }, // agak ke kiri, sedikit turun
-  { x: -52, y: 40, rotate: -13 },// paling kiri, paling bawah/belakang
-  { x: 28, y: 34, rotate: 6 },
-];
+const STATUS_STYLE = {
+  published: { label: 'Published', className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800' },
+  writing: { label: 'In progress', className: 'bg-blue-50 text-[#2B579A] border-blue-200 dark:bg-blue-950/30 dark:text-[#6FA8DC] dark:border-blue-800' },
+  draft: { label: 'Draft', className: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800' },
+  archived: { label: 'Archived', className: 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700' },
+};
 
-export default function Book({ data }) {
+function bookThumb(url, width = 520) {
+  if (!url || !url.includes('/storage/v1/object/public/')) return url;
+  const resized = url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/');
+  // Cover buku tidak boleh dipotong. Supabase juga harus memakai `contain`, bukan
+  // cuma CSS object-contain, supaya file hasil transformasinya sendiri tetap utuh.
+  return `${resized}${resized.includes('?') ? '&' : '?'}width=${width}&quality=76&resize=contain`;
+}
+
+function StatusBadge({ status }) {
+  const meta = STATUS_STYLE[status] || STATUS_STYLE.published;
+  return <span className={`inline-flex rounded-full border px-2.5 py-1 font-mono text-[0.5625em] font-bold uppercase tracking-[0.16em] ${meta.className}`}>{meta.label}</span>;
+}
+
+function parseRoles(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return String(value || '').split(',').map((role) => role.trim()).filter(Boolean);
+}
+
+function BookCover({ book, size = 'hero', priority = false, decorative = false }) {
+  const dimensions = {
+    hero: 'max-h-[25rem] max-w-full',
+    detail: 'max-h-[24rem] max-w-full',
+    shelf: 'h-48 max-w-[9.5rem]',
+  };
+  const fallbackDimensions = size === 'shelf' ? 'h-48 w-36' : 'aspect-[3/4] w-full max-w-[14rem]';
+
+  if (!book?.coverImage) {
+    return <div className={`flex items-center justify-center border border-gray-200 bg-white px-5 text-center font-mono text-[0.625em] text-gray-400 shadow-xl dark:border-gray-700 dark:bg-[#181818] ${fallbackDimensions}`}>COVER IN REVISION</div>;
+  }
+
+  return (
+    <img
+      src={bookThumb(book.coverImage, size === 'shelf' ? 360 : 900)}
+      alt={decorative ? '' : `Sampul ${book.title}`}
+      loading={priority ? 'eager' : 'lazy'}
+      decoding="async"
+      fetchPriority={priority ? 'high' : 'low'}
+      className={`block h-auto w-auto rounded-sm border border-gray-200 bg-white object-contain shadow-xl dark:border-gray-700 dark:bg-[#181818] ${dimensions[size]}`}
+    />
+  );
+}
+
+export default function Book({ data, interactiveWords = [], onNavigate, initialBookId, navigationRequestKey }) {
   const bookData = data || {};
-  const heading = bookData.heading || 'Books, Writings & Open Source';
-  const subheading = bookData.subheading || 'Etalase publikasi, esai, dan proyek open-source buatan saya.';
-  const items = bookData.items || [];
+  const heading = bookData.heading || 'Books & Manuscripts';
+  const subheading = bookData.subheading || 'Published work, unfinished manuscripts, and everything still being revised.';
+  const items = useMemo(() => (Array.isArray(bookData.items) ? bookData.items : []), [bookData.items]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [detailId, setDetailId] = useState(null);
+  const coverSwipeStart = useRef(null);
+  const coverDidSwipe = useRef(false);
 
-  // Urutan tumpukan SEKARANG — order[0] = buku paling depan/atas.
-  const [order, setOrder] = useState(() => items.map((_, i) => i));
+  const currentBook = useMemo(
+    () => items.find((item) => item.featured) || items.find((item) => item.status === 'writing') || items[0],
+    [items]
+  );
+  const startHereBook = useMemo(
+    () => items.find((item) => item.startHere) || items.find((item) => item.status === 'published') || items[0],
+    [items]
+  );
+  const selectedBook = items.find((item) => item.id === selectedId) || currentBook;
+  const detailBook = items.find((item) => item.id === detailId) || null;
+
   useEffect(() => {
-    setOrder(items.map((_, i) => i));
-  }, [items.length]);
+    if (!initialBookId || !navigationRequestKey) return;
+    const target = items.find((item) => item.id === initialBookId);
+    if (target) {
+      setSelectedId(target.id);
+      setDetailId(target.id);
+    }
+  }, [initialBookId, navigationRequestKey, items]);
 
-  // 'shelf' = lagi liat tumpukan + sinopsis singkat, 'detail' = buku kebuka + detail lengkap
-  const [viewMode, setViewMode] = useState('shelf');
-  const [isMobile, setIsMobile] = useState(false);
-
-  const activeIndex = order[0] ?? 0;
-  const activeBook = items[activeIndex];
-
-  // Bawa satu buku ke posisi PALING DEPAN tumpukan (sisanya tetep urut relatifnya)
-  const bringToFront = useCallback((idx) => {
-    setOrder((prev) => (prev[0] === idx ? prev : [idx, ...prev.filter((i) => i !== idx)]));
-  }, []);
-
-  // "Next" = buku paling depan geser ke PALING BELAKANG, yang di baliknya naik ke depan
-  const goNext = useCallback(() => {
-    setOrder((prev) => (prev.length < 2 ? prev : [...prev.slice(1), prev[0]]));
-  }, []);
-  // "Prev" = kebalikannya — buku paling belakang ditarik balik ke depan
-  const goPrev = useCallback(() => {
-    setOrder((prev) => (prev.length < 2 ? prev : [prev[prev.length - 1], ...prev.slice(0, -1)]));
-  }, []);
-
-  const openDetail = () => setViewMode('detail');
-  const backToShelf = () => setViewMode('shelf');
-
-  // Deteksi lebar layar buat ukuran kartu tumpukan
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 640);
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
-  }, []);
-
-  // Navigasi keyboard: panah gonta-ganti tumpukan, Esc balik ke rak kalau lagi baca detail
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.key === 'ArrowLeft') { goPrev(); return; }
-      if (e.key === 'ArrowRight') { goNext(); return; }
-      if (e.key === 'Escape' && viewMode === 'detail') backToShelf();
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setDetailId(null);
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [viewMode, goPrev, goNext]);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
-  if (items.length === 0) {
+  if (!items.length) {
+    return <div className="py-14 text-center text-gray-900 dark:text-gray-100"><h1 className="text-[1.5em] font-bold"><InteractiveText text={heading} rules={interactiveWords} page="Book" onNavigate={onNavigate} /></h1><p className="mt-3 text-[0.875em] italic text-gray-400">Belum ada publikasi.</p></div>;
+  }
+
+  if (detailBook) {
+    const status = detailBook.status || 'published';
+    const detailRoles = parseRoles(detailBook.myRoles);
     return (
-      <div className="w-full text-gray-900 dark:text-gray-100 py-10 text-center">
-        <h1 className="text-[1.5em] font-bold mb-2">{heading}</h1>
-        <p className="text-[0.875em] text-gray-400 italic">Belum ada karya yang ditambahkan.</p>
-      </div>
+      <article className="view-reveal w-full py-3 text-gray-900 dark:text-gray-100">
+        <button type="button" onClick={() => setDetailId(null)} className="mb-6 inline-flex items-center gap-2 rounded font-mono text-[0.6875em] font-bold uppercase tracking-wider text-gray-500 hover:text-[#2B579A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:text-gray-400 dark:hover:text-[#6FA8DC]">← Publications</button>
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-[16rem_minmax(0,1fr)] md:items-start md:gap-10">
+          <div>
+            <div className="mx-auto flex max-w-[14rem] justify-center">
+              <BookCover book={detailBook} size="detail" priority />
+            </div>
+            {(detailBook.progress || status === 'writing' || status === 'draft') && <div className="mx-auto mt-5 max-w-[14rem]"><div className="mb-1.5 flex justify-between font-mono text-[0.5625em] uppercase tracking-wider text-gray-400"><span>Manuscript progress</span><span>{Math.max(0, Math.min(100, Number(detailBook.progress) || 0))}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"><div className="h-full bg-[#2B579A] dark:bg-[#6FA8DC]" style={{ width: `${Math.max(0, Math.min(100, Number(detailBook.progress) || 0))}%` }} /></div></div>}
+            {detailBook.overviewImage && <figure className="mx-auto mt-7 w-fit max-w-full border-t border-gray-200 pt-5 dark:border-gray-700"><p className="mb-3 font-mono text-[0.5625em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">Selected page</p><img src={bookThumb(detailBook.overviewImage, 900)} alt={`Preview ${detailBook.title}`} loading="lazy" decoding="async" className="block h-auto max-h-[25rem] max-w-full rounded-sm border border-gray-200 bg-white object-contain shadow-lg dark:border-gray-700 dark:bg-[#181818]" /><figcaption className="mt-2 font-mono text-[0.5em] uppercase tracking-[0.14em] text-gray-400">Excerpt preview</figcaption></figure>}
+          </div>
+
+          <div className="min-w-0">
+            <p className="font-mono text-[0.625em] uppercase tracking-[0.22em] text-[#2B579A] dark:text-[#6FA8DC]">Publication dossier</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2"><StatusBadge status={status} />{detailBook.category && <span className="font-mono text-[0.625em] uppercase tracking-widest text-gray-400">{detailBook.category}</span>}</div>
+            <h1 className="mt-4 max-w-2xl text-[1.875em] font-semibold leading-[1.08] tracking-tight sm:text-[2.35em]">{detailBook.title}</h1>
+            {detailBook.author && <p className="mt-2 text-[0.875em] text-gray-500 dark:text-gray-400">written by <span className="font-semibold text-gray-800 dark:text-gray-100">{detailBook.author}</span></p>}
+            {detailBook.pitch && <p className="mt-4 max-w-2xl text-[1em] leading-relaxed text-gray-600 dark:text-gray-300">{detailBook.pitch}</p>}
+
+            <dl className="mt-6 grid grid-cols-2 gap-x-5 gap-y-4 border-y border-gray-200 py-5 sm:grid-cols-3 dark:border-gray-700">
+              {[
+                ['Publisher', detailBook.publisher],
+                ['My role', detailRoles.join(' · ')],
+                ['Published', detailBook.publicationDate || detailBook.year],
+                ['Genre', detailBook.category],
+                ['Format', detailBook.format],
+                ['Language', detailBook.language],
+                ['Length', detailBook.pageCount ? `${detailBook.pageCount} pages` : ''],
+                ['Edition', detailBook.edition],
+                ['ISBN', detailBook.isbn],
+              ].filter(([, value]) => value).map(([label, value]) => <div key={label}><dt className="font-mono text-[0.5625em] uppercase tracking-widest text-gray-400">{label}</dt><dd className="mt-1 text-[0.75em] font-semibold">{value}</dd></div>)}
+            </dl>
+
+            <div className="mt-6 space-y-6">
+              <section><h2 className="font-mono text-[0.625em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">About this work</h2><p className="mt-3 max-w-2xl text-[0.875em] leading-[1.75] text-gray-600 dark:text-gray-300">{detailBook.fullDescription || detailBook.summary}</p></section>
+              {detailBook.whyWritten && <section className="border-l-2 border-[#2B579A]/30 pl-4 dark:border-[#6FA8DC]/30"><h2 className="font-mono text-[0.625em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">Why I wrote this</h2><p className="mt-2 max-w-2xl text-[0.875em] italic leading-[1.75] text-gray-600 dark:text-gray-300">{detailBook.whyWritten}</p></section>}
+            </div>
+
+            <div className="mt-7 flex flex-wrap gap-3">
+              {detailBook.actionUrl && <a href={detailBook.actionUrl} target="_blank" rel="noopener noreferrer" {...(detailBook.hintEnabled !== false ? { 'data-hint-id': `book-action-${detailBook.id}` } : {})} className="rounded-sm bg-[#2B579A] px-4 py-2.5 font-mono text-[0.6875em] font-bold uppercase tracking-wider text-white hover:bg-[#1e3f73] dark:bg-[#6FA8DC] dark:text-[#171717]">{detailBook.actionText || 'Open document'} ↗</a>}
+              {detailBook.secondaryUrl && <a href={detailBook.secondaryUrl} target="_blank" rel="noopener noreferrer" className="rounded-sm border border-gray-300 px-4 py-2.5 font-mono text-[0.6875em] font-bold uppercase tracking-wider hover:border-[#2B579A] hover:text-[#2B579A] dark:border-gray-600 dark:hover:border-[#6FA8DC] dark:hover:text-[#6FA8DC]">{detailBook.secondaryText || 'More information'} ↗</a>}
+            </div>
+          </div>
+        </div>
+      </article>
     );
   }
 
-  // Satu jenis kartu dipakai buat SEMUA posisi di tumpukan (depan maupun belakang) — biar
-  // pas urutan berubah, React cuma update posisi/ukurannya, bukan bongkar-pasang elemen dari
-  // nol. Nggak ada drag/rotate manual/touchAction di sini, jadi scroll normal gak kesita.
-  // Klik buku PALING DEPAN -> langsung buka halaman detail. Klik buku LAINNYA -> ditarik ke depan dulu.
-  const StackCard = ({ item, idx, pos }) => {
-    const isActive = pos === 0;
-    const layer = STACK_LAYERS[pos] || STACK_LAYERS[STACK_LAYERS.length - 1];
-    const width = isMobile ? (isActive ? 158 : 134) : (isActive ? 216 : 178);
-    const height = isMobile ? (isActive ? 212 : 178) : (isActive ? 288 : 238);
-    const offsetScale = isMobile ? 0.55 : 1;
-
-    return (
-      <button
-        type="button"
-        onClick={() => (isActive ? openDetail() : bringToFront(idx))}
-        {...(isActive ? { 'data-hint-id': 'book-open-active' } : {})}
-        aria-label={isActive ? `Buka ${item.title}` : `Pilih ${item.title}`}
-        aria-current={isActive ? 'true' : undefined}
-        className="absolute rounded-sm cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]"
-        style={{
-          width,
-          height,
-          left: '50%',
-          top: '50%',
-          transform: `translate(calc(-50% + ${layer.x * offsetScale}px), calc(-50% + ${layer.y * offsetScale}px)) rotate(${layer.rotate}deg)`,
-          zIndex: 100 - pos,
-          willChange: 'transform',
-          // Buku yang jadi depan: gerakannya kayak ditarik-terus-ditaro — dikasih sedikit
-          // "overshoot" (cubic-bezier melewati 1 lalu balik) biar berasa ada momen keangkat
-          // dan mendarat, bukan geser lurus kaku. Buku lainnya nyusul belakangan (delay
-          // estafet sesuai jarak posisinya) biar kesannya ikut kedorong, bukan lompat bareng.
-          transitionProperty: 'transform, width, height',
-          transitionDuration: isActive ? '700ms, 700ms, 700ms' : '560ms, 560ms, 560ms',
-          transitionTimingFunction: isActive
-            ? 'cubic-bezier(0.3, 1.4, 0.4, 1)'
-            : 'cubic-bezier(0.22, 1, 0.36, 1)',
-          transitionDelay: isActive ? '0ms' : `${Math.min(pos * 45, 140)}ms`,
-        }}
-      >
-        <div
-          className={`relative w-full h-full rounded-sm overflow-hidden border shadow-xl ${
-            isActive
-              ? 'border-[#2B579A] dark:border-[#6FA8DC] ring-2 ring-[#2B579A]/30 dark:ring-[#6FA8DC]/30'
-              : 'border-gray-300 dark:border-gray-700'
-          }`}
-        >
-          <img src={item.coverImage} alt={item.title} loading="lazy" decoding="async" className="w-full h-full object-cover" draggable={false} />
-        </div>
-        {/* Spine — sisi kanan, gelap */}
-        <div className="absolute top-1 bottom-1 -right-[5px] w-[5px] rounded-r-sm bg-black/30 dark:bg-black/50 pointer-events-none" />
-        {/* Pinggiran halaman — sisi atas, terang */}
-        <div className="absolute -top-[5px] left-1 right-1 h-[5px] rounded-t-sm bg-[#f0e6d2] pointer-events-none" />
-      </button>
-    );
+  const selectedStatus = selectedBook?.status || 'published';
+  const selectedRoles = parseRoles(selectedBook?.myRoles);
+  const selectedIndex = Math.max(0, items.findIndex((item) => item.id === selectedBook.id));
+  const selectRelativeBook = (offset) => {
+    if (items.length < 2) return;
+    const nextIndex = (selectedIndex + offset + items.length) % items.length;
+    setSelectedId(items[nextIndex].id);
   };
-
+  const autopsyNotes = [
+    { label: 'Origin', value: selectedBook.origin || selectedBook.whyWritten || selectedBook.summary, position: 'md:col-start-1 md:row-start-1 md:self-end md:text-right' },
+    { label: 'Core question', value: selectedBook.coreQuestion || selectedBook.pitch, position: 'md:col-start-3 md:row-start-1 md:self-end' },
+    { label: 'Written during', value: selectedBook.writtenDuring || selectedBook.publicationDate || selectedBook.year, position: 'md:col-start-1 md:row-start-2 md:self-start md:text-right' },
+    { label: 'Almost deleted', value: selectedBook.almostDeleted, position: 'md:col-start-3 md:row-start-2 md:self-start' },
+  ].filter((note) => note.value).slice(0, 4);
+  const featureLabel = selectedStatus === 'published' ? 'Featured publication' : selectedStatus === 'archived' ? 'From the archive' : 'Current manuscript';
   return (
-    <div className="w-full text-gray-900 dark:text-gray-100 select-text py-4">
+    <div className="view-reveal w-full py-3 text-gray-900 dark:text-gray-100">
+      <header className="border-b border-gray-200 pb-5 dark:border-gray-700">
+        <p className="font-mono text-[0.625em] uppercase tracking-[0.22em] text-[#2B579A] dark:text-[#6FA8DC]">Writing desk / {String(items.length).padStart(2, '0')} documents</p>
+        <h1 className="mt-2 text-[1.75em] font-semibold tracking-tight sm:text-[2.2em]"><InteractiveText text={heading} rules={interactiveWords} page="Book" onNavigate={onNavigate} /></h1>
+        <p className="mt-2 max-w-2xl text-[0.8125em] leading-relaxed text-gray-500 dark:text-gray-400"><InteractiveText text={subheading} rules={interactiveWords} page="Book" onNavigate={onNavigate} /></p>
+      </header>
 
-      {/* ======================= MODE RAK (tumpukan berantakan + sinopsis singkat di samping) ======================= */}
-      {viewMode === 'shelf' && (
-        <div className="view-reveal">
-          <h1 className="text-[1.5em] sm:text-[1.875em] font-bold tracking-tight text-gray-900 dark:text-white">
-            {heading}
-          </h1>
-          <p className="text-[0.875em] text-gray-500 dark:text-gray-400 mt-1 mb-8 max-w-lg">
-            {subheading}
-          </p>
+      <section className="py-8" aria-label="Book autopsy">
+        <div className="mb-7 flex flex-wrap items-center justify-between gap-3"><div className="flex flex-wrap items-center gap-2"><span className="font-mono text-[0.625em] font-bold uppercase tracking-[0.2em] text-[#2B579A] dark:text-[#6FA8DC]">Book autopsy</span><StatusBadge status={selectedStatus} /></div><div className="flex items-center gap-3"><span className="hidden font-mono text-[0.5625em] uppercase tracking-[0.16em] text-gray-400 sm:inline">{featureLabel}</span>{items.length > 1 && <div className="flex items-center overflow-hidden rounded border border-gray-200 dark:border-gray-700"><button type="button" onClick={() => selectRelativeBook(-1)} aria-label="Buku sebelumnya" className="px-2.5 py-1.5 font-mono text-xs text-gray-500 hover:bg-gray-100 hover:text-[#2B579A] dark:hover:bg-gray-800 dark:hover:text-[#6FA8DC]">←</button><span className="border-x border-gray-200 px-2.5 py-1.5 font-mono text-[0.5625em] tracking-wider text-gray-400 dark:border-gray-700">{String(selectedIndex + 1).padStart(2, '0')} / {String(items.length).padStart(2, '0')}</span><button type="button" onClick={() => selectRelativeBook(1)} aria-label="Buku berikutnya" className="px-2.5 py-1.5 font-mono text-xs text-gray-500 hover:bg-gray-100 hover:text-[#2B579A] dark:hover:bg-gray-800 dark:hover:text-[#6FA8DC]">→</button></div>}</div></div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,300px)_1fr] gap-8 lg:gap-12 items-center">
-
-            {/* KIRI: tumpukan buku berantakan — buat milih & buka buku */}
-            <div>
-              <div className="relative h-64 sm:h-72">
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-44 sm:w-56 h-6 bg-black/10 dark:bg-black/40 blur-xl rounded-full pointer-events-none" />
-
-                <button
-                  type="button"
-                  onClick={goPrev}
-                  disabled={items.length < 2}
-                  aria-label="Geser tumpukan ke kiri"
-                  className="absolute left-0 top-1/2 -translate-y-1/2 z-30 font-mono text-[1.125em] w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-[#2B579A] dark:hover:text-[#6FA8DC] hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]"
-                >
-                  ←
-                </button>
-
-                {/* Render belakang -> depan, biar yang paling depan digambar paling akhir (di atas) */}
-                {order
-                  .map((idx, pos) => ({ item: items[idx], idx, pos }))
-                  .filter(({ pos }) => pos < STACK_LAYERS.length)
-                  .slice()
-                  .reverse()
-                  .map(({ item, idx, pos }) => (
-                    <StackCard key={item.id ?? idx} item={item} idx={idx} pos={pos} />
-                  ))}
-
-                <button
-                  type="button"
-                  onClick={goNext}
-                  disabled={items.length < 2}
-                  aria-label="Geser tumpukan ke kanan"
-                  className="absolute right-0 top-1/2 -translate-y-1/2 z-30 font-mono text-[1.125em] w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-[#2B579A] dark:hover:text-[#6FA8DC] hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]"
-                >
-                  →
-                </button>
-              </div>
-
-              <p className="text-center font-mono text-[0.625em] text-gray-400 dark:text-gray-500 mt-3">
-                ← → geser tumpukan · klik buku paling depan buat baca
-              </p>
-            </div>
-
-            {/* KANAN: judul + sinopsis singkat buku paling depan (teks doang, gak ada interaksi buka di sini) */}
-            <div>
-              <span className="font-mono text-[0.6875em] text-gray-400 dark:text-gray-500 tracking-widest">
-                PALING DEPAN · {String(activeIndex + 1).padStart(2, '0')} / {String(items.length).padStart(2, '0')}
-              </span>
-              <h2 className="text-[1.25em] sm:text-[1.5em] font-bold text-gray-900 dark:text-white mt-1">
-                {activeBook.title}
-              </h2>
-              <span className="inline-block font-mono text-[0.625em] uppercase tracking-widest border border-dashed border-[#2B579A]/50 dark:border-[#6FA8DC]/50 text-[#2B579A] dark:text-[#6FA8DC] px-2 py-1 rounded -rotate-2 mt-2">
-                {activeBook.category}
-              </span>
-              <p className="text-[0.875em] text-gray-600 dark:text-gray-400 leading-relaxed mt-3 max-w-md">
-                {activeBook.summary}
-              </p>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* ======================= MODE DETAIL — buku "kebuka": foto isi di satu sisi, detail lengkap di sisi lain ======================= */}
-      {viewMode === 'detail' && activeBook && (
-        <div className="view-reveal">
-          <button
-            type="button"
-            onClick={backToShelf}
-            className="font-mono text-[0.75em] text-gray-500 dark:text-gray-400 hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors mb-6 inline-flex items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] rounded"
-          >
-            ← Kembali ke Tumpukan
+        <div className="grid grid-cols-1 gap-7 md:grid-cols-[minmax(0,1fr)_15rem_minmax(0,1fr)] md:grid-rows-2 md:gap-x-8 md:gap-y-10">
+          <div className="mx-auto w-full max-w-[15rem] md:col-start-2 md:row-span-2 md:row-start-1 md:self-center">
+          <button type="button" onClick={() => { if (coverDidSwipe.current) { coverDidSwipe.current = false; return; } setDetailId(selectedBook.id); }} onPointerDown={(event) => { coverSwipeStart.current = event.clientX; coverDidSwipe.current = false; }} onPointerUp={(event) => { if (coverSwipeStart.current === null) return; const distance = event.clientX - coverSwipeStart.current; coverSwipeStart.current = null; if (Math.abs(distance) > 42 && items.length > 1) { coverDidSwipe.current = true; selectRelativeBook(distance < 0 ? 1 : -1); } }} onPointerCancel={() => { coverSwipeStart.current = null; coverDidSwipe.current = false; }} {...(selectedBook.hintEnabled !== false ? { 'data-hint-id': 'book-open-active' } : {})} className="group relative block w-full touch-pan-y text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
+            <div className="absolute -bottom-4 left-[8%] h-6 w-[84%] rounded-full bg-black/20 blur-xl dark:bg-black/50" />
+            <div className="relative flex justify-center transition duration-300 group-hover:-translate-y-1 group-hover:rotate-[-1deg]"><BookCover book={selectedBook} size="hero" priority /></div>
           </button>
-
-          {/* "Buku kebuka" — dua sisi kayak spread buku beneran, dipisah garis lipatan/spine di tengah */}
-          <div className="relative rounded-md overflow-hidden border border-gray-300 dark:border-gray-700 shadow-2xl bg-[#f6f2e9] dark:bg-[#242018] grid grid-cols-1 sm:grid-cols-2">
-
-            {/* SISI KIRI — foto isi buku (overview) */}
-            <div className="relative h-56 sm:h-auto sm:min-h-[420px] bg-gray-100 dark:bg-black/30 overflow-hidden">
-              {activeBook.overviewImage ? (
-                <img src={activeBook.overviewImage} alt={`Isi buku ${activeBook.title}`} loading="lazy" decoding="async" className="w-full h-full object-contain sm:object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-center px-6 font-mono text-[0.75em] text-gray-400 dark:text-gray-600">
-                  belum ada foto overview buat buku ini
-                </div>
-              )}
-              {/* Bayangan lipatan buku, cuma keliatan di layar lebar (sisi kiri & kanan sebelahan) */}
-              <div className="hidden sm:block absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-black/15 to-transparent pointer-events-none" />
-            </div>
-
-            {/* SISI KANAN — detail lengkap */}
-            <div className="relative p-6 sm:p-8 md:p-10 flex flex-col justify-between">
-              <div className="hidden sm:block absolute top-0 left-0 h-full w-8 bg-gradient-to-r from-black/15 to-transparent pointer-events-none" />
-
-              <div>
-                <span className="font-mono text-[0.6875em] text-gray-400 dark:text-gray-500 tracking-widest">
-                  DOKUMEN {String(activeIndex + 1).padStart(2, '0')} / {String(items.length).padStart(2, '0')}
-                </span>
-                <h1 className="text-[1.25em] sm:text-[1.5em] md:text-[1.875em] font-bold text-gray-900 dark:text-white mt-1.5 leading-snug">
-                  {activeBook.title}
-                </h1>
-                <div className="flex flex-wrap items-center gap-2 mt-3">
-                  <span className="inline-block font-mono text-[0.625em] uppercase tracking-widest border border-dashed border-[#2B579A]/50 dark:border-[#6FA8DC]/50 text-[#2B579A] dark:text-[#6FA8DC] px-2 py-1 rounded -rotate-2">
-                    {activeBook.category}
-                  </span>
-                  {activeBook.pageCount && (
-                    <span className="font-mono text-[0.625em] text-gray-400 dark:text-gray-500">
-                      {activeBook.pageCount} halaman
-                    </span>
-                  )}
-                </div>
-
-                <div className="text-[0.875em] sm:text-[1em] text-gray-700 dark:text-gray-300 leading-relaxed mt-5 space-y-4">
-                  <p>{activeBook.fullDescription}</p>
-                </div>
-              </div>
-
-              {activeBook.actionUrl && (
-                <a
-                  href={activeBook.actionUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  {...(activeBook.hintEnabled !== false ? { 'data-hint-id': `book-action-${activeBook.id ?? activeIndex}` } : {})}
-                  className="inline-flex items-center gap-2 mt-6 w-fit font-mono text-[0.75em] bg-[#2B579A] hover:bg-[#1e3f73] dark:bg-[#6FA8DC] dark:hover:bg-[#5a95c9] text-white dark:text-[#1a1a1a] px-4 py-2 rounded-sm transition-colors"
-                >
-                  {activeBook.actionText || 'Lihat Selengkapnya'} ↗
-                </a>
-              )}
-            </div>
+          {items.length > 1 && <div className="mt-5"><div className="flex items-center justify-center gap-0.5" aria-label="Pilih buku">{items.map((book, index) => <button key={book.id} type="button" onClick={() => setSelectedId(book.id)} aria-label={`Pilih ${book.title}`} aria-pressed={index === selectedIndex} title={book.title} className="grid h-11 min-w-11 place-items-center rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]"><span aria-hidden="true" className={`h-2 rounded-full transition-all ${index === selectedIndex ? 'w-7 bg-[#2B579A] dark:bg-[#6FA8DC]' : 'w-2 bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500'}`} /></button>)}</div><p className="text-center font-mono text-[0.5em] uppercase tracking-[0.16em] text-gray-500 dark:text-gray-300">Swipe cover · {selectedIndex + 1} of {items.length}</p></div>}
           </div>
 
-          <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-800 flex flex-wrap items-center justify-between gap-3 font-mono text-[0.625em] text-gray-400 dark:text-gray-500">
-            <span>esc untuk kembali ke tumpukan</span>
-            {items.length > 1 && (
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={goPrev}
-                  className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] rounded"
-                >
-                  ← Sebelumnya
-                </button>
-                <button
-                  type="button"
-                  onClick={goNext}
-                  className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] rounded"
-                >
-                  Berikutnya →
-                </button>
-              </div>
-            )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:contents">
+            {autopsyNotes.map((note, index) => <article key={note.label} className={`relative rounded-md border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-[#202020]/70 ${note.position}`}><span aria-hidden="true" className={`absolute top-1/2 hidden h-px w-8 bg-[#2B579A]/35 md:block dark:bg-[#6FA8DC]/35 ${index % 2 === 0 ? '-right-8' : '-left-8'}`} /><p className="font-mono text-[0.5625em] font-bold uppercase tracking-[0.2em] text-[#2B579A] dark:text-[#6FA8DC]">{note.label}</p><p className="mt-2 text-[0.8125em] leading-relaxed text-gray-600 dark:text-gray-300">{note.value}</p></article>)}
           </div>
         </div>
-      )}
 
-      <style>{`
-        @keyframes viewReveal {
-          from { opacity: 0; transform: translateY(14px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .view-reveal {
-          animation: viewReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .view-reveal { animation: none; }
-        }
-      `}</style>
+        <div className="mx-auto mt-8 max-w-3xl border-t border-gray-200 pt-6 text-center dark:border-gray-700"><h2 className="text-[1.75em] font-semibold leading-tight tracking-tight sm:text-[2.25em]">{selectedBook.title}</h2>{selectedBook.author && <p className="mt-2 text-[0.8125em] text-gray-500 dark:text-gray-400">Written by <span className="font-semibold text-gray-800 dark:text-gray-100">{selectedBook.author}</span>{selectedBook.publisher ? ` · ${selectedBook.publisher}` : ''}</p>}{selectedRoles.length > 0 && <div className="mt-3 flex flex-wrap items-center justify-center gap-2"><span className="mr-1 font-mono text-[0.5625em] font-bold uppercase tracking-[0.18em] text-gray-400">My contribution</span>{selectedRoles.map((role) => <span key={role} className="rounded-full border border-[#2B579A]/30 bg-[#2B579A]/[0.04] px-2.5 py-1 font-mono text-[0.5625em] font-bold uppercase tracking-wider text-[#2B579A] dark:border-[#6FA8DC]/35 dark:bg-[#6FA8DC]/[0.06] dark:text-[#6FA8DC]">{role}</span>)}</div>}<p className="mx-auto mt-3 max-w-2xl text-[0.875em] leading-relaxed text-gray-600 dark:text-gray-300">{selectedBook.pitch || selectedBook.summary}</p><div className="mt-4 flex flex-wrap justify-center gap-x-5 gap-y-2 font-mono text-[0.625em] uppercase tracking-wider text-gray-400">{(selectedBook.publicationDate || selectedBook.year) && <span>{selectedBook.publicationDate || selectedBook.year}</span>}{(selectedBook.format || selectedBook.category) && <span>{selectedBook.format || selectedBook.category}</span>}{selectedBook.language && <span>{selectedBook.language}</span>}{selectedBook.pageCount && <span>{selectedBook.pageCount} pages</span>}{selectedBook.edition && <span>{selectedBook.edition}</span>}</div><button type="button" onClick={() => setDetailId(selectedBook.id)} className="mt-6 rounded-sm bg-[#2B579A] px-4 py-2.5 font-mono text-[0.6875em] font-bold uppercase tracking-wider text-white hover:bg-[#1e3f73] dark:bg-[#6FA8DC] dark:text-[#171717]">Open document →</button></div>
+      </section>
+
+      {startHereBook && startHereBook.id !== selectedBook.id && <aside className="mb-7 flex flex-col justify-between gap-4 rounded-lg border border-[#2B579A]/25 bg-[#2B579A]/[0.04] p-4 sm:flex-row sm:items-center dark:border-[#6FA8DC]/25 dark:bg-[#6FA8DC]/[0.05]"><div><p className="font-mono text-[0.5625em] font-bold uppercase tracking-[0.2em] text-[#2B579A] dark:text-[#6FA8DC]">New here? Start here</p><p className="mt-1 text-[0.875em] font-semibold">{startHereBook.title}</p></div><button type="button" onClick={() => { setSelectedId(startHereBook.id); setDetailId(startHereBook.id); }} className="shrink-0 font-mono text-[0.625em] font-bold uppercase tracking-wider text-[#2B579A] hover:underline dark:text-[#6FA8DC]">Open recommendation →</button></aside>}
+
+      <style>{`@keyframes viewReveal{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}.view-reveal{animation:viewReveal .32s cubic-bezier(.16,1,.3,1)}@media(prefers-reduced-motion:reduce){.view-reveal{animation:none}}`}</style>
     </div>
   );
 }

@@ -1,13 +1,17 @@
 // src/App.jsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { initialPortfolioData } from './cms/CmsData';
-import { supabase } from './lib/supabaseClient';
+import { isSupabaseConfigured, supabase } from './lib/supabaseClient';
 import { initAnalytics, trackPageView } from './lib/analytics';
-import { setPageMeta } from './lib/pageMeta';
+import { setPageMeta, setSiteIdentity } from './lib/pageMeta';
 
 // Import Komponen Halaman Publik
 import Home from './pages/Home';
-import About from './pages/About';
+import { FeaturedWorksRailPortal } from './components/FeaturedWorksCarousel';
+import LastFmFootnote from './components/LastFmFootnote';
+import VisitorIntroduction from './components/VisitorIntroduction';
+import { normalizeVisitorIntroduction } from './lib/visitorIntroductionData';
+import About, { AboutNotesPortal } from './pages/About';
 import Career from './pages/Career';
 import Book from './pages/Book';
 import Projects from './pages/Projects';
@@ -18,12 +22,13 @@ import TitleBar from './components/TitleBar';
 import Ribbon from './components/Ribbon';
 import Ruler from './components/Ruler';
 import StatusBar from './components/StatusBar';
-import CmsDashboard from './cms/CmsDashboard';
 import WelcomeToast from './components/WelcomeToast';
-import WatermarkBackground from './components/WatermarkBackground';
-import CommentTicker from './components/CommentTicker';
 import HintToggle from './components/HintToggle';
-import PelicanLoader from './components/PelicanLoader';
+import DocumentLoader from './components/DocumentLoader';
+
+// CMS tidak dibutuhkan pengunjung halaman publik. Pisahkan chunk-nya supaya membuka
+// Home/Projects tidak ikut mengunduh seluruh editor dan utilitas admin.
+const CmsDashboard = lazy(() => import('./cms/CmsDashboard'));
 
 // Menghitung total kata secara rekursif dari objek/array data apapun (dipakai untuk word count di StatusBar)
 function countWords(value) {
@@ -41,12 +46,11 @@ function countWords(value) {
   return 0;
 }
 
-// GANTI ke email akun admin yang lo bikin di Supabase Auth (Dashboard → Authentication →
-// Users → Add user). Password-nya SUDAH GAK ADA lagi di file ini — proteksinya sekarang
-// beneran divalidasi di server oleh Supabase Auth + Row Level Security di tabel
-// `portfolio`, bukan cuma dicocokin string di JS kayak sebelumnya (yang gampang dibaca
-// siapa aja dari bundle JS via DevTools).
-const ADMIN_EMAIL = 'haikalhafidz365@gmail.com';
+// Email login admin disimpan di environment variable supaya identitas akun CMS tidak
+// tercecer di source file. Ini bukan rahasia absolut (semua VITE_* ikut masuk bundle),
+// tetapi memudahkan rotasi akun tanpa mengedit App.jsx. Otorisasi sebenarnya tetap
+// dilakukan oleh Supabase Auth + RLS berbasis user UUID di database.
+const ADMIN_EMAIL = String(import.meta.env.VITE_ADMIN_EMAIL || '').trim().toLowerCase();
 
 // Skala dasar tampilan dokumen KHUSUS DESKTOP — ini "zoom out by system" yang diminta,
 // TERPISAH dari slider zoom manual di StatusBar/Ruler (itu tetep nunjuk 50-200%, defaultnya 100%).
@@ -96,27 +100,206 @@ const DEFAULT_GENERAL = {
     message: 'Terima kasih udah mampir ke portofolio saya. Semoga betah!',
     delaySeconds: 2,
   },
+  soundEffects: true,
 };
 const normalizeGeneral = (raw) => ({
+  soundEffects: raw?.soundEffects !== false,
   welcomeNotification: {
     ...DEFAULT_GENERAL.welcomeNotification,
     ...(raw?.welcomeNotification || {}),
   },
 });
 
-// Jaring pengaman yang sama buat `quotes` — dulu field ini gak ada sama sekali di
-// initialPortfolioData, jadi kalau baris Supabase belum/gak punya field `quotes`,
-// portfolioData.quotes bakal `undefined` (bukan array kosong) begitu dilempar ke
-// CommentTicker. Sekarang initialPortfolioData udah dikasih `quotes: []` juga (lihat
-// CmsData.js), tapi normalisasi di sini WAJIB tetep dipasang buat baris data LAMA di
-// Supabase yang udah kesave dari sebelum field ini ditambahin.
-const normalizeQuotes = (raw) => (Array.isArray(raw) ? raw : []);
+const EMPTY_FEATURED_WORK = { type: '', itemId: '', sectionId: '', teaser: '' };
+const DEFAULT_DYNAMIC_STATEMENT = {
+  enabled: true,
+  prefix: 'Gue',
+  highlightedWord: 'mengubah',
+  connector: 'menjadi',
+  size: 'large',
+  speed: 'normal',
+  pauseDuration: 2700,
+  pairs: [
+    { source: 'pengamatan', result: 'cerita' },
+    { source: 'keruwetan', result: 'esai' },
+    { source: 'gagasan mentah', result: 'naskah' },
+    { source: 'momen biasa', result: 'cerita visual' },
+  ],
+};
+const DEFAULT_HOME_EXPERIENCE = {
+  enabled: true,
+  cursorHint: 'Click to interrupt',
+  choicePrompt: 'Mau main atau membawa pulang sesuatu?',
+  signatureRole: 'Writer & Editor',
+  dialogue: [
+    { prompt: 'Eh—lo sadar gue ada di sini?', yes: 'Sadar.', no: 'Baru sadar.' },
+    { prompt: 'Bagus. Gue menyimpan dua jalan kecil di dokumen ini.', yes: 'Tunjukin.', no: 'Tetap tunjukin.' },
+  ],
+};
+const DEFAULT_ZINE = { enabled: true, menuLabel: 'Wassup?', title: 'Write one. Receive one.', writePrompt: 'Tulis sesuatu yang layak ditemukan orang lain…', submitSuccess: 'Tulisan tersimpan. Publikasi dilakukan setelah melewati kurasi.', maxLength: 1200, entries: [] };
+const DEFAULT_MINI_GAME = {
+  enabled: true,
+  menuLabel: 'Mini Game',
+  libraryTitle: 'Choose a desk.',
+  libraryDescription: 'Pilih satu meja kerja. Setiap permainan menguji bagian berbeda dari proses mengubah gagasan mentah menjadi naskah.',
+  gameName: 'The Red Pen',
+  gameCategory: 'Editorial',
+  gameCardDescription: 'Temukan bagian yang janggal, ambigu, dan tidak efektif sebelum draft dikirim.',
+  showInLibrary: true,
+  illustration: '',
+  title: 'Inspect the unfinished draft.',
+  objective: 'Lima draft belum selesai menunggu meja editor. Temukan bagian yang janggal, bertele-tele, ambigu, atau tidak efektif sebelum waktunya habis.',
+  rules: { click: 'Klik atau tap kata/frasa bermasalah.', timer: 'Tiap draft punya waktu 60 detik.', wrong: 'Pilihan salah menurunkan akurasi dan skor.', hint: 'Satu hint tersedia untuk seluruh sesi.', review: 'Seusai tiap draft, baca alasan editorialnya—waktu berhenti saat review.' },
+  startButtonLabel: 'Mulai Mengedit',
+  secondsPerDraft: 60,
+  draftsPerSession: 5,
+  scoreSettings: { correctPoints: 100, wrongPenalty: 25, completionBonus: 100, maxTimeBonus: 100, hintPenalty: 75 },
+  gradeTitles: [{ min: 90, label: 'Senior Red Pen' }, { min: 75, label: 'Sharp-eyed Editor' }, { min: 55, label: 'Promising Proofreader' }, { min: 0, label: 'Draft Survivor' }],
+  resultEyebrow: 'Final editorial report',
+  replayLabel: 'Main lagi',
+  projectsCtaLabel: 'Lihat tulisan Haikal',
+  contactCtaLabel: 'Hubungi Haikal',
+  gameSlots: [],
+  drafts: initialPortfolioData.miniGame?.drafts || [],
+};
+const normalizeFeaturedWorks = (raw) =>
+  (Array.isArray(raw) ? raw : []).slice(0, 5).map((item) => ({
+    ...EMPTY_FEATURED_WORK,
+    ...(item || {}),
+  }));
+
+const normalizeHome = (raw) => ({
+  ...(raw || {}),
+  dynamicStatement: {
+    ...DEFAULT_DYNAMIC_STATEMENT,
+    ...(raw?.dynamicStatement || {}),
+    pairs: Array.isArray(raw?.dynamicStatement?.pairs)
+      ? raw.dynamicStatement.pairs.slice(0, 8)
+      : DEFAULT_DYNAMIC_STATEMENT.pairs,
+  },
+  featuredWorksHeading: raw?.featuredWorksHeading ?? 'Pilihan Karya',
+  featuredWorks: normalizeFeaturedWorks(raw?.featuredWorks),
+  experience: {
+    ...DEFAULT_HOME_EXPERIENCE,
+    ...(raw?.experience || {}),
+    dialogue: Array.isArray(raw?.experience?.dialogue) && raw.experience.dialogue.length ? raw.experience.dialogue : DEFAULT_HOME_EXPERIENCE.dialogue,
+  },
+  visitorIntroduction: normalizeVisitorIntroduction(raw?.visitorIntroduction),
+});
+
+const normalizeZine = (raw) => ({ ...DEFAULT_ZINE, ...(raw || {}), entries: Array.isArray(raw?.entries) ? raw.entries : [] });
+const normalizeMiniGame = (raw) => ({
+  ...DEFAULT_MINI_GAME,
+  ...(raw || {}),
+  rules: { ...DEFAULT_MINI_GAME.rules, ...(raw?.rules || {}) },
+  scoreSettings: { ...DEFAULT_MINI_GAME.scoreSettings, ...(raw?.scoreSettings || {}) },
+  gradeTitles: Array.isArray(raw?.gradeTitles) && raw.gradeTitles.length ? raw.gradeTitles : DEFAULT_MINI_GAME.gradeTitles,
+  gameSlots: Array.isArray(raw?.gameSlots) ? raw.gameSlots.map((slot) => ({ showInLibrary: false, illustration: '', ...slot })) : [],
+  drafts: Array.isArray(raw?.drafts)
+    ? raw.drafts.map((draft) => ({ ...draft, issues: Array.isArray(draft?.issues) ? draft.issues : [] }))
+    : DEFAULT_MINI_GAME.drafts,
+});
+
+const DEFAULT_AUTHOR_PROPERTIES = {
+  enabled: true,
+  buttonLabel: 'View author properties…',
+  panelTitle: 'Author Properties',
+  lastRevised: '',
+  items: [
+    { id: 'author-status', label: 'Status', value: 'Mid-river / Still becoming', url: '' },
+    { id: 'author-based-in', label: 'Based in', value: 'Batam, Indonesia', url: '' },
+    { id: 'author-writing', label: 'Currently writing', value: '', url: '' },
+    { id: 'author-reading', label: 'Currently reading', value: '', url: '' },
+    { id: 'author-soundtrack', label: 'Current soundtrack', value: '', url: '' },
+    { id: 'author-fixation', label: 'Current fixation', value: '', url: '' },
+    { id: 'author-conditions', label: 'Works best when', value: '', url: '' },
+  ],
+};
+
+const DEFAULT_LISTENING_FOOTNOTE = {
+  enabled: true,
+  username: '',
+  nowPlayingLabel: 'Playing while editing',
+  lastPlayedLabel: 'Last heard',
+  fallbackLabel: 'On repeat lately',
+  fallbackTitle: '',
+  fallbackArtist: '',
+  fallbackImage: '',
+  fallbackUrl: '',
+};
+
+const normalizeAbout = (raw) => ({
+  ...(raw || {}),
+  authorProperties: {
+    ...DEFAULT_AUTHOR_PROPERTIES,
+    ...(raw?.authorProperties || {}),
+    items: Array.isArray(raw?.authorProperties?.items)
+      ? raw.authorProperties.items
+      : DEFAULT_AUTHOR_PROPERTIES.items,
+  },
+  listeningFootnote: {
+    ...DEFAULT_LISTENING_FOOTNOTE,
+    ...(raw?.listeningFootnote || {}),
+  },
+});
 
 export default function App() {
+  const desktopStageRef = useRef(null);
+  const desktopPageRef = useRef(null);
+  const [desktopRailStyle, setDesktopRailStyle] = useState(null);
+  const [desktopLeftRailStyle, setDesktopLeftRailStyle] = useState(null);
+  const [railPrintedTab, setRailPrintedTab] = useState(null);
+  const railPrintTimerRef = useRef(null);
   const [portfolioData, setPortfolioData] = useState(initialPortfolioData);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [saveError, setSaveError] = useState(null);
+
+  const audioContextRef = useRef(null);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    try { return localStorage.getItem('portfolio_sound') !== 'off'; } catch { return true; }
+  });
+
+  const getAudioContext = useCallback(() => {
+    if (!soundEnabled) return null;
+    try {
+      if (!audioContextRef.current) audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioContextRef.current.state === 'suspended') audioContextRef.current.resume();
+      return audioContextRef.current;
+    } catch { return null; }
+  }, [soundEnabled]);
+
+  const playMechanicalSound = useCallback(() => {
+    const context = getAudioContext();
+    if (!context) return;
+    const play = () => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = 'square';
+      oscillator.frequency.setValueAtTime(145, context.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(85, context.currentTime + 0.035);
+      gain.gain.setValueAtTime(0.018, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.045);
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start(); oscillator.stop(context.currentTime + 0.05);
+    };
+    if (context.state === 'suspended') context.resume().then(play).catch(() => {});
+    else play();
+  }, [getAudioContext]);
+
+  useEffect(() => {
+    try { localStorage.setItem('portfolio_sound', soundEnabled ? 'on' : 'off'); } catch { /* optional */ }
+  }, [soundEnabled]);
+
+  useEffect(() => {
+    if (!soundEnabled || portfolioData.general?.soundEffects === false) return undefined;
+    const onPointerDown = (event) => {
+      if (event.target.closest('[data-printer-action="true"]')) return;
+      if (event.target.closest('button, a, [role="button"], select, input[type="checkbox"]')) playMechanicalSound();
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [soundEnabled, portfolioData.general?.soundEffects, playMechanicalSound]);
 
   // Dua syarat yang HARUS dua-duanya kepenuhin sebelum layar loading (PelicanLoader)
   // ditutup: (1) data dari Supabase udah kelar diambil, (2) pesan di splash-nya
@@ -138,6 +321,12 @@ export default function App() {
     let ignore = false;
 
     async function loadPortfolioData() {
+      if (!isSupabaseConfigured) {
+        setLoadError('Konten live belum terhubung. Menampilkan salinan lokal.');
+        setPortfolioData(initialPortfolioData);
+        setIsDataReady(true);
+        return;
+      }
       try {
         const { data, error } = await supabase
           .from('portfolio')
@@ -157,8 +346,11 @@ export default function App() {
         } else if (data?.data && Object.keys(data.data).length > 0) {
           setPortfolioData({
             ...data.data,
+            home: normalizeHome(data.data.home),
+            about: normalizeAbout(data.data.about),
+            zine: normalizeZine(data.data.zine),
+            miniGame: normalizeMiniGame(data.data.miniGame),
             general: normalizeGeneral(data.data.general),
-            quotes: normalizeQuotes(data.data.quotes),
           });
         } else {
           // Baris ada tapi masih kosong (baru setup) → pakai default template.
@@ -210,7 +402,7 @@ export default function App() {
   // Baca deep-link dari URL pas app pertama kali dibuka (mis. ?tab=Projects&article=art-1),
   // dipakai buat fitur Share artikel — biar link yang di-share beneran ngarah ke artikel
   // yang dimaksud, bukan cuma mendarat di Home. `initialArticleId` diteruskan ke Projects.jsx.
-  const VALID_TABS = ['Home', 'About', 'Career', 'Book', 'Projects', 'Contact'];
+  const VALID_TABS = ['Home', 'About', 'Projects', 'Career', 'Book', 'Contact'];
   const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const urlTab = urlParams?.get('tab');
   const initialArticleId = urlParams?.get('article') || null;
@@ -218,6 +410,55 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(
     VALID_TABS.includes(urlTab) ? urlTab : 'Home'
   );
+  const openPrintedTab = useCallback((tab) => {
+    if (railPrintTimerRef.current) window.clearTimeout(railPrintTimerRef.current);
+    setRailPrintedTab(tab);
+    setActiveTab(tab);
+    railPrintTimerRef.current = window.setTimeout(() => {
+      setRailPrintedTab(null);
+      railPrintTimerRef.current = null;
+    }, 680);
+  }, []);
+
+  useEffect(() => () => {
+    if (railPrintTimerRef.current) window.clearTimeout(railPrintTimerRef.current);
+  }, []);
+
+  const [workNavigation, setWorkNavigation] = useState(null);
+
+  // Satukan pilihan carousel dengan data karya aslinya. Home cuma menyimpan pilihan
+  // item + teaser; judul, gambar, dan jenis output selalu mengikuti sumbernya.
+  const featuredWorks = useMemo(() => normalizeFeaturedWorks(portfolioData.home?.featuredWorks)
+    .map((entry) => {
+      let source = null;
+      if (entry.type === 'book') {
+        source = portfolioData.books?.items?.find((item) => item.id === entry.itemId);
+      } else if (entry.type === 'article') {
+        source = portfolioData.projects?.articles?.find((item) => item.id === entry.itemId);
+      } else if (entry.type === 'directing') {
+        source = portfolioData.projects?.directing?.items?.find((item) => item.id === entry.itemId);
+      } else if (entry.type === 'poster') {
+        source = portfolioData.projects?.poster?.items?.find((item) => item.id === entry.itemId);
+      } else if (entry.type === 'custom') {
+        const section = portfolioData.projects?.customSections?.find((item) => item.id === entry.sectionId);
+        source = section?.items?.find((item) => item.id === entry.itemId);
+      }
+
+      if (!source) return null;
+      return {
+        ...entry,
+        title: source.title,
+        image: entry.type === 'book' ? source.coverImage : (entry.type === 'article' ? source.image : entry.type === 'directing' ? source.posterImage : source.imageUrl),
+        typeLabel: source.category || (entry.type === 'book' ? 'Book' : entry.type === 'article' ? 'Article' : entry.type === 'directing' ? 'Directing' : entry.type === 'poster' ? 'Poster' : 'Project'),
+        teaser: entry.teaser || source.summary || source.snippet || source.premise || source.description || '',
+      };
+    })
+    .filter(Boolean), [portfolioData]);
+
+  const openFeaturedWork = (work) => {
+    setWorkNavigation({ ...work, requestKey: Date.now() });
+    setActiveTab(work.type === 'book' ? 'Book' : 'Projects');
+  };
 
   // Begitu tab/article dari deep-link kepake buat nentuin tampilan awal, langsung bersihin
   // URL-nya balik ke root (tanpa reload) pake history.replaceState. Ini SENGAJA dilakukan
@@ -230,7 +471,7 @@ export default function App() {
     if (urlTab || initialArticleId) {
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, []);
+  }, [initialArticleId, urlTab]);
 
   // Nyalain Google Analytics (GA4) sekali pas app pertama kali kebuka — otomatis gak
   // ngapa-ngapain kalau .env belum diisi VITE_GA_MEASUREMENT_ID (lihat src/lib/analytics.js).
@@ -250,22 +491,31 @@ export default function App() {
   // localStorage), jadi di sini kita tinggal DENGERIN status-nya, gak perlu ngatur
   // penyimpanannya manual lagi.
   const [isAdminAuthed, setIsAdminAuthed] = useState(false);
+  const verifyAdminSession = useCallback(async (session) => {
+    if (!session) return false;
+    const { data, error } = await supabase.rpc('is_portfolio_admin');
+    return !error && data === true;
+  }, []);
   useEffect(() => {
     let ignore = false;
 
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!ignore) setIsAdminAuthed(!!session);
+      verifyAdminSession(session).then((isAdmin) => {
+        if (!ignore) setIsAdminAuthed(isAdmin);
+      });
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAdminAuthed(!!session);
+      verifyAdminSession(session).then((isAdmin) => {
+        if (!ignore) setIsAdminAuthed(isAdmin);
+      });
     });
 
     return () => {
       ignore = true;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [verifyAdminSession]);
 
   // Mode "Full Screen" — dipanggil dari tombol di TitleBar. Pakai Fullscreen API bawaan
   // browser (bikin seluruh tab expand nutupin address bar dkk), BUKAN cuma gede-gedein
@@ -301,9 +551,9 @@ export default function App() {
     }
   };
 
-  // Mode "Hint" — toggle dari tombol HintToggle di pojok kiri atas. Pas true, semua
-  // elemen `data-hint-id` di tab yang lagi kebuka ikutan blink (lihat class
-  // `.hint-mode-active` di CSS global bawah). SENGAJA gak ada auto-off pas ganti tab
+  // Mode "Hint" — toggle dari tombol HintToggle. Pas true, seluruh kontrol interaktif
+  // yang sedang tampil ikut disorot otomatis; `data-hint-id` tetap dipakai untuk area
+  // interaktif non-standar seperti permukaan drag. SENGAJA gak ada auto-off pas ganti tab
   // (activeTab) — biar visitor bisa nyalain hint sekali terus keliling semua tab
   // sambil hint-nya tetep nyala, sampe dia matiin manual lewat tombolnya lagi.
   const [hintActive, setHintActive] = useState(false);
@@ -325,11 +575,14 @@ export default function App() {
   // Admin Mode karena lagi di CMS, bukan halaman publik yang mau di-share orang.
   useEffect(() => {
     if (isAdminMode) return;
+    setSiteIdentity({
+      name: portfolioData.home?.name,
+      role: portfolioData.home?.role,
+    });
     const tabMeta = {
       Home: {
-        title: portfolioData.home?.name,
         description: portfolioData.home?.bio,
-        image: portfolioData.home?.photoUrl,
+        image: featuredWorks[0]?.image,
       },
       About: {
         title: 'About',
@@ -353,7 +606,7 @@ export default function App() {
       },
     };
     setPageMeta(tabMeta[activeTab] || {});
-  }, [activeTab, portfolioData, isAdminMode]);
+  }, [activeTab, portfolioData, isAdminMode, featuredWorks]);
 
 
   // Deteksi layar sempit (HP) SECARA OTOMATIS lewat matchMedia — bukan toggle manual.
@@ -384,6 +637,7 @@ export default function App() {
   // bawaan browser gak bisa di-mask jadi titik/pagar, makanya dipindah ke input sendiri).
   // Kalau mau KELUAR (Exit Admin), langsung logout tanpa password.
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showSatpamModal, setShowSatpamModal] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordWrong, setPasswordWrong] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -395,7 +649,11 @@ export default function App() {
     }
     if (isAdminAuthed) {
       setIsAdminModeRaw(true);
-      alert('ada yang bisa dibanting di sini?');
+      setShowSatpamModal(true);
+      return;
+    }
+    if (!ADMIN_EMAIL) {
+      setSaveError('Email admin belum dikonfigurasi. Tambahkan VITE_ADMIN_EMAIL ke file .env lalu restart npm run dev.');
       return;
     }
     setPasswordInput('');
@@ -409,20 +667,23 @@ export default function App() {
     // Login beneran ke Supabase Auth — server yang validasi password-nya, bukan JS
     // di browser lagi. `data.data.session` yang dihasilkan ini yang nantinya dipake
     // sama Row Level Security di tabel `portfolio` buat ngizinin/nolak UPDATE.
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: ADMIN_EMAIL,
       password: passwordInput,
     });
+
+    const isAdmin = !error && await verifyAdminSession(data?.session);
     setIsSigningIn(false);
 
-    if (!error) {
-      // isAdminAuthed ke-update otomatis lewat listener onAuthStateChange di atas.
+    if (isAdmin) {
+      setIsAdminAuthed(true);
       setIsAdminModeRaw(true);
       setShowPasswordModal(false);
       setPasswordInput('');
-      alert('ada yang bisa dibanting di sini?');
+      setShowSatpamModal(true);
     } else {
-      console.error('Login admin gagal:', error.message);
+      if (!error) await supabase.auth.signOut();
+      console.error('Login admin gagal:', error?.message || 'Akun ini tidak terdaftar sebagai admin portfolio.');
       setPasswordWrong(true);
       setPasswordInput('');
     }
@@ -451,37 +712,134 @@ export default function App() {
   const [zoomLevel, setZoomLevel] = useState(100);
   const [viewMode, setViewMode] = useState('web');
 
+  useLayoutEffect(() => {
+    // Area kanan dipakai carousel Home, notes About, dan Document History Career.
+    if (isMobileLayout || !['Home', 'About', 'Career'].includes(activeTab)) {
+      setDesktopRailStyle(null);
+      return undefined;
+    }
+
+    const measureRail = () => {
+      const stage = desktopStageRef.current;
+      const page = desktopPageRef.current;
+      if (!stage || !page) return;
+      const pageRect = page.getBoundingClientRect();
+      const gap = 16;
+      const rightMargin = 16;
+      const left = Math.ceil(pageRect.right + window.scrollX + gap);
+      const width = Math.floor(window.innerWidth - pageRect.right - gap - rightMargin);
+      setDesktopRailStyle(() => {
+        if (width < 96) return null;
+        // getBoundingClientRect() memakai koordinat viewport. Tambahkan scrollY
+        // agar rail dipaku ke koordinat dokumen dan tidak mengikuti pengguna.
+        const top = Math.ceil(pageRect.top + window.scrollY + 16);
+        const maxHeight = Math.max(180, Math.floor(window.innerHeight - top - 48));
+        return { left, width, top, maxHeight };
+      });
+    };
+
+    measureRail();
+    const observer = new ResizeObserver(measureRail);
+    if (desktopStageRef.current) observer.observe(desktopStageRef.current);
+    if (desktopPageRef.current) observer.observe(desktopPageRef.current);
+    window.addEventListener('resize', measureRail);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measureRail);
+    };
+  }, [activeTab, isMobileLayout, viewMode, zoomLevel, isLoading]);
+
+  useLayoutEffect(() => {
+    if (isMobileLayout || !['Home', 'About'].includes(activeTab)) {
+      setDesktopLeftRailStyle(null);
+      return undefined;
+    }
+    const measureLeftRail = () => {
+      const page = desktopPageRef.current;
+      if (!page) return;
+      const pageRect = page.getBoundingClientRect();
+      const gap = 18;
+      const outerMargin = 18;
+      const width = Math.floor(pageRect.left - gap - outerMargin);
+      if (width < 150) {
+        setDesktopLeftRailStyle(null);
+        return;
+      }
+      setDesktopLeftRailStyle({
+        left: outerMargin,
+        width: Math.min(width, 280),
+        top: Math.ceil(pageRect.top + window.scrollY + 28),
+        fontFamily,
+        fontSize: `${fontSize}pt`,
+      });
+    };
+    measureLeftRail();
+    const observer = new ResizeObserver(measureLeftRail);
+    if (desktopPageRef.current) observer.observe(desktopPageRef.current);
+    window.addEventListener('resize', measureLeftRail);
+    return () => { observer.disconnect(); window.removeEventListener('resize', measureLeftRail); };
+  }, [activeTab, fontFamily, fontSize, isLoading, isMobileLayout, viewMode, zoomLevel]);
+
   // Data & word count dinamis sesuai tab yang lagi aktif
-  const activeTabDataMap = {
-    Home: portfolioData.home,
-    About: portfolioData.about,
-    Career: portfolioData.career,
-    Book: portfolioData.books,
-    Projects: portfolioData.projects,
-    Contact: portfolioData.contact,
-  };
-  const currentWordCount = countWords(activeTabDataMap[activeTab]);
+  const currentWordCount = useMemo(
+    () => countWords({
+      Home: portfolioData.home,
+      About: portfolioData.about,
+      Career: portfolioData.career,
+      Book: portfolioData.books,
+      Projects: portfolioData.projects,
+      Contact: portfolioData.contact,
+    }[activeTab]),
+    [activeTab, portfolioData]
+  );
 
   // Sementara data masih di-fetch dari Supabase, tampilin loading simpel
   // biar gak kelihatan "flash" dari data default ke data asli.
   if (isLoading) {
-    return <PelicanLoader onFinished={() => setIsSplashDone(true)} />;
+    return <DocumentLoader onFinished={() => setIsSplashDone(true)} />;
   }
 
   const documentBody = (
     <div className={`relative z-10 w-full h-full ${isBold ? 'font-bold' : ''} ${isItalic ? 'italic' : ''} ${isUnderline ? 'underline' : ''}`}>
-      {activeTab === 'Home' && <Home data={portfolioData.home} />}
-      {activeTab === 'About' && <About data={portfolioData.about} />}
-      {activeTab === 'Career' && <Career data={portfolioData.career} />}
-      {activeTab === 'Book' && <Book data={portfolioData.books} />}
-      {activeTab === 'Projects' && <Projects data={portfolioData.projects} initialArticleId={initialArticleId} />}
-      {activeTab === 'Contact' && <Contact data={portfolioData.contact} />}
+      {activeTab === 'Home' && (
+        <Home
+          data={portfolioData.home}
+          zineData={normalizeZine(portfolioData.zine)}
+          miniGameData={normalizeMiniGame(portfolioData.miniGame)}
+          featuredWorks={featuredWorks}
+          onOpenWork={openFeaturedWork}
+          interactiveWords={portfolioData.interactiveWords}
+          onNavigate={setActiveTab}
+        />
+      )}
+      {activeTab === 'About' && <About data={portfolioData.about} interactiveWords={portfolioData.interactiveWords} onNavigate={setActiveTab} />}
+      {activeTab === 'Career' && <Career data={portfolioData.career} interactiveWords={portfolioData.interactiveWords} onNavigate={setActiveTab} railStyle={!isAdminMode && !isMobileLayout ? desktopRailStyle : null} darkMode={darkMode} />}
+      {activeTab === 'Book' && (
+        <Book
+          data={portfolioData.books}
+          interactiveWords={portfolioData.interactiveWords}
+          onNavigate={setActiveTab}
+          initialBookId={workNavigation?.type === 'book' ? workNavigation.itemId : null}
+          navigationRequestKey={workNavigation?.requestKey}
+        />
+      )}
+      {activeTab === 'Projects' && (
+        <Projects
+          data={portfolioData.projects}
+          interactiveWords={portfolioData.interactiveWords}
+          onNavigate={setActiveTab}
+          initialArticleId={initialArticleId}
+          initialWorkTarget={workNavigation?.type !== 'book' ? workNavigation : null}
+          navigationRequestKey={workNavigation?.requestKey}
+        />
+      )}
+      {activeTab === 'Contact' && <Contact data={portfolioData.contact} interactiveWords={portfolioData.interactiveWords} onNavigate={setActiveTab} />}
     </div>
   );
 
   return (
     <div className={darkMode ? 'dark' : ''}>
-      <div className={`print:hidden min-h-screen bg-[#e6e6e6] dark:bg-[#181818] flex flex-col justify-between selection:bg-blue-500 selection:text-white ${hintActive ? 'hint-mode-active' : ''}`}>
+      <div className={`min-h-screen bg-[#e6e6e6] dark:bg-[#181818] flex flex-col justify-between selection:bg-blue-500 selection:text-white ${hintActive ? 'hint-mode-active' : ''}`}>
 
         {/* Pesan error kalau gagal konek/simpen ke Supabase */}
         {(loadError || saveError) && (
@@ -510,7 +868,7 @@ export default function App() {
                 className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-[#2d2d2d] border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:border-[#2b579a] disabled:opacity-60"
               />
               {passwordWrong && (
-                <p className="text-xs text-red-500 font-medium">Password salah, mang.</p>
+                <p className="text-xs text-red-500 font-medium">Login gagal. Periksa akun admin atau password.</p>
               )}
               <div className="flex justify-end gap-2 pt-1">
                 <button
@@ -533,6 +891,15 @@ export default function App() {
           </div>
         )}
 
+        {showSatpamModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 px-4" role="dialog" aria-modal="true" aria-labelledby="satpam-title">
+            <div className="w-full max-w-sm overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#202020] shadow-2xl">
+              <div className="bg-[#2B579A] px-5 py-3 text-white"><h2 id="satpam-title" className="font-mono text-sm font-bold tracking-wider">SAYA SATPAM!</h2></div>
+              <div className="p-5"><p className="text-sm text-gray-700 dark:text-gray-200">ada yang bisa dibanting di sini?</p><div className="mt-5 flex justify-end"><button type="button" autoFocus onClick={() => setShowSatpamModal(false)} className="rounded-md bg-[#2B579A] px-4 py-2 text-xs font-bold text-white hover:bg-[#234a84]">Siap, Pak</button></div></div>
+            </div>
+          </div>
+        )}
+
         {/* 1. Baris Judul Paling Atas — otomatis nyederhanain diri di layar sempit lewat class Tailwind di dalamnya */}
         <TitleBar 
           isAdminMode={isAdminMode}
@@ -541,17 +908,11 @@ export default function App() {
           setDarkMode={setDarkMode}
           isFullscreen={isFullscreen}
           onToggleFullscreen={toggleFullscreen}
-          onSave={() => alert('Perubahan disimpan!')}
+          onSave={() => document.getElementById('cms-admin-form')?.requestSubmit()}
           activeTab={activeTab}
+          soundEnabled={soundEnabled}
+          onToggleSound={() => setSoundEnabled((value) => !value)}
         />
-
-        {/* Balon kutipan berjalan — nempel ke tepi kanan VIEWPORT (position: fixed), SENGAJA
-            dipasang di sini (di luar div kertas yang punya transform: scale saat zoom),
-            biar dia gak ikut ke-scale dan ukurannya tetep konsisten. Otomatis disembunyiin
-            di HP (gak ada ruang kosong buat itu) & pas Admin Mode kebuka. */}
-        {!isMobileLayout && !isAdminMode && (
-          <CommentTicker quotes={portfolioData.quotes} />
-        )}
 
         {/* Tombol "Hint" — nempel di pojok KIRI ATAS, di luar kertas A4. Diklik = toggle
             mode hint on/off, yang bikin semua elemen `data-hint-id` di tab yang lagi
@@ -559,12 +920,12 @@ export default function App() {
             GuidanceNote lama (kotak teks statis per-tab). Sama kayak sebelumnya:
             disembunyiin di HP & pas Admin Mode, dipasang di luar div kertas yang
             punya transform: scale biar posisinya gak ikut ke-scale pas zoom. */}
-        {!isMobileLayout && !isAdminMode && (
+        {!isAdminMode && (
           <HintToggle active={hintActive} onToggle={() => setHintActive((v) => !v)} />
         )}
 
-        {/* Notifikasi welcome — beda dari CommentTicker di atas, ini SENGAJA tetep muncul
-            di HP juga (posisinya ngikutin isMobileLayout di dalam komponennya sendiri). */}
+        {/* Notifikasi welcome tetap muncul di HP juga; posisinya mengikuti
+            isMobileLayout di dalam komponennya sendiri. */}
         {!isAdminMode && (
           <WelcomeToast
             settings={portfolioData.general?.welcomeNotification}
@@ -575,11 +936,12 @@ export default function App() {
         {/* 2. Konten Utama: Admin CMS atau Lembar Dokumen */}
         {isAdminMode ? (
           <div className="p-4 sm:p-6 max-w-4xl mx-auto w-full bg-white dark:bg-[#202020] my-4 sm:my-6 rounded shadow-lg">
-            <CmsDashboard 
-              data={portfolioData} 
-              onSave={handleCmsSave} 
-              onClose={exitAdminMode} 
-            />
+            <Suspense fallback={<div className="p-10 text-center font-mono text-xs uppercase tracking-widest text-gray-400">Membuka CMS…</div>}>
+              <CmsDashboard 
+                data={portfolioData} 
+                onSave={handleCmsSave} 
+              />
+            </Suspense>
           </div>
         ) : (
           <div className="flex-1 flex flex-col items-center">
@@ -599,7 +961,6 @@ export default function App() {
                 setIsItalic={setIsItalic}
                 isUnderline={isUnderline}
                 setIsUnderline={setIsUnderline}
-                isMobileLayout={isMobileLayout}
               />
             </div>
 
@@ -622,36 +983,81 @@ export default function App() {
                 // Ini yang paling nentuin — versi lama maksa lebar/skala dokumen dekstop
                 // ke layar kecil, itu penyebab utama tampilannya berantakan pas dibuka di HP.
                 <div
-                  className="relative w-full px-4 py-4 text-gray-900 dark:text-gray-100 bg-white dark:bg-[#202020]"
+                  className="portfolio-public relative w-full px-4 py-4 text-gray-900 dark:text-gray-100 bg-white dark:bg-[#202020]"
                   style={{
                     fontFamily,
                     fontSize: `${fontSize}pt`,
                   }}
                 >
-                  {activeTab === 'Home' && <WatermarkBackground odds={portfolioData.odds} />}
                   {documentBody}
                 </div>
               ) : (
-                <div 
-                  className={`relative transition-all duration-300 text-gray-900 dark:text-gray-100 ${
-                    viewMode === 'print' 
-                      ? 'word-page' 
-                      : 'w-full max-w-4xl bg-white dark:bg-[#202020] p-8 min-h-[500px] rounded shadow-xl border border-gray-300 dark:border-gray-700'
-                  }`}
-                  style={{ 
-                    fontFamily: fontFamily, 
-                    fontSize: `${fontSize}pt`,
-                    transform: `scale(${(zoomLevel / 100) * BASE_VIEW_SCALE})`,
-                    transformOrigin: 'top center'
-                  }}
-                >
-                  {activeTab === 'Home' && <WatermarkBackground odds={portfolioData.odds} />}
-                  {documentBody}
+                <div ref={desktopStageRef} className="relative w-full flex justify-center">
+                  <div 
+                    ref={desktopPageRef}
+                    className={`portfolio-public relative transition-all duration-300 text-gray-900 dark:text-gray-100 ${railPrintedTab === activeTab ? 'rail-page-print-in' : ''} ${
+                      viewMode === 'print' 
+                        ? 'word-page' 
+                        : 'w-full max-w-4xl bg-white dark:bg-[#202020] p-8 min-h-[500px] rounded shadow-xl border border-gray-300 dark:border-gray-700'
+                    }`}
+                    style={{ 
+                      fontFamily: fontFamily, 
+                      fontSize: `${fontSize}pt`,
+                      transform: `scale(${(zoomLevel / 100) * BASE_VIEW_SCALE})`,
+                      transformOrigin: 'top center'
+                    }}
+                  >
+                    {documentBody}
+                  </div>
                 </div>
               )}
             </div>
 
           </div>
+        )}
+
+        {!isAdminMode && !isMobileLayout && activeTab === 'Home' && desktopRailStyle && (
+          <FeaturedWorksRailPortal
+            style={{
+              ...desktopRailStyle,
+              fontFamily,
+              fontSize: `${fontSize}pt`,
+            }}
+            darkMode={darkMode}
+            helpActive={hintActive}
+            featuredWorks={featuredWorks}
+            heading={portfolioData.home?.featuredWorksHeading}
+            onOpenWork={openFeaturedWork}
+          />
+        )}
+
+        {!isAdminMode && !isMobileLayout && activeTab === 'About' && desktopRailStyle && (
+          <AboutNotesPortal data={portfolioData.about} style={desktopRailStyle} darkMode={darkMode} />
+        )}
+
+        {!isAdminMode && !isMobileLayout && activeTab === 'Home' && desktopLeftRailStyle && (
+          <VisitorIntroduction
+            data={normalizeHome(portfolioData.home).visitorIntroduction}
+            style={desktopLeftRailStyle}
+            darkMode={darkMode}
+            soundEnabled={soundEnabled && portfolioData.general?.soundEffects !== false}
+            hintActive={hintActive}
+            homeNavigation={{
+              onNavigate: setActiveTab,
+              onPrintNavigate: openPrintedTab,
+              zineEnabled: normalizeZine(portfolioData.zine).enabled !== false,
+              zineLabel: normalizeZine(portfolioData.zine).menuLabel || 'Wassup?',
+              gameEnabled: normalizeMiniGame(portfolioData.miniGame).enabled !== false,
+            }}
+          />
+        )}
+
+        {!isAdminMode && !isMobileLayout && activeTab === 'About' && desktopLeftRailStyle && (
+          <LastFmFootnote
+            data={normalizeAbout(portfolioData.about).listeningFootnote}
+            style={desktopLeftRailStyle}
+            darkMode={darkMode}
+          />
         )}
 
         {/* 3. Status Bar Bawah — otomatis nyederhanain diri di layar sempit lewat class Tailwind di dalamnya */}
@@ -665,32 +1071,76 @@ export default function App() {
           isMobileLayout={isMobileLayout}
         />
 
-        {/* CSS global mode Hint — cuma nyala pas class `.hint-mode-active` ada di wrapper
-            (lihat atas). Nge-target SEMUA elemen `data-hint-id` yang lagi kerender di tab
-            yang aktif, otomatis, tanpa perlu tau id-nya satu-satu. `outline` dipakai (bukan
-            border) biar gak geser layout sedikitpun.
-            Catatan: elemen di LUAR A4 (TitleBar/Ribbon/StatusBar/Ruler) SENGAJA cuma dikasih
-            `data-hint-id` pas `activeTab === 'Home'` (lihat prop `activeTab` yang diteruskan
-            ke tiap komponen itu) — jadi mode Hint di luar kertas cuma nyala khusus di tab
-            Home, gak ikut nyala di tab lain. Gak butuh CSS tambahan di sini karena scoping-nya
-            udah ditentuin di level komponen (attribute-nya ada/nggak), bukan di level CSS. */}
+        {/* CSS global mode Hint. Selain area khusus ber-data-hint-id, selector ini memindai
+            kontrol HTML yang memang dapat dipakai pengunjung: button, link, input, select,
+            textarea, tab, dan elemen bertabindex. Outline tidak mengubah ukuran/layout. */}
         <style>{`
-          .hint-mode-active [data-hint-id] {
-            position: relative;
-            animation: hintPulse 1.5s ease-in-out infinite;
-            outline: 2px solid #2B579A;
-            outline-offset: 3px;
-            border-radius: 6px;
+          .typing-caret { display:inline-block; width:2px; height:.82em; margin-left:.08em; background:currentColor; vertical-align:-.04em; animation:caretBlink 1s steps(1,end) infinite; }
+          @keyframes caretBlink { 0%,48%{opacity:1} 49%,100%{opacity:0} }
+          .rail-page-print-in { animation:railPagePrintIn .68s cubic-bezier(.2,.78,.2,1) both; }
+          @keyframes railPagePrintIn {
+            0% { opacity:.72; clip-path:inset(0 0 16% 0); }
+            58% { opacity:1; clip-path:inset(0 0 3% 0); }
+            100% { opacity:1; clip-path:inset(0); }
           }
-          .dark .hint-mode-active [data-hint-id] {
+          @media (prefers-reduced-motion:reduce) { .rail-page-print-in { animation:none; } }
+          .portfolio-google-translate,.goog-te-banner-frame,.goog-te-gadget-icon{display:none!important}
+          body{top:0!important}.skiptranslate iframe{display:none!important}
+          #goog-gt-tt,.goog-te-balloon-frame{display:none!important}
+          font{background-color:transparent!important;box-shadow:none!important}
+          .interactive-word { display:inline; padding:0; border:0; background:none; font:inherit; cursor:pointer; text-decoration-line:underline; text-decoration-style:wavy; text-decoration-thickness:1.5px; text-underline-offset:3px; }
+          .interactive-word:hover { filter:brightness(.78); }
+          .hint-mode-active :is(
+            [data-hint-id],
+            a[href],
+            button:not([disabled]),
+            input:not([type="hidden"]):not([disabled]),
+            select:not([disabled]),
+            textarea:not([disabled]),
+            [role="button"]:not([aria-disabled="true"]),
+            [role="tab"]:not([aria-disabled="true"]),
+            [tabindex]:not([tabindex="-1"]):not([aria-disabled="true"])
+          ):not(.portfolio-help-toggle) {
+            animation: hintPulse 1.5s ease-in-out infinite;
+            outline: 3px solid #2B579A;
+            outline-offset: 4px;
+            border-radius: 6px;
+            box-shadow: 0 0 0 5px rgba(43, 87, 154, 0.13);
+          }
+          .hint-mode-active :is(
+            [data-hint-id][data-hint-surface="blue"],
+            [class*="bg-[#2B579A]"] button:not([disabled]),
+            [class*="bg-[#2B579A]"] a[href]
+          ):not(.portfolio-help-toggle) {
+            outline-color: #FDE68A;
+            box-shadow: 0 0 0 3px rgba(253, 230, 138, 0.2);
+            animation-name: hintPulseBlueSurface;
+          }
+          .dark .hint-mode-active :is(
+            [data-hint-id], a[href], button:not([disabled]),
+            input:not([type="hidden"]):not([disabled]), select:not([disabled]),
+            textarea:not([disabled]), [role="button"]:not([aria-disabled="true"]),
+            [role="tab"]:not([aria-disabled="true"]),
+            [tabindex]:not([tabindex="-1"]):not([aria-disabled="true"])
+          ):not(.portfolio-help-toggle) {
             outline-color: #6FA8DC;
           }
           @keyframes hintPulse {
             0%, 100% { outline-color: rgba(43, 87, 154, 0.35); box-shadow: 0 0 0 0 rgba(43, 87, 154, 0.25); }
             50% { outline-color: rgba(43, 87, 154, 1); box-shadow: 0 0 0 4px rgba(43, 87, 154, 0.12); }
           }
+          @keyframes hintPulseBlueSurface {
+            0%, 100% { outline-color: rgba(253, 230, 138, 0.55); box-shadow: 0 0 0 0 rgba(253, 230, 138, 0.18); }
+            50% { outline-color: rgba(255, 255, 255, 1); box-shadow: 0 0 0 4px rgba(253, 230, 138, 0.24); }
+          }
           @media (prefers-reduced-motion: reduce) {
-            .hint-mode-active [data-hint-id] { animation: none; outline-color: #2B579A; }
+            .hint-mode-active :is(
+              [data-hint-id], a[href], button:not([disabled]),
+              input:not([type="hidden"]):not([disabled]), select:not([disabled]),
+              textarea:not([disabled]), [role="button"]:not([aria-disabled="true"]),
+              [role="tab"]:not([aria-disabled="true"]),
+              [tabindex]:not([tabindex="-1"]):not([aria-disabled="true"])
+            ):not(.portfolio-help-toggle) { animation: none; outline-color: #2B579A; }
           }
         `}</style>
 

@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import InteractiveText from '../components/InteractiveText';
+import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 
 // Field link tombol (actionButtons/collabButtonUrl) di CMS sering diisi orang cuma alamat
 // emailnya polos (mis. "nama@gmail.com?subject=Halo") TANPA prefix "mailto:" di depan —
@@ -14,88 +16,6 @@ function resolveActionUrl(raw) {
   // ketemu spasi/"?" (query string kayak ?subject=... boleh nyusul).
   if (/^[^\s@?]+@[^\s@?]+\.[^\s@?]+/.test(url)) return `mailto:${url}`;
   return url;
-}
-
-// Nempelin template Body Email (diisi admin lewat textarea terpisah di CMS, teks polos
-// biasa) ke query string "mailto:" — jadi admin gak perlu mikirin encoding/format
-// "?body=..." manual. Kalau admin udah nulis "&body=..." sendiri langsung di field
-// Link/URL, itu dianggap lebih spesifik dan gak ditimpa sama template ini.
-function appendMailtoBody(url, bodyTemplate) {
-  if (!bodyTemplate || !/^mailto:/i.test(url)) return url;
-  if (/[?&]body=/i.test(url)) return url;
-  const sep = url.includes('?') ? '&' : '?';
-  return `${url}${sep}body=${encodeURIComponent(bodyTemplate)}`;
-}
-
-// Fallback kalau device gak punya default mail client (mis. buka di komputer yang
-// Outlook/Mail-nya belum pernah di-setup) — link "mailto:" bakal keliatan gak
-// ngapa-ngapain pas diklik, gak ada popup error, gak ada indikasi apa pun. Ini nyalin
-// alamat/subject/body dari mailto ke format URL Gmail Compose, biar tetep bisa dibuka
-// langsung di browser tanpa perlu app terinstall.
-function mailtoToGmailCompose(mailtoUrl) {
-  try {
-    const withoutScheme = mailtoUrl.replace(/^mailto:/i, '');
-    const [toRaw, queryString = ''] = withoutScheme.split('?');
-    const params = new URLSearchParams(queryString);
-    const subject = params.get('subject') || '';
-    const body = params.get('body') || '';
-    const to = toRaw ? decodeURIComponent(toRaw) : '';
-    const gmail = new URL('https://mail.google.com/mail/');
-    gmail.searchParams.set('view', 'cm');
-    gmail.searchParams.set('fs', '1');
-    if (to) gmail.searchParams.set('to', to);
-    if (subject) gmail.searchParams.set('su', subject);
-    if (body) gmail.searchParams.set('body', body);
-    return gmail.toString();
-  } catch {
-    return null;
-  }
-}
-
-// Dipasang di onClick tombol "mailto:" — biarin link mailto-nya tetep jalan normal
-// (gak di-preventDefault), tapi sambil ngecek: kalau OS beneran ngeluncurin app mail,
-// browser/tab ini bakal kehilangan fokus (event "blur"). Kalau dalam waktu singkat
-// gak ada blur sama sekali, dianggap gak ada default mail client yang ke-set →
-// otomatis buka Gmail Compose di tab baru sebagai gantinya. Heuristik ini emang gak
-// 100% akurat di semua browser/OS, tapi cukup buat nutupin kasus paling umum
-// (device tanpa mail app default).
-function handleMailtoClick(gmailFallbackUrl) {
-  return () => {
-    if (!gmailFallbackUrl) return;
-
-    // PENTING: tab kosong ini WAJIB dibuka di sini, langsung sinkron pas handler
-    // ini jalan (bukan di dalam setTimeout) — supaya browser masih nganggep ini
-    // "beneran hasil klik user" dan gak diblokir sama popup blocker. Kalau
-    // window.open dipanggil belakangan (setelah delay), sebagian besar browser
-    // modern udah gak nganggep itu klik langsung lagi dan bisa diem-diem
-    // ngeblokirnya — itu penyebab paling umum kenapa tab fallback-nya "gak
-    // kejadian" sama sekali.
-    const fallbackTab = window.open('', '_blank');
-
-    let handed = false;
-    const markHanded = () => {
-      handed = true;
-    };
-    window.addEventListener('blur', markHanded, { once: true });
-    window.setTimeout(() => {
-      window.removeEventListener('blur', markHanded);
-      if (handed) {
-        // Heuristiknya nganggep default mail app kebuka (window ini kehilangan
-        // fokus) — tab kosong tadi jadi gak kepake, tutup lagi biar gak
-        // ninggalin tab nganggur ke user.
-        if (fallbackTab && !fallbackTab.closed) fallbackTab.close();
-      } else if (fallbackTab) {
-        // Gak ada mail app default kedeteksi -> isi tab kosong tadi dengan
-        // Gmail Compose. Ini beda dari sebelumnya: kita gak "membuka" tab baru
-        // di titik ini, cuma nge-set lokasi tab yang UDAH kebuka dari awal.
-        fallbackTab.location.href = gmailFallbackUrl;
-      } else {
-        // Fallback terakhir kalau ternyata tab kosongnya tadi tetep keblokir
-        // (jarang terjadi karena dibuka sinkron, tapi jaga-jaga).
-        window.open(gmailFallbackUrl, '_blank', 'noopener,noreferrer');
-      }
-    }, 600);
-  };
 }
 
 /* Icon kecil monoline, bikin sendiri biar gak nambah dependency baru ke proyek */
@@ -152,18 +72,10 @@ const Icon = {
   ),
 };
 
-const SOCIAL_ICON = {
-  linkedin: Icon.LinkedIn,
-  github: Icon.GitHub,
-  instagram: Icon.Instagram,
-  'x / twitter': Icon.X,
-  twitter: Icon.X,
-};
-
 // Jaring pengaman: kalau suatu saat isi CMS masih nyisipin emoji di label tombol,
 // dibersihin di sini biar tampilannya tetep rapi.
 function stripTrailingEmoji(str = '') {
-  return str.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\uFE0F]/gu, '').trim();
+  return str.replace(/\p{Extended_Pictographic}/gu, '').replace(/\uFE0F/gu, '').trim();
 }
 
 // Field "location" di CMS masih 1 kolom teks gabungan, mis. "Jakarta, Indonesia (Available for Remote)".
@@ -175,31 +87,137 @@ function splitLocation(raw = '') {
 }
 
 const FALLBACK = {
-  heading: "Let's work together or just say hi.",
-  subheading: '',
+  eyebrow: 'NEW DOCUMENT / CONTACT',
+  heading: 'Every collaboration begins with an unfinished sentence.',
+  subheading: "Tell me what you're trying to make. We can revise the rest together.",
   email: '',
-  location: '',
-  closingText: '',
-  collabButtonText: '',
-  collabButtonUrl: '#',
-  collabButtonBody: '',
+  location: 'Batam, Indonesia',
+  draftButtonLabel: 'Create Email Draft',
+  responseNote: 'Draft created — review before sending.',
+  inquiryPaths: [
+    { id: 'project', label: 'Start a project', subject: 'Project Inquiry', enabled: true },
+    { id: 'opportunity', label: 'Offer an opportunity', subject: 'Opportunity', enabled: true },
+    { id: 'hello', label: 'Just say hello', subject: 'Hello', enabled: true },
+  ],
+  serviceOptions: ['Writing', 'Editing', 'Directing', 'Creative Development'],
+  stageOptions: ['Just an idea', 'In progress', 'Ready to begin'],
+  timelineOptions: ['Flexible', 'This month', 'Specific date'],
+  properties: [
+    { id: 'status', label: 'Status', value: 'Open for selected projects', enabled: true },
+    { id: 'based', label: 'Based in', value: 'Batam, Indonesia', enabled: true },
+    { id: 'mode', label: 'Working mode', value: 'Remote / Batam-based', enabled: true },
+    { id: 'response', label: 'Response', value: 'Usually within 1–3 days', enabled: true },
+    { id: 'fit', label: 'Best fit', value: 'Writing, editing, directing, creative development', enabled: true },
+  ],
   socials: [],
   actionButtons: [],
 };
 
-export default function Contact({ data }) {
+export default function Contact({ data, interactiveWords = [], onNavigate }) {
   // Selalu utamakan data dari CMS (props). FALLBACK cuma jaring pengaman kalau
   // props-nya belum ada / ada field yang kosong dari Supabase, biar gak crash.
-  const contactInfo = { ...FALLBACK, ...data };
+  const contactInfo = {
+    ...FALLBACK,
+    ...(data || {}),
+    inquiryPaths: Array.isArray(data?.inquiryPaths) && data.inquiryPaths.length ? data.inquiryPaths : FALLBACK.inquiryPaths,
+    serviceOptions: Array.isArray(data?.serviceOptions) && data.serviceOptions.length ? data.serviceOptions : FALLBACK.serviceOptions,
+    stageOptions: Array.isArray(data?.stageOptions) && data.stageOptions.length ? data.stageOptions : FALLBACK.stageOptions,
+    timelineOptions: Array.isArray(data?.timelineOptions) && data.timelineOptions.length ? data.timelineOptions : FALLBACK.timelineOptions,
+    properties: Array.isArray(data?.properties) && data.properties.length ? data.properties : FALLBACK.properties,
+    socials: Array.isArray(data?.socials) ? data.socials : [],
+    actionButtons: Array.isArray(data?.actionButtons) ? data.actionButtons : [],
+  };
   const { location, availability } = splitLocation(contactInfo.location);
 
-  // Link tombol kolaborasi (dipakai berkali-kali di JSX bawah, jadi dihitung sekali di sini)
-  const collabUrl = appendMailtoBody(resolveActionUrl(contactInfo.collabButtonUrl), contactInfo.collabButtonBody);
-  const collabIsMailto = /^mailto:/i.test(collabUrl);
-  const collabIsAppLink = collabIsMailto || /^tel:/i.test(collabUrl);
-  const collabGmailFallbackUrl = collabIsMailto ? mailtoToGmailCompose(collabUrl) : null;
-
   const [copied, setCopied] = useState(false);
+  const paths = contactInfo.inquiryPaths.filter((path) => path.enabled !== false);
+  const [activePathId, setActivePathId] = useState(paths[0]?.id || 'project');
+  const [senderName, setSenderName] = useState('');
+  const [senderEmail, setSenderEmail] = useState('');
+  const [service, setService] = useState(contactInfo.serviceOptions[0] || '');
+  const [stage, setStage] = useState(contactInfo.stageOptions[0] || '');
+  const [timeline, setTimeline] = useState(contactInfo.timelineOptions[0] || '');
+  const [company, setCompany] = useState('');
+  const [role, setRole] = useState('');
+  const [message, setMessage] = useState('');
+  const [attachmentLink, setAttachmentLink] = useState('');
+  const [photo, setPhoto] = useState(null);
+  const [isSending, setIsSending] = useState(false);
+  const [drafted, setDrafted] = useState(false);
+  const [draftError, setDraftError] = useState('');
+  const activePath = paths.find((path) => path.id === activePathId) || paths[0] || FALLBACK.inquiryPaths[0];
+  const activePathKind = activePath.kind || activePath.id;
+  const wordCount = message.trim() ? message.trim().split(/\s+/).length : 0;
+
+  const subjectDetail = activePathKind === 'project' ? service : activePathKind === 'opportunity' ? role : senderName;
+  const draftSubject = [activePath.subject || activePath.label, subjectDetail].filter(Boolean).join(' — ');
+  const draftLines = [
+    `Hello Haikal,`,
+    '',
+    senderName ? `My name is ${senderName}.` : '',
+    senderEmail ? `You can reply to me at ${senderEmail}.` : '',
+    activePathKind === 'project' && service ? `I’m reaching out about: ${service}.` : '',
+    activePathKind === 'project' && stage ? `Current stage: ${stage}.` : '',
+    activePathKind === 'project' && timeline ? `Expected timeline: ${timeline}.` : '',
+    activePathKind === 'opportunity' && company ? `Company / organization: ${company}.` : '',
+    activePathKind === 'opportunity' && role ? `Role / opportunity: ${role}.` : '',
+    '',
+    message,
+    '',
+    senderName ? `— ${senderName}` : '',
+  ].filter((line, index, all) => line || (index > 0 && all[index - 1])).join('\n');
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!message.trim()) {
+      setDraftError('Tulis sedikit konteks terlebih dahulu supaya pesan tidak kosong.');
+      return;
+    }
+    if (!senderEmail || !/^\S+@\S+\.\S+$/.test(senderEmail)) {
+      setDraftError('Format email balasan belum benar.');
+      return;
+    }
+    if (attachmentLink && !/^https?:\/\//i.test(attachmentLink)) {
+      setDraftError('Link lampiran harus diawali http:// atau https://.');
+      return;
+    }
+    if (photo && photo.size > 8 * 1024 * 1024) {
+      setDraftError('Ukuran foto maksimal 8 MB.');
+      return;
+    }
+    setDraftError('');
+    setDrafted(false);
+    setIsSending(true);
+    const formData = new FormData();
+    formData.append('name', senderName.trim());
+    formData.append('email', senderEmail.trim());
+    formData.append('subject', draftSubject);
+    formData.append('inquiry_type', activePath.label || activePathKind);
+    formData.append('service', service);
+    formData.append('stage', stage);
+    formData.append('timeline', timeline);
+    formData.append('company', company.trim());
+    formData.append('role', role.trim());
+    formData.append('message', draftLines);
+    formData.append('attachment_link', attachmentLink.trim());
+    if (photo) formData.append('photo', photo);
+    try {
+      if (!isSupabaseConfigured) throw new Error('Supabase belum dikonfigurasi.');
+      const { data: result, error } = await supabase.functions.invoke('portfolio-contact', {
+        body: formData,
+      });
+      if (error) throw error;
+      if (!result?.ok) throw new Error(result?.error || 'Pengiriman gagal.');
+      setDrafted(true);
+      setMessage('');
+      setAttachmentLink('');
+      setPhoto(null);
+    } catch (error) {
+      console.error('Contact submission failed:', error);
+      setDraftError('Pesan belum berhasil dikirim. Coba lagi atau gunakan Copy email.');
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   const handleCopyEmail = async () => {
     try {
@@ -212,128 +230,74 @@ export default function Contact({ data }) {
   };
 
   return (
-    <div className="w-full text-gray-900 dark:text-gray-100 select-text py-2 space-y-5">
-
-      {/* Konten Kontak — blok-nya di-center di halaman, tapi isi teksnya tetep rata kiri */}
-      <div className="max-w-xl mx-auto">
-
-        <h2 className="text-[1.5em] sm:text-[1.875em] font-semibold text-gray-900 dark:text-white leading-snug tracking-tight">
-          {contactInfo.heading}
+    <div className="w-full text-gray-900 dark:text-gray-100 select-text py-2">
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-12">
+        <main className="min-w-0">
+        <p className="font-mono text-[0.6875em] font-bold uppercase tracking-[0.2em] text-[#2B579A] dark:text-[#6FA8DC]">
+          {contactInfo.eyebrow}
+        </p>
+        <h2 className="mt-3 max-w-3xl text-[2em] sm:text-[2.6em] font-normal font-serif text-gray-900 dark:text-white leading-[1.08] tracking-tight">
+          <InteractiveText text={contactInfo.heading} rules={interactiveWords} page="Contact" onNavigate={onNavigate} />
         </h2>
-        <p className="text-[0.875em] sm:text-[1em] text-gray-500 dark:text-gray-400 leading-relaxed mt-2.5">
-          {contactInfo.subheading}
+        <p className="max-w-2xl text-[0.875em] sm:text-[1em] text-gray-500 dark:text-gray-400 leading-relaxed mt-4">
+          <InteractiveText text={contactInfo.subheading} rules={interactiveWords} page="Contact" onNavigate={onNavigate} />
         </p>
 
-        {/* Email & Lokasi — daftar tenang, tanpa kotak berwarna */}
-        <div className="mt-6 divide-y divide-gray-100 dark:divide-gray-800 border-y border-gray-100 dark:border-gray-800">
-          <button
-            type="button"
-            data-hint-id="contact-copy-email"
-            onClick={handleCopyEmail}
-            className="w-full flex items-center justify-between gap-3 py-3 text-left group"
-          >
-            <span className="flex items-center gap-2.5 text-[0.875em] sm:text-[1em] text-gray-700 dark:text-gray-300">
-              <Icon.Mail className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-blue-600 transition-colors shrink-0" />
-              {contactInfo.email}
-            </span>
-            <span className="flex items-center gap-1.5 text-[0.75em] font-medium text-gray-400 group-hover:text-blue-600 transition-colors shrink-0">
-              {copied ? (
-                <>
-                  <Icon.Check className="w-3.5 h-3.5" /> Copied
-                </>
-              ) : (
-                <>
-                  <Icon.Copy className="w-3.5 h-3.5" /> Copy
-                </>
-              )}
-            </span>
-          </button>
+        <div className="mt-7 flex flex-wrap gap-2" data-hint-id="contact-inquiry-paths" role="tablist" aria-label="Jenis pesan">
+          {paths.map((path) => <button key={path.id} type="button" role="tab" aria-selected={activePathId === path.id} onClick={() => { setActivePathId(path.id); setDrafted(false); setDraftError(''); }} className={`ux-action rounded-md border px-3.5 py-2 text-[0.75em] font-semibold transition ${activePathId === path.id ? 'border-[#2B579A] bg-[#2B579A] text-white shadow-sm' : 'border-gray-200 bg-white text-gray-600 hover:border-[#2B579A] hover:text-[#2B579A] dark:border-gray-700 dark:bg-[#222] dark:text-gray-300'}`}>{path.label}</button>)}
+        </div>
 
-          <div className="flex items-center justify-between gap-3 py-3">
-            <span className="flex items-center gap-2.5 text-[0.875em] sm:text-[1em] text-gray-700 dark:text-gray-300">
-              <Icon.Pin className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 shrink-0" />
-              {location}
-            </span>
-            {availability && (
-              <span className="flex items-center gap-1.5 text-[0.75em] text-gray-400 shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                {availability}
-              </span>
-            )}
+        <form onSubmit={handleSubmit} className="mt-5 rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-[#202020]" data-hint-id="contact-document-brief">
+          <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3 dark:border-gray-700">
+            <span className="font-mono text-[0.6875em] font-bold uppercase tracking-wider text-[#2B579A] dark:text-[#6FA8DC]">Untitled Collaboration</span>
+            <span className="font-mono text-[0.625em] text-gray-400">{wordCount} {wordCount === 1 ? 'word' : 'words'}</span>
           </div>
-        </div>
+          <div className="space-y-5 p-5 sm:p-6">
+            <p className="font-serif text-[1em] text-gray-700 dark:text-gray-300">Hello Haikal,</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label><span className="mb-1.5 block font-mono text-[0.625em] uppercase tracking-wider text-gray-400">My name is</span><input name="name" value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Your name" className="w-full border-b border-gray-300 bg-transparent px-0 py-2 text-[0.875em] outline-none focus:border-[#2B579A] dark:border-gray-600" /></label>
+              <label><span className="mb-1.5 block font-mono text-[0.625em] uppercase tracking-wider text-gray-400">Reply to</span><input name="email" type="email" required value={senderEmail} onChange={(e) => setSenderEmail(e.target.value)} placeholder="you@email.com" className="w-full border-b border-gray-300 bg-transparent px-0 py-2 text-[0.875em] outline-none focus:border-[#2B579A] dark:border-gray-600" /></label>
+            </div>
 
-        {/* Tombol Aksi */}
-        <div className="flex flex-col sm:flex-row gap-3 mt-6">
-          {contactInfo.actionButtons.map((btn, index) => {
-            // mailto:/tel: HARUS dibuka di tab yang sama (bukan target="_blank").
-            // Kalau dipaksa _blank, browser buka tab kosong baru buat "meluncurkan"
-            // app mail/telepon, dan banyak browser (terutama di HP + popup blocker)
-            // nge-block itu diam-diam — hasilnya tombol keliatan gak ngapa-ngapain
-            // sama sekali. Untuk http(s) biasa (link eksternal/PDF), _blank tetep oke.
-            const resolvedUrl = appendMailtoBody(resolveActionUrl(btn.url), btn.body);
-            const isMailto = /^mailto:/i.test(resolvedUrl);
-            const isAppLink = isMailto || /^tel:/i.test(resolvedUrl);
-            const gmailFallbackUrl = isMailto ? mailtoToGmailCompose(resolvedUrl) : null;
-            return (
-              <a
-                key={index}
-                href={resolvedUrl}
-                onClick={isMailto ? handleMailtoClick(gmailFallbackUrl) : undefined}
-                {...(isAppLink ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
-                className={`flex-1 px-5 py-2.5 text-[0.875em] font-semibold rounded-md text-center transition-colors ${
-                  btn.primary
-                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200'
-                    : 'border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-900 dark:hover:border-white hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                {stripTrailingEmoji(btn.label)}
-              </a>
-            );
-          })}
-        </div>
+            {activePathKind === 'project' && <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {[['I need help with', service, setService, contactInfo.serviceOptions], ['Current stage', stage, setStage, contactInfo.stageOptions], ['Timeline', timeline, setTimeline, contactInfo.timelineOptions]].map(([label, value, setter, options]) => <label key={label}><span className="mb-1.5 block font-mono text-[0.625em] uppercase tracking-wider text-gray-400">{label}</span><select value={value} onChange={(e) => setter(e.target.value)} className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5 text-[0.8125em] outline-none focus:border-[#2B579A] dark:border-gray-700 dark:bg-[#282828]">{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>)}
+            </div>}
 
-        {/* Sosial Media — icon-only, tenang */}
-        <div className="mt-7 pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-2">
-            {contactInfo.socials.map((soc, idx) => {
-              const SocIcon = SOCIAL_ICON[soc.name.toLowerCase()] || Icon.Arrow;
-              return (
-                <a
-                  key={idx}
-                  href={soc.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={soc.label}
-                  aria-label={soc.label}
-                  className="w-9 h-9 flex items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-blue-600 hover:text-blue-600 dark:hover:border-blue-500 dark:hover:text-blue-400 transition-colors"
-                >
-                  <SocIcon className="w-4 h-4" />
-                </a>
-              );
-            })}
+            {activePathKind === 'opportunity' && <div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><label><span className="mb-1.5 block font-mono text-[0.625em] uppercase tracking-wider text-gray-400">Company / organization</span><input value={company} onChange={(e) => setCompany(e.target.value)} className="w-full border-b border-gray-300 bg-transparent py-2 text-[0.875em] outline-none focus:border-[#2B579A] dark:border-gray-600" /></label><label><span className="mb-1.5 block font-mono text-[0.625em] uppercase tracking-wider text-gray-400">Role / opportunity</span><input value={role} onChange={(e) => setRole(e.target.value)} className="w-full border-b border-gray-300 bg-transparent py-2 text-[0.875em] outline-none focus:border-[#2B579A] dark:border-gray-600" /></label></div>}
+
+            <label className="block"><span className="mb-1.5 block font-mono text-[0.625em] uppercase tracking-wider text-gray-400">Here is what you should know</span><textarea name="message" required value={message} onChange={(e) => { setMessage(e.target.value); setDrafted(false); }} rows={6} placeholder="Start with the idea, problem, or opportunity…" className="w-full resize-y rounded-md border border-gray-200 bg-gray-50 px-4 py-3 font-serif text-[0.9375em] leading-relaxed outline-none focus:border-[#2B579A] dark:border-gray-700 dark:bg-[#282828]" /></label>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label><span className="mb-1.5 block font-mono text-[0.625em] uppercase tracking-wider text-gray-400">Attach a photo · optional</span><input name="photo" type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(event) => { setPhoto(event.target.files?.[0] || null); setDrafted(false); }} className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-[0.75em] file:mr-3 file:rounded file:border-0 file:bg-[#2B579A] file:px-3 file:py-2 file:text-xs file:font-semibold file:text-white dark:border-gray-700 dark:bg-[#282828]" /><span className="mt-1 block text-[0.6875em] text-gray-400">JPG, PNG, WEBP, atau GIF · maksimal 8 MB</span></label>
+              <label><span className="mb-1.5 block font-mono text-[0.625em] uppercase tracking-wider text-gray-400">Attachment link · optional</span><input name="attachment_link" type="url" value={attachmentLink} onChange={(event) => { setAttachmentLink(event.target.value); setDrafted(false); }} placeholder="https://drive.google.com/…" className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5 text-[0.8125em] outline-none focus:border-[#2B579A] dark:border-gray-700 dark:bg-[#282828]" /><span className="mt-1 block text-[0.6875em] text-gray-400">Drive, Dropbox, portfolio, atau referensi lain.</span></label>
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800">
+              <p className="font-mono text-[0.625em] text-gray-400">Pesan disimpan dan diteruskan lewat kanal Contact yang aman.</p>
+              <button type="submit" disabled={isSending} className="ux-action inline-flex items-center justify-center gap-2 rounded-md bg-[#2B579A] px-5 py-2.5 text-[0.8125em] font-bold text-white transition hover:bg-[#23477f] disabled:cursor-wait disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] focus-visible:ring-offset-2" data-hint-id="contact-create-draft">{isSending ? 'Sending…' : (/draft/i.test(contactInfo.draftButtonLabel || '') ? 'Send Message' : (contactInfo.draftButtonLabel || 'Send Message'))}<Icon.Arrow className="h-4 w-4" /></button>
+            </div>
+            {draftError && <p role="alert" className="text-right text-[0.75em] font-medium text-red-600 dark:text-red-400">{draftError}</p>}
+            {drafted && <p role="status" className="text-right text-[0.75em] font-medium text-emerald-600 dark:text-emerald-400">Pesan berhasil dikirim. Gue akan membalas melalui email yang lu cantumkan.</p>}
           </div>
+        </form>
 
-          {contactInfo.collabButtonText && (
-            <a
-              href={collabUrl}
-              onClick={collabIsMailto ? handleMailtoClick(collabGmailFallbackUrl) : undefined}
-              {...(collabIsAppLink ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
-              className="inline-flex items-center gap-1 text-[0.875em] font-medium text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-            >
-              {contactInfo.collabButtonText}
-              <Icon.Arrow className="w-3.5 h-3.5" />
-            </a>
-          )}
+        <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-gray-200 pt-5 dark:border-gray-700">
+          <span className="text-[0.75em] text-gray-400">Prefer another channel?</span>
+          <button type="button" data-hint-id="contact-copy-email" onClick={handleCopyEmail} className="inline-flex items-center gap-1.5 text-[0.75em] font-semibold text-gray-700 hover:text-[#2B579A] dark:text-gray-300"><Icon.Mail className="h-4 w-4" />{copied ? 'Email copied' : 'Copy email'}</button>
+          {contactInfo.socials.map((soc, idx) => <a key={idx} href={soc.url} target="_blank" rel="noopener noreferrer" className="text-[0.75em] font-semibold text-gray-700 hover:text-[#2B579A] dark:text-gray-300">{soc.name}</a>)}
+          {contactInfo.actionButtons.filter((btn) => btn.url).map((btn, index) => <a key={index} href={resolveActionUrl(btn.url)} target="_blank" rel="noopener noreferrer" className="text-[0.75em] font-semibold text-gray-700 hover:text-[#2B579A] dark:text-gray-300">{stripTrailingEmoji(btn.label)}</a>)}
         </div>
+        </main>
 
-        {contactInfo.closingText && (
-          <p className="text-[0.875em] text-gray-900 dark:text-white italic mt-3">
-            {contactInfo.closingText}
-          </p>
-        )}
+        <aside className="h-fit border-t-4 border-[#2B579A] bg-gray-50 p-5 dark:bg-[#242424] lg:sticky lg:top-5" data-hint-id="contact-document-properties">
+          <p className="font-mono text-[0.6875em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">Document Properties</p>
+          <dl className="mt-5 space-y-4">
+            {contactInfo.properties.filter((item) => item.enabled !== false && item.value).map((item) => <div key={item.id || item.label}><dt className="font-mono text-[0.5625em] uppercase tracking-widest text-gray-400">{item.label}</dt><dd className="mt-1 text-[0.8125em] leading-relaxed text-gray-700 dark:text-gray-300">{item.value}</dd></div>)}
+            {!contactInfo.properties.some((item) => /based/i.test(item.label)) && location && <div><dt className="font-mono text-[0.5625em] uppercase tracking-widest text-gray-400">Based in</dt><dd className="mt-1 text-[0.8125em] text-gray-700 dark:text-gray-300">{location}</dd></div>}
+            {availability && <div><dt className="font-mono text-[0.5625em] uppercase tracking-widest text-gray-400">Availability</dt><dd className="mt-1 flex items-center gap-2 text-[0.8125em] text-gray-700 dark:text-gray-300"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{availability}</dd></div>}
+          </dl>
+        </aside>
       </div>
-
     </div>
   );
 }

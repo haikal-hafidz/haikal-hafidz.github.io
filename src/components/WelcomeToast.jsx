@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 // Kunci sessionStorage biar notif cuma muncul SEKALI per sesi tab browser (bukan tiap
 // pindah-pindah tab Home/About/dst, dan bukan tiap refresh — tapi tetep muncul lagi
@@ -89,6 +89,7 @@ export default function WelcomeToast({ settings, isMobileLayout }) {
         <button
           type="button"
           onClick={handleClose}
+          data-hint-id="welcome-toast-close"
           aria-label="Tutup notifikasi"
           className="shrink-0 -mt-1 -mr-1 w-6 h-6 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
         >

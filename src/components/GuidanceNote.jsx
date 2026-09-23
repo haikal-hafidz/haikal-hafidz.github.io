@@ -1,4 +1,3 @@
-import React from 'react';
 
 // Kotak "Guidance / Hint" — beda dari CommentTicker (yang isinya kutipan warna-warni
 // jalan terus/loop di tepi KANAN), komponen ini SENGAJA diem di tempat (gak ada animasi

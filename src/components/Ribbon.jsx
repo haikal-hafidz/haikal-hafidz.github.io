@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 export default function Ribbon({
   activeTab,
@@ -12,11 +12,10 @@ export default function Ribbon({
   isItalic,
   setIsItalic,
   isUnderline,
-  setIsUnderline,
-  isMobileLayout
+  setIsUnderline
 }) {
   // Daftar tab navigasi murni sesuai kebutuhan website portofolio lo — TIDAK DIUBAH
-  const portfolioTabs = ['Home', 'About', 'Career', 'Book', 'Projects', 'Contact'];
+  const portfolioTabs = ['Home', 'About', 'Projects', 'Career', 'Book', 'Contact'];
 
   // State lokal buat tombol-tombol tambahan ala Word (gak ganggu prop dari parent)
   const [isStrike, setIsStrike] = useState(false);
@@ -27,14 +26,9 @@ export default function Ribbon({
   const [showMarks, setShowMarks] = useState(false);
   // Ribbon bisa di-unpin (disembunyiin) biar gak nutupin konten — baris tab tetep
   // kelihatan terus biar orang masih bisa pindah halaman & nampilin ribbon lagi.
-  // Default-nya OTOMATIS unpin (ketutup) di HP, biar toolbar segede itu gak langsung
-  // makan layar kecil pas pertama buka — tetep bisa dipin lagi kalau visitor mau.
-  const [isPinned, setIsPinned] = useState(!isMobileLayout);
-  // Sinkronin ulang tiap kali status HP/desktop berubah (misal browser di-resize),
-  // biar gak nyangkut di keadaan awal doang.
-  React.useEffect(() => {
-    setIsPinned(!isMobileLayout);
-  }, [isMobileLayout]);
+  // Selalu mulai tertutup di semua ukuran layar. Setelah visitor menekan pin,
+  // state ini tetap hidup saat berpindah navbar dan tidak di-reset oleh resize.
+  const [isPinned, setIsPinned] = useState(false);
 
   const wordFonts = ['Calibri (Body)', 'Garamond', 'Times New Roman', 'Arial', 'Cambria', 'Courier New'];
   const wordSizes = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72];
@@ -67,6 +61,9 @@ export default function Ribbon({
     </button>
   );
 
+  // Jangan otomatis menganggap semua tombol Ribbon sebagai fitur website.
+  // Mayoritas tombol di toolbar cuma dekorasi ala Word. Hanya kontrol yang
+  // secara eksplisit diberi data-hint-id yang boleh disorot oleh mode Help.
   const RibbonButton = ({ onClick, active, title, children, className = '', disabled, ...rest }) => (
     <button
       onClick={onClick}
@@ -96,7 +93,7 @@ export default function Ribbon({
   const iconStroke = 'text-[#3b3b3b] dark:text-gray-300';
 
   return (
-    <div className="bg-[#f3f3f3] dark:bg-[#252526] border-b border-[#c8c8c8] dark:border-[#333] select-none text-xs text-gray-700 dark:text-gray-200 transition-colors font-sans">
+    <div className="bg-[#f3f3f3] dark:bg-[#252526] border-b border-[#c8c8c8] dark:border-[#333] select-none text-[10pt] text-gray-700 dark:text-gray-200 transition-colors font-sans">
 
       {/* 1. DERETAN TAB NAVIGASI UTAMA (Murni Menu Portofolio) — solid biru dari ujung ke ujung ala Word asli,
           tab aktif "muncul" putih, tab lain nyatu sama warna biru latar.
@@ -109,7 +106,8 @@ export default function Ribbon({
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-3 sm:px-4 py-1.5 transition-colors font-medium text-xs whitespace-nowrap shrink-0 rounded-t-md ${
+                data-hint-id={`navigation-${tab.toLowerCase()}`}
+                className={`px-3 sm:px-4 py-1.5 transition-colors font-medium text-[10pt] leading-4 whitespace-nowrap shrink-0 rounded-t-md ${
                   isCurrent
                     ? 'bg-white dark:bg-[#1e1e1e] text-[#2b579a] dark:text-blue-400 shadow-sm'
                     : 'text-white/85 hover:bg-white/10 hover:text-white'
@@ -124,8 +122,10 @@ export default function Ribbon({
         {/* Tombol Pin/Unpin Ribbon — buat orang yang keganggu ribbon nutupin konten */}
         <button
           onClick={() => setIsPinned((v) => !v)}
+          data-hint-id="ribbon-pin-toggle"
+          data-hint-surface="blue"
           title={isPinned ? 'Sembunyikan ribbon (unpin)' : 'Tampilkan ribbon (pin)'}
-          className="flex items-center gap-1 px-2 py-1 mb-1 rounded text-[11px] text-white/70 hover:bg-white/10 hover:text-white transition-colors shrink-0"
+          className="flex items-center gap-1 px-2 py-1 mb-1 rounded border border-white/25 bg-white/10 text-[11px] text-white/90 hover:bg-white/20 hover:border-white/50 hover:text-white transition-colors shrink-0"
         >
           <svg
             className={`w-3.5 h-3.5 transition-transform ${isPinned ? '' : '-rotate-45'}`}
@@ -189,7 +189,7 @@ export default function Ribbon({
               <select
                 value={fontFamily}
                 onChange={(e) => setFontFamily(e.target.value)}
-                data-hint-id={activeTab === 'Home' ? 'ribbon-font-family' : undefined}
+                data-hint-id="ribbon-font-family"
                 className="border border-gray-300 dark:border-gray-600 dark:bg-[#2d2d2d] dark:text-white rounded-[2px] px-1.5 py-[3px] text-[11.5px] w-[130px] focus:outline-none focus:border-[#2b579a] shadow-sm"
               >
                 {wordFonts.map((f) => (
@@ -199,7 +199,7 @@ export default function Ribbon({
               <select
                 value={fontSize}
                 onChange={(e) => setFontSize(Number(e.target.value))}
-                data-hint-id={activeTab === 'Home' ? 'ribbon-font-size' : undefined}
+                data-hint-id="ribbon-font-size"
                 className="border border-gray-300 dark:border-gray-600 dark:bg-[#2d2d2d] dark:text-white rounded-[2px] px-1 py-[3px] text-[11.5px] w-11 focus:outline-none focus:border-[#2b579a] shadow-sm"
               >
                 {wordSizes.map((s) => (
@@ -225,13 +225,13 @@ export default function Ribbon({
 
               <div className="w-px h-4 bg-gray-300/70 dark:bg-gray-700 mx-[2px]" />
 
-              <RibbonButton active={isBold} onClick={() => setIsBold(!isBold)} title="Bold (Ctrl+B)" data-hint-id={activeTab === 'Home' ? 'ribbon-bold' : undefined} className="!p-1">
+              <RibbonButton active={isBold} onClick={() => setIsBold(!isBold)} title="Bold (Ctrl+B)" data-hint-id="ribbon-bold" className="!p-1">
                 <span className="text-[13px] font-bold w-3.5 text-center leading-none">B</span>
               </RibbonButton>
-              <RibbonButton active={isItalic} onClick={() => setIsItalic(!isItalic)} title="Italic (Ctrl+I)" data-hint-id={activeTab === 'Home' ? 'ribbon-italic' : undefined} className="!p-1">
+              <RibbonButton active={isItalic} onClick={() => setIsItalic(!isItalic)} title="Italic (Ctrl+I)" data-hint-id="ribbon-italic" className="!p-1">
                 <span className="text-[13px] italic font-serif w-3.5 text-center leading-none">I</span>
               </RibbonButton>
-              <RibbonButton active={isUnderline} onClick={() => setIsUnderline(!isUnderline)} title="Underline (Ctrl+U)" data-hint-id={activeTab === 'Home' ? 'ribbon-underline' : undefined} className="!p-1 gap-0.5 flex-row">
+              <RibbonButton active={isUnderline} onClick={() => setIsUnderline(!isUnderline)} title="Underline (Ctrl+U)" data-hint-id="ribbon-underline" className="!p-1 gap-0.5 flex-row">
                 <span className="text-[13px] underline w-3 text-center leading-none">U</span>
                 <Chevron className="w-1.5 h-1.5 text-gray-500" />
               </RibbonButton>

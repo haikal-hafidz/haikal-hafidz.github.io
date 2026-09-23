@@ -6,6 +6,38 @@ body {
   overflow-y: auto;
 }
 
+/* Satu bahasa fokus buat semua tombol/link, termasuk elemen yang tidak memakai
+   utility focus Tailwind secara eksplisit. */
+:where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid #2B579A;
+  outline-offset: 3px;
+}
+
+.dark :where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline-color: #8AB4E6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Touch behaviour tidak mengubah ukuran visual elemen. Ukuran font publik
+   ditentukan lokal oleh tiap komponen agar hierarki desain tetap terjaga. */
+.portfolio-public :where(button, a[href], input, textarea, select) {
+  touch-action: manipulation;
+}
+
+@media (max-width: 767px) {
+  .portfolio-public {
+    overflow-wrap: anywhere;
+  }
+}
+
 .word-page {
   width: 100%;
   max-width: 210mm;

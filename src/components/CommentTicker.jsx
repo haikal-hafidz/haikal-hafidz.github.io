@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 
 // Palet warna balon komentar — dicycle berurutan biar tiap kutipan beda warna dari
 // tetangganya, kesannya "hidup" & warna-warni kayak yang diminta.

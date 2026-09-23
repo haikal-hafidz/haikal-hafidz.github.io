@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 
-export default function Ruler({ zoomLevel, setZoomLevel, activeTab }) {
+export default function Ruler({ zoomLevel, setZoomLevel }) {
   // zoomLevel: misal 100 (%) sebagai default. 
   // Di rentang ruler kita, angka 10 merepresentasikan 100%.
   // Skala penggaris dari 1 sampai 20 (default 10 = 100%)
@@ -54,11 +54,11 @@ export default function Ruler({ zoomLevel, setZoomLevel, activeTab }) {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
-      className="w-full max-w-[850px] mx-auto bg-[#f2f2f2] dark:bg-[#2d2d2d] border-x border-b border-[#d1d1d1] dark:border-[#404040] h-6 select-none relative flex items-center text-[9px] text-gray-500 dark:text-gray-400 font-sans shadow-sm overflow-hidden"
+      className="word-ruler-chrome w-full max-w-[850px] mx-auto bg-[#f2f2f2] dark:bg-[#2d2d2d] border-x border-b border-[#d1d1d1] dark:border-[#404040] h-6 select-none relative flex items-center text-[9px] text-gray-500 dark:text-gray-400 font-sans shadow-sm overflow-hidden"
     >
       
       {/* SISI KIRI & KANAN CONTAINER */}
-      <div className="absolute left-0 top-0 bottom-0 w-12 bg-[#e6e6e6] dark:bg-[#353535] border-r border-[#d1d1d1] dark:border-[#444] flex items-center justify-center text-[9px] font-mono text-gray-600 dark:text-gray-300">
+      <div className="ruler-edge-label absolute left-0 top-0 bottom-0 w-12 bg-[#e6e6e6] dark:bg-[#353535] border-r border-[#d1d1d1] dark:border-[#444] flex items-center justify-center text-[9px] font-mono text-gray-600 dark:text-gray-300">
         {currentZoom}%
       </div>
 
@@ -66,7 +66,7 @@ export default function Ruler({ zoomLevel, setZoomLevel, activeTab }) {
       <div className="flex-1 flex justify-between px-14 h-full items-end pb-[2px] relative">
         {rulerNumbers.map((num) => (
           <div key={num} className="flex flex-col items-center relative h-full justify-end">
-            <span className={`absolute top-[1px] text-[8px] transform -translate-x-1/2 font-mono ${num === 10 ? 'text-[#2b579a] font-bold dark:text-blue-400' : 'text-gray-600 dark:text-gray-300'}`}>
+            <span className={`ruler-number absolute top-[1px] text-[8px] transform -translate-x-1/2 font-mono ${num === 10 ? 'text-[#2b579a] font-bold dark:text-blue-400' : 'text-gray-600 dark:text-gray-300'}`}>
               {num}
             </span>
             <div className="flex items-end space-x-[2px]">
@@ -82,7 +82,7 @@ export default function Ruler({ zoomLevel, setZoomLevel, activeTab }) {
         <div 
           onMouseDown={handleMouseDown}
           style={{ left: `calc(48px + ${positionPercentage}% * 0.85)` }}
-          data-hint-id={activeTab === 'Home' ? 'ruler-zoom-handle' : undefined}
+          data-hint-id="ruler-zoom-handle"
           className="absolute top-0 bottom-0 w-4 -ml-2 cursor-ew-resize flex flex-col items-center justify-between z-20 group"
           title={`Zoom: ${currentZoom}% (Geser untuk ubah ukuran)`}
         >
@@ -97,7 +97,7 @@ export default function Ruler({ zoomLevel, setZoomLevel, activeTab }) {
         </div>
       </div>
 
-      <div className="absolute right-0 top-0 bottom-0 w-12 bg-[#e6e6e6] dark:bg-[#353535] border-l border-[#d1d1d1] dark:border-[#444] flex items-center justify-center text-[9px] font-mono text-gray-500">
+      <div className="ruler-edge-label absolute right-0 top-0 bottom-0 w-12 bg-[#e6e6e6] dark:bg-[#353535] border-l border-[#d1d1d1] dark:border-[#444] flex items-center justify-center text-[9px] font-mono text-gray-500">
         Zoom
       </div>
 
