@@ -71,15 +71,16 @@ const TAB_META = {
   zine: { label: 'Wassup?', desc: 'Pengaturan menulis, menerima & moderasi kiriman' },
   miniGame: { label: 'Mini Game', desc: 'Game shelf, draft The Red Pen & koreksi editorial' },
   interactiveWords: { label: 'Interactive Words', desc: 'Frasa klik, tujuan, warna & spellcheck underline' },
-  general: { label: 'General', desc: 'Pengaturan situs — notifikasi welcome, dll' },
+  general: { label: 'General', desc: 'Pengaturan situs — info update patch, suara, dll' },
 };
 
 const DEFAULT_GENERAL = {
   soundEffects: true,
   welcomeNotification: {
     enabled: true,
-    title: 'Selamat datang! 👋',
-    message: 'Terima kasih udah mampir ke portofolio saya. Semoga betah!',
+    version: '1.0.0',
+    title: 'Update terbaru',
+    message: 'Catatan perubahan terbaru portofolio akan muncul di sini.',
     delaySeconds: 2,
   },
 };
@@ -3110,11 +3111,11 @@ export default function CmsDashboard({ data, onSave }) {
             <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">Notifikasi Welcome</h3>
+                  <h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">Info Update Patch</h3>
                   <p className="text-[11px] text-gray-400 mt-0.5">
-                    Kartu sambutan yang muncul otomatis pas orang pertama buka web. Desktop:
-                    pojok kanan-bawah. HP: melayang di bawah, lebar penuh. Muncul sekali per
-                    kunjungan (per tab browser), ada tombol tutup.
+                    Tulis pengumuman perubahan website secara manual. Patch muncul di desktop
+                    dan HP sampai pengunjung menutupnya. Ganti kode versi setiap kali ada
+                    update baru agar patch muncul lagi untuk pengunjung lama.
                   </p>
                 </div>
                 <button
@@ -3133,22 +3134,35 @@ export default function CmsDashboard({ data, onSave }) {
                 </button>
               </div>
 
-              <Field label="Judul">
+              <Field label="Kode versi patch">
+                <input
+                  type="text"
+                  value={formData.general.welcomeNotification.version || ''}
+                  onChange={(e) => setWelcomeNotification('version', e.target.value)}
+                  placeholder="Contoh: 1.1.0 atau 23-09-2026"
+                  className={inputCls}
+                />
+                <p className="mt-1 text-[10px] text-gray-400">
+                  Wajib dibedakan dari patch sebelumnya supaya notifikasi muncul lagi.
+                </p>
+              </Field>
+
+              <Field label="Judul update">
                 <input
                   type="text"
                   value={formData.general.welcomeNotification.title}
                   onChange={(e) => setWelcomeNotification('title', e.target.value)}
-                  placeholder="Selamat datang! 👋"
+                  placeholder="Update terbaru"
                   className={inputCls}
                 />
               </Field>
 
-              <Field label="Pesan">
+              <Field label="Isi patch">
                 <textarea
                   rows={3}
                   value={formData.general.welcomeNotification.message}
                   onChange={(e) => setWelcomeNotification('message', e.target.value)}
-                  placeholder="Terima kasih udah mampir ke portofolio saya."
+                  placeholder="Contoh: Mini Game baru tersedia dan tampilan Projects sudah diperbarui."
                   className={`${inputCls} resize-y`}
                 />
               </Field>

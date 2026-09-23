@@ -1,43 +1,44 @@
 import { useState, useEffect } from 'react';
 
-// Kunci sessionStorage biar notif cuma muncul SEKALI per sesi tab browser (bukan tiap
-// pindah-pindah tab Home/About/dst, dan bukan tiap refresh — tapi tetep muncul lagi
-// kalau tab/browser-nya beneran ditutup terus dibuka baru).
-const SEEN_KEY = 'portfolio_welcome_seen';
-
 export default function WelcomeToast({ settings, isMobileLayout }) {
   const [visible, setVisible] = useState(false);
   const [closing, setClosing] = useState(false);
 
   const enabled = settings?.enabled;
-  const title = settings?.title || 'Selamat datang! 👋';
+  const title = settings?.title || 'Update terbaru';
   const message = settings?.message || '';
+  const version = String(settings?.version || '').trim();
   const delaySeconds = Number.isFinite(settings?.delaySeconds) ? settings.delaySeconds : 2;
+
+  // Versi adalah identitas patch. Kalau admin lupa mengisinya, gabungan judul + pesan
+  // tetap jadi fallback agar perubahan isi otomatis dianggap sebagai patch baru.
+  const patchId = version || `${title}|${message}`;
+  const seenKey = `portfolio_patch_seen:${patchId}`;
 
   useEffect(() => {
     if (!enabled) return;
 
     let alreadySeen = false;
     try {
-      alreadySeen = sessionStorage.getItem(SEEN_KEY) === 'true';
+      alreadySeen = localStorage.getItem(seenKey) === 'true';
     } catch {
-      /* sessionStorage gak tersedia — anggap belum pernah lihat, gapapa muncul lagi */
+      /* localStorage gak tersedia — anggap belum pernah lihat, gapapa muncul lagi */
     }
     if (alreadySeen) return;
 
     const timer = setTimeout(() => {
       setVisible(true);
-      try {
-        sessionStorage.setItem(SEEN_KEY, 'true');
-      } catch {
-        /* diamkan kalau gagal nulis, gak fatal */
-      }
     }, Math.max(0, delaySeconds) * 1000);
 
     return () => clearTimeout(timer);
-  }, [enabled, delaySeconds]);
+  }, [enabled, delaySeconds, seenKey]);
 
   const handleClose = () => {
+    try {
+      localStorage.setItem(seenKey, 'true');
+    } catch {
+      /* diamkan kalau gagal nulis, gak fatal */
+    }
     setClosing(true);
     // Kasih waktu buat animasi keluar main dulu sebelum bener-bener di-unmount
     setTimeout(() => setVisible(false), 200);
@@ -77,6 +78,11 @@ export default function WelcomeToast({ settings, isMobileLayout }) {
           </svg>
         </span>
         <div className="flex-1 min-w-0">
+          {version && (
+            <span className="block mb-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#2b579a] dark:text-[#7fb0f1]">
+              Patch {version}
+            </span>
+          )}
           <h4 className="text-sm font-bold text-gray-900 dark:text-white leading-snug">
             {title}
           </h4>

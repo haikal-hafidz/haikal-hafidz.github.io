@@ -89,15 +89,16 @@ const PORTFOLIO_ROW_ID = 1;
 // dipasang juga di sini (bukan cuma di form edit CMS-nya), soalnya kalau baris di
 // Supabase belum punya field `general` sama sekali (mis. data lama dari sebelum
 // field ini ditambahin), tanpa normalisasi ini `portfolioData.general` bakal
-// `undefined` → WelcomeToast nganggep `enabled` juga `undefined` (falsy) → notif
-// welcome-nya gak pernah muncul di halaman publik, PADAHAL di CMS Dashboard
+// `undefined` → WelcomeToast nganggep `enabled` juga `undefined` (falsy) → info
+// patch-nya gak pernah muncul di halaman publik, PADAHAL di CMS Dashboard
 // toggle-nya keliatan "Aktif" (karena normalisasi versi CmsDashboard cuma dipakai
 // buat form edit-nya doang, gak nembus ke sini).
 const DEFAULT_GENERAL = {
   welcomeNotification: {
     enabled: true,
-    title: 'Selamat datang! 👋',
-    message: 'Terima kasih udah mampir ke portofolio saya. Semoga betah!',
+    version: '1.0.0',
+    title: 'Update terbaru',
+    message: 'Catatan perubahan terbaru portofolio akan muncul di sini.',
     delaySeconds: 2,
   },
   soundEffects: true,

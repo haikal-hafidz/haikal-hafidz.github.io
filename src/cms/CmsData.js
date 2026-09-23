@@ -397,13 +397,14 @@ export const initialPortfolioData = {
   interactiveWords: [],
 
   // 9. GENERAL — pengaturan situs secara keseluruhan (bukan punya satu halaman tertentu).
-  // Baru ada 1 fitur di sini: notifikasi welcome yang nyambut pengunjung pas pertama buka web.
+  // Info update patch ditulis manual dari CMS dan muncul kembali saat kode versi berubah.
   general: {
     soundEffects: true,
     welcomeNotification: {
       enabled: true,
-      title: 'Selamat datang! 👋',
-      message: 'Terima kasih udah mampir ke portofolio saya. Semoga betah!',
+      version: '1.0.0',
+      title: 'Update terbaru',
+      message: 'Catatan perubahan terbaru portofolio akan muncul di sini.',
       delaySeconds: 2,
     },
   }
