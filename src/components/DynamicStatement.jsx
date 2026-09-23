@@ -70,18 +70,21 @@ export default function DynamicStatement({ settings }) {
       : 'text-[clamp(2rem,9.2vw,2.45rem)] sm:text-[3.15em]';
   const sourceSelected = phase === 'selectSource' || phase === 'deleteSource';
   const resultSelected = phase === 'selectResult' || phase === 'deleteResult';
+  const currentPair = pairs[pairIndex % pairs.length];
+  const accessibleStatement = `${settings?.prefix || 'Gue'} ${settings?.highlightedWord || 'mengubah'} ${currentPair?.source || ''} ${settings?.connector || 'menjadi'} ${currentPair?.result || ''}`;
 
   return (
-    <div className={`${sizeClass} mx-auto min-h-[2.3em] w-full max-w-[52rem] min-w-0 break-words text-left font-normal leading-[1.12] tracking-tight text-gray-900 dark:text-white`} aria-label={`${settings?.prefix || 'Gue'} ${settings?.highlightedWord || 'mengubah'} ${pairs[pairIndex % pairs.length]?.source || ''} ${settings?.connector || 'menjadi'} ${pairs[pairIndex % pairs.length]?.result || ''}`}>
+    <h1 className={`${sizeClass} mx-auto min-h-[2.3em] w-full max-w-[52rem] min-w-0 break-words text-left font-normal leading-[1.12] tracking-tight text-gray-900 dark:text-white`}>
+      <span className="sr-only">{accessibleStatement}</span>
       <span aria-hidden="true">
-      <span>{settings?.prefix || 'Gue'} </span>
-      <mark className="bg-yellow-300/90 dark:bg-yellow-400/80 text-inherit px-[0.08em] box-decoration-clone">{settings?.highlightedWord || 'mengubah'}</mark>
-      <span> </span>
-      <span className={sourceSelected ? 'bg-[#2B579A] text-white' : ''}>{sourceText || '\u00a0'}</span>
-      <span> {settings?.connector || 'menjadi'} </span>
-      <span className={resultSelected ? 'bg-[#2B579A] text-white' : ''}>{resultText || '\u00a0'}</span>
-      {!sourceSelected && !resultSelected && <span className="typing-caret" />}
+        <span>{settings?.prefix || 'Gue'} </span>
+        <mark className="bg-yellow-300/90 dark:bg-yellow-400/80 text-inherit px-[0.08em] box-decoration-clone">{settings?.highlightedWord || 'mengubah'}</mark>
+        <span> </span>
+        <span className={sourceSelected ? 'bg-[#2B579A] text-white' : ''}>{sourceText || '\u00a0'}</span>
+        <span> {settings?.connector || 'menjadi'} </span>
+        <span className={resultSelected ? 'bg-[#2B579A] text-white' : ''}>{resultText || '\u00a0'}</span>
+        {!sourceSelected && !resultSelected && <span className="typing-caret" />}
       </span>
-    </div>
+    </h1>
   );
 }

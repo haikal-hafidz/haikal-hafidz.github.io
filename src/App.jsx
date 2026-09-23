@@ -316,6 +316,15 @@ export default function App() {
     }
   }, [isDataReady, isSplashDone]);
 
+  // Splash tetap sempat terlihat sebagai bagian dari identitas visual website, tetapi
+  // jangan sampai animasi mengetiknya menahan konten utama dan memperburuk LCP.
+  // Callback DocumentLoader tetap boleh menyelesaikannya lebih cepat; timer ini hanya
+  // menjadi batas maksimum penantian di perangkat atau jaringan yang lebih lambat.
+  useEffect(() => {
+    const splashDeadline = window.setTimeout(() => setIsSplashDone(true), 900);
+    return () => window.clearTimeout(splashDeadline);
+  }, []);
+
   // Ambil data dari Supabase sekali pas app pertama kali dibuka.
   // Ini yang bikin data konsisten di semua device/browser/akun — bukan lagi localStorage.
   useEffect(() => {
@@ -801,7 +810,7 @@ export default function App() {
   }
 
   const documentBody = (
-    <div className={`relative z-10 w-full h-full ${isBold ? 'font-bold' : ''} ${isItalic ? 'italic' : ''} ${isUnderline ? 'underline' : ''}`}>
+    <main className={`relative z-10 w-full h-full ${isBold ? 'font-bold' : ''} ${isItalic ? 'italic' : ''} ${isUnderline ? 'underline' : ''}`}>
       {activeTab === 'Home' && (
         <Home
           data={portfolioData.home}
@@ -835,7 +844,7 @@ export default function App() {
         />
       )}
       {activeTab === 'Contact' && <Contact data={portfolioData.contact} interactiveWords={portfolioData.interactiveWords} onNavigate={setActiveTab} />}
-    </div>
+    </main>
   );
 
   return (
