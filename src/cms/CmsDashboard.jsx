@@ -2607,15 +2607,68 @@ function ProjectCoverHint({ contentType = 'writing' }) {
   return <p className="mt-1 text-[10px] leading-relaxed text-gray-400">Cover: {getProjectCoverGuide(contentType).text}</p>;
 }
 
+const CMS_IMAGE_MAX_EDGE = 2048;
+const CMS_IMAGE_WEBP_QUALITY = 0.84;
+
+async function optimizeCmsImage(file) {
+  if (!file?.type?.startsWith('image/')) return file;
+  if (file.type === 'image/svg+xml' || file.type === 'image/gif') return file;
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const longestEdge = Math.max(bitmap.width, bitmap.height);
+    const scale = longestEdge > CMS_IMAGE_MAX_EDGE
+      ? CMS_IMAGE_MAX_EDGE / longestEdge
+      : 1;
+
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext('2d', { alpha: true });
+    if (!context) {
+      bitmap.close?.();
+      return file;
+    }
+
+    context.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close?.();
+
+    const blob = await new Promise((resolve) => {
+      canvas.toBlob(resolve, 'image/webp', CMS_IMAGE_WEBP_QUALITY);
+    });
+
+    if (!blob || blob.size >= file.size) return file;
+
+    const baseName = file.name.replace(/\.[^/.]+$/, '') || 'image';
+    return new File([blob], `${baseName}.webp`, {
+      type: 'image/webp',
+      lastModified: Date.now(),
+    });
+  } catch (error) {
+    console.warn('Optimasi gambar dilewati; file asli tetap dipakai:', error);
+    return file;
+  }
+}
+
 async function uploadImageToStorage(file) {
   if (!file) return null;
 
-  const fileExt = file.name.split('.').pop();
+  // Hanya display image yang dioptimalkan. PDF/DOC/DOCX/PPT dan file non-image
+  // melewati fungsi ini tanpa perubahan. SVG/GIF juga dipertahankan agar sifat
+  // vector/animasi tidak rusak.
+  const uploadFile = await optimizeCmsImage(file);
+  const fileExt = uploadFile.name.split('.').pop();
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
 
   const { error } = await supabase.storage
     .from(IMAGES_BUCKET)
-    .upload(fileName, file);
+    .upload(fileName, uploadFile, {
+      contentType: uploadFile.type || undefined,
+      cacheControl: '31536000',
+    });
 
   if (error) {
     console.error('Gagal upload gambar:', error);
@@ -2990,6 +3043,7 @@ export default function CmsDashboard({ data, onSave }) {
   const [zineInboxLoading, setZineInboxLoading] = useState(false);
   const [zineInboxError, setZineInboxError] = useState('');
   const [moderatingZineId, setModeratingZineId] = useState(null);
+  const [zineArchiveTarget, setZineArchiveTarget] = useState(null);
   const [leaderboardRows, setLeaderboardRows] = useState([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState('');
@@ -3081,12 +3135,21 @@ export default function CmsDashboard({ data, onSave }) {
 
   const archiveInboxZine = async (entry) => {
     if (!entry || entry.status === 'pending') return;
-    if (!window.confirm(`Hapus Submission #${entry.id} dari history CMS? Kiriman Approved tetap tersedia di fitur Menerima.`)) return;
+    setZineArchiveTarget(entry);
+  };
+
+  const confirmArchiveInboxZine = async () => {
+    const entry = zineArchiveTarget;
+    if (!entry || entry.status === 'pending') {
+      setZineArchiveTarget(null);
+      return;
+    }
     setModeratingZineId(entry.id);
     setZineInboxError('');
     try {
       await archiveZineSubmissions(entry.id);
       setZineInbox((current) => current.filter((item) => item.id !== entry.id));
+      setZineArchiveTarget(null);
     } catch (error) {
       console.error('Gagal menghapus history Zine:', error);
       setZineInboxError('History belum bisa dihapus. Pastikan kolom/policy cms_archived di Supabase sudah aktif.');
@@ -4177,6 +4240,21 @@ export default function CmsDashboard({ data, onSave }) {
               <div className="mt-5 flex justify-end gap-2">
                 <button type="button" onClick={() => setShowCancelConfirm(false)} className="rounded-md bg-gray-200 dark:bg-gray-700 px-4 py-2 text-xs font-bold text-gray-700 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600">Lanjut Edit</button>
                 <button type="button" onClick={discardChanges} className="rounded-md bg-[#2B579A] px-4 py-2 text-xs font-bold text-white hover:bg-[#234a84]">Ya, Batalkan</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {zineArchiveTarget && (
+        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/55 px-4" role="alertdialog" aria-modal="true">
+          <div className="w-full max-w-sm overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#202020] shadow-2xl">
+            <div className="bg-[#2B579A] px-5 py-3 text-white"><h2 className="font-mono text-sm font-bold tracking-wider">SAYA SATPAM!</h2></div>
+            <div className="p-5">
+              <p className="text-sm text-gray-700 dark:text-gray-200">{`Hapus Submission #${zineArchiveTarget.id} dari history CMS? Kiriman Approved tetap tersedia di fitur Menerima.`}</p>
+              <div className="mt-5 flex justify-end gap-2">
+                <button type="button" onClick={() => setZineArchiveTarget(null)} disabled={moderatingZineId === zineArchiveTarget.id} className="rounded-md bg-gray-200 dark:bg-gray-700 px-4 py-2 text-xs font-bold text-gray-700 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50">Batal</button>
+                <button type="button" onClick={confirmArchiveInboxZine} disabled={moderatingZineId === zineArchiveTarget.id} className="rounded-md bg-[#2B579A] px-4 py-2 text-xs font-bold text-white hover:bg-[#234a84] disabled:opacity-50">{moderatingZineId === zineArchiveTarget.id ? 'Menghapus...' : 'Ya, Hapus'}</button>
               </div>
             </div>
           </div>
