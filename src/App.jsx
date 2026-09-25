@@ -7,16 +7,16 @@ import { setPageMeta, setSiteIdentity } from './lib/pageMeta';
 import { localizedPortfolioData } from './lib/localization';
 
 // Import Komponen Halaman Publik
-import Home from './pages/Home';
+const Home = lazy(() => import('./pages/Home'));
 import { FeaturedWorksRailPortal } from './components/FeaturedWorksCarousel';
 import LastFmFootnote from './components/LastFmFootnote';
 import VisitorIntroduction from './components/VisitorIntroduction';
 import { normalizeVisitorIntroduction } from './lib/visitorIntroductionData';
-import About from './pages/About';
-import Career from './pages/Career';
-import Book from './pages/Book';
-import Projects from './pages/Projects';
-import Contact from './pages/Contact';
+const About = lazy(() => import('./pages/About'));
+const Career = lazy(() => import('./pages/Career'));
+const Book = lazy(() => import('./pages/Book'));
+const Projects = lazy(() => import('./pages/Projects'));
+const Contact = lazy(() => import('./pages/Contact'));
 
 // Import Komponen Ala Microsoft Word & CMS
 import TitleBar from './components/TitleBar';
@@ -361,7 +361,9 @@ export default function App() {
             miniGame: normalizeMiniGame(data.data.miniGame),
             general: normalizeGeneral(data.data.general),
             website: {
+              ...(data.data.website || {}),
               title: data.data.website?.title || 'Haikal A. Hafidz — Content Writer & Editor',
+              favicon: data.data.website?.favicon || '',
               shareImage: data.data.website?.shareImage || '',
             },
           });
@@ -815,6 +817,7 @@ export default function App() {
   }
 
   const documentBody = (
+    <Suspense fallback={null}>
     <div key={`public-language-${language}`} data-public-language={language} className={`relative z-10 w-full h-full ${isBold ? 'font-bold' : ''} ${isItalic ? 'italic' : ''} ${isUnderline ? 'underline' : ''}`}>
       {activeTab === 'Home' && (
         <Home
@@ -852,6 +855,7 @@ export default function App() {
       )}
       {activeTab === 'Contact' && <Contact data={publicPortfolioData.contact} interactiveWords={publicPortfolioData.interactiveWords} onNavigate={setActiveTab} />}
     </div>
+    </Suspense>
   );
 
   return (

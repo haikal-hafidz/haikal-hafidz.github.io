@@ -97,10 +97,23 @@ const TAB_META = {
   websikee: { label: 'Websikee!', desc: 'Judul website dan gambar preview saat link dibagikan' },
 };
 
+const DEV_NOTES_STORAGE_KEY = 'portfolio_cms_dev_notes';
+
+const readLocalDevNotes = () => {
+  try { return localStorage.getItem(DEV_NOTES_STORAGE_KEY) || ''; }
+  catch { return ''; }
+};
+
+const writeLocalDevNotes = (value) => {
+  try { localStorage.setItem(DEV_NOTES_STORAGE_KEY, value || ''); }
+  catch { /* local notes are optional */ }
+};
+
 const DEFAULT_WEBSITE = {
   title: 'Haikal A. Hafidz — Content Writer & Editor',
   favicon: '',
   shareImage: '',
+  devNotes: '',
 };
 
 const normalizeWebsite = (raw) => ({
@@ -2767,7 +2780,10 @@ export default function CmsDashboard({ data, onSave }) {
       miniGame: normalizeMiniGameData(cloned.miniGame),
       interactiveWords: Array.isArray(cloned.interactiveWords) ? cloned.interactiveWords : [],
       general: normalizeGeneral(cloned.general),
-      website: normalizeWebsite(cloned.website),
+      website: {
+        ...normalizeWebsite(cloned.website),
+        devNotes: readLocalDevNotes(),
+      },
       translations: normalizeTranslations(cloned.translations),
     };
   });
@@ -3094,7 +3110,13 @@ export default function CmsDashboard({ data, onSave }) {
       return;
     }
     setIsSaving(true);
-    const cleanData = { ...sourceFormData };
+    const cleanData = {
+      ...sourceFormData,
+      website: { ...normalizeWebsite(sourceFormData.website) },
+    };
+    // Catatan Website adalah admin-local note: jangan pernah kirim ke row portfolio
+    // yang memang dibaca publik oleh website.
+    delete cleanData.website.devNotes;
     delete cleanData.odds;
     delete cleanData.quotes;
     const success = await onSave(cleanData);
@@ -4333,6 +4355,26 @@ export default function CmsDashboard({ data, onSave }) {
                 onChange={(e) => setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: e.target.value } }))}
                 className={inputCls}
                 placeholder="Atau tempel URL gambar"
+              />
+            </div>
+            <div className="space-y-2 border-t border-gray-200 pt-5 dark:border-gray-700">
+              <div>
+                <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Catatan Website</p>
+                <p className="mt-1 text-[10px] leading-relaxed text-gray-400">
+                  Catatan pribadi admin untuk command Git, rumus push/deploy, checklist, atau pesan lain. Disimpan lokal di browser ini dan tidak dikirim ke data portfolio publik.
+                </p>
+              </div>
+              <textarea
+                rows={12}
+                value={sourceFormData.website?.devNotes || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  writeLocalDevNotes(value);
+                  setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), devNotes: value } }));
+                }}
+                className={`${inputCls} min-h-[240px] max-h-[480px] resize-y overflow-y-auto font-mono text-[11px] leading-relaxed`}
+                placeholder={'PUSH & DEPLOY\n\ngit status\ngit add .\ngit commit -m "..."\ngit push\n\nCATATAN:\n- cek localhost\n- cek mobile\n- cek CMS save\n- baru push'}
+                spellCheck={false}
               />
             </div>
           </section>

@@ -24,7 +24,7 @@
 // Poin 2 butuh akses ke index.html / netlify.toml yang belum ada di sini — kalau mau
 // dikerjain juga, tinggal kirim file-nya.
 
-const SITE_URL = 'https://haikalhafidz.netlify.app/';
+const SITE_URL = 'https://haikal-hafidz.github.io/';
 let siteName = 'Haikal A. Hafidz — Content Writer & Editor';
 let browserTitle = siteName;
 let defaultShareImage = '';
@@ -60,7 +60,10 @@ function upsertMeta(attr, key, content) {
  * @param {string} [opts.url] - URL kanonis halaman ini (default: URL saat ini).
  */
 export function setPageMeta({ title, description, image, url } = {}) {
-  const fullTitle = title ? `${title} — ${browserTitle}` : browserTitle;
+  // Website Title dari CMS adalah judul tab final untuk seluruh halaman.
+  // `title` tetap dipakai oleh metadata/description callers, tetapi tidak lagi
+  // ditempelkan ke document.title saat pengunjung berpindah tab portfolio.
+  const fullTitle = browserTitle;
   const resolvedImage = image || defaultShareImage;
   document.title = fullTitle;
 

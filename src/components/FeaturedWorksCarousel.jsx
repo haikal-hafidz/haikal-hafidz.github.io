@@ -28,12 +28,26 @@ export default function FeaturedWorksCarousel({ featuredWorks = [], heading, onO
   }, [featuredWorks.length]);
 
   useEffect(() => {
-    featuredWorks.forEach((work) => {
-      if (!work?.image) return;
+    if (!featuredWorks.length) return;
+
+    // Preload hanya gambar yang berdekatan dengan kartu aktif.
+    // Tampilan/markup/animasi carousel tidak berubah; ini hanya menghindari
+    // browser mengunduh seluruh galeri sekaligus saat Home pertama dibuka.
+    const indexes = featuredWorks.length <= 2
+      ? featuredWorks.map((_, index) => index)
+      : [
+          (safeActiveIndex - 1 + featuredWorks.length) % featuredWorks.length,
+          safeActiveIndex,
+          (safeActiveIndex + 1) % featuredWorks.length,
+        ];
+
+    [...new Set(indexes)].forEach((index) => {
+      const source = featuredWorks[index]?.image;
+      if (!source) return;
       const image = new Image();
-      image.src = work.image;
+      image.src = source;
     });
-  }, [featuredWorks]);
+  }, [featuredWorks, safeActiveIndex]);
 
   // Wheel carousel desktop benar-benar punya jalur sendiri. Listener native non-passive
   // diperlukan supaya preventDefault tidak diabaikan browser dan halaman tidak ikut turun.
