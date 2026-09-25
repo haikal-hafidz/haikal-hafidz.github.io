@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import DynamicStatement from './DynamicStatement';
 import InteractiveText from './InteractiveText';
 import { getApprovedZines, getMiniGameLeaderboard, submitMiniGameScore, submitZine } from '../lib/homeExperienceApi';
+import WassupExperience from './wassup/WassupExperience';
+import MiniGameExperience from './miniGames/MiniGameExperience';
 
 const safeLocalJson = (key, fallback) => {
   try {
@@ -76,14 +78,60 @@ const resultTitle = (grade, titles) => {
   return ordered.find((item) => grade >= item.min)?.label || 'Draft Survivor';
 };
 
-export default function HomeExperience({ data, zineData, miniGameData, interactiveWords = [], onNavigate }) {
+
+const DEFAULT_HANGMAN_WORDS = [
+  { word: 'AMBIGUITAS', clue: 'Makna yang tidak pasti.' },
+  { word: 'GAGASAN', clue: 'Ide yang dipikirkan.' },
+  { word: 'JANGGAL', clue: 'Terasa tidak semestinya.' },
+  { word: 'LUGAS', clue: 'Jelas dan langsung.' },
+  { word: 'TAFSIR', clue: 'Pemaknaan terhadap sesuatu.' },
+  { word: 'KHALAYAK', clue: 'Kelompok penerima pesan.' },
+  { word: 'SANGGAH', clue: 'Membantah suatu pendapat.' },
+  { word: 'NALURI', clue: 'Dorongan alami.' },
+  { word: 'WACANA', clue: 'Gagasan dalam pembahasan.' },
+  { word: 'SAMAR', clue: 'Tidak terlihat jelas.' },
+  { word: 'NUANSA', clue: 'Perbedaan yang sangat halus.' },
+  { word: 'SATIR', clue: 'Sindiran lewat humor.' },
+  { word: 'DISTOPIA', clue: 'Masyarakat yang buruk.' },
+  { word: 'PARADOKS', clue: 'Pernyataan tampak bertentangan.' },
+  { word: 'METAFORA', clue: 'Perbandingan secara kiasan.' },
+  { word: 'NARASI', clue: 'Rangkaian sebuah cerita.' },
+  { word: 'RETORIKA', clue: 'Seni menggunakan bahasa.' },
+  { word: 'SUBTEKS', clue: 'Makna yang tidak diucapkan.' },
+  { word: 'IRONI', clue: 'Berlawanan dengan harapan.' },
+  { word: 'BIAS', clue: 'Kecenderungan yang memengaruhi penilaian.' },
+  { word: 'EMPATI', clue: 'Memahami perasaan orang lain.' },
+  { word: 'WAWASAN', clue: 'Pemahaman yang lebih luas.' },
+  { word: 'PERSEPSI', clue: 'Cara menangkap sesuatu.' },
+  { word: 'ARKETIPE', clue: 'Pola yang terus berulang.' },
+  { word: 'PROSA', clue: 'Tulisan tanpa pola sajak.' },
+  { word: 'LEKSIKON', clue: 'Kumpulan kosakata.' },
+  { word: 'SINTAKSIS', clue: 'Susunan kata dalam kalimat.' },
+  { word: 'SEMANTIK', clue: 'Kajian tentang makna.' },
+  { word: 'KATARSIS', clue: 'Pelepasan emosi.' },
+  { word: 'ANEKDOT', clue: 'Cerita singkat menarik.' },
+];
+
+const hangmanWordsFrom = (miniGameData) => {
+  const slot = (miniGameData?.gameSlots || []).find((item) => String(item?.gameName || '').trim().toLowerCase() === 'the hangman')
+    || (miniGameData?.gameSlots || [])[0];
+  const fromCms = (slot?.drafts || []).filter((item) => item?.enabled !== false).map((item) => {
+    const word = String(item?.label || '').replace(/[^A-Za-z]/g, '').toUpperCase();
+    const clue = String(item?.passage || '').trim();
+    return word.length >= 3 && clue ? { word, clue } : null;
+  }).filter(Boolean);
+  return { slot, words: fromCms.length >= 15 ? fromCms : DEFAULT_HANGMAN_WORDS };
+};
+
+const hangmanMask = (word, guessed) => [...word].map((letter) => guessed.includes(letter) ? letter : '_').join(' ');
+
+export default function HomeExperience({ data, zineData, miniGameData, interactiveWords = [], onNavigate, showcaseOpenSound }) {
   const [mode, setMode] = useState('idle');
   const [zineMode, setZineMode] = useState(null);
   const [zineDraft, setZineDraft] = useState('');
   const [zineNotice, setZineNotice] = useState('');
   const [selectedZine, setSelectedZine] = useState(null);
   const [gamePhase, setGamePhase] = useState('library');
-  const [selectedGameId, setSelectedGameId] = useState('root');
   const [sessionDrafts, setSessionDrafts] = useState([]);
   const [draftIndex, setDraftIndex] = useState(0);
   const [foundIssues, setFoundIssues] = useState([]);
@@ -97,27 +145,43 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
   const [hintUsed, setHintUsed] = useState(false);
   const [hintedIssue, setHintedIssue] = useState(null);
   const [scoreboard, setScoreboard] = useState(() => safeLocalJson('portfolio_minigame_scores', []));
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
+  const [playerName, setPlayerName] = useState('');
+  const [leaderboardNotice, setLeaderboardNotice] = useState('');
+  const [playerStanding, setPlayerStanding] = useState(null);
+  const [scoreSaving, setScoreSaving] = useState(false);
+  const [hangmanWords, setHangmanWords] = useState([]);
+  const [hangmanIndex, setHangmanIndex] = useState(0);
+  const [hangmanGuessed, setHangmanGuessed] = useState([]);
+  const [hangmanSolved, setHangmanSolved] = useState(0);
+  const [hangmanWrongLetters, setHangmanWrongLetters] = useState([]);
+  const [hangmanTotalGuesses, setHangmanTotalGuesses] = useState(0);
+  const [hangmanCorrectGuesses, setHangmanCorrectGuesses] = useState(0);
+  const [hangmanWordDone, setHangmanWordDone] = useState(false);
+  const [hangmanStanding, setHangmanStanding] = useState(null);
+  const [hangmanScoreboard, setHangmanScoreboard] = useState([]);
+  const [hangmanLeaderboardOpen, setHangmanLeaderboardOpen] = useState(false);
+  const [hangmanPlayerName, setHangmanPlayerName] = useState('');
+  const [hangmanNotice, setHangmanNotice] = useState('');
+  const [hangmanSaving, setHangmanSaving] = useState(false);
+  const [hangmanTimeLeft, setHangmanTimeLeft] = useState(600);
+  const [hangmanFinishedBy, setHangmanFinishedBy] = useState('');
   const modalRef = useRef(null);
   const lastTriggerRef = useRef(null);
 
   const zines = Array.isArray(zineData?.entries) ? zineData.entries.filter((entry) => entry?.published !== false && entry?.body?.trim()) : [];
-  const libraryGames = useMemo(() => [
-    { ...miniGameData, id: 'root' },
-    ...(Array.isArray(miniGameData?.gameSlots) ? miniGameData.gameSlots : []),
-  ].filter((game) => game?.gameName?.trim() && game?.showInLibrary === true), [miniGameData]);
-  const activeGameData = libraryGames.find((game) => game.id === selectedGameId) || libraryGames[0] || miniGameData;
-  const availableDrafts = useMemo(() => playableDrafts(activeGameData), [activeGameData]);
+  const availableDrafts = useMemo(() => playableDrafts(miniGameData), [miniGameData]);
   const activeDraft = sessionDrafts[draftIndex];
   const activeIssues = useMemo(() => validIssuesFor(activeDraft), [activeDraft]);
   const activeSegments = useMemo(() => buildSegments(activeDraft), [activeDraft]);
-  const secondsPerDraft = Math.min(120, Math.max(15, Number(activeGameData?.secondsPerDraft) || 60));
-  const draftsPerSession = Math.min(5, Math.max(1, Number(activeGameData?.draftsPerSession) || 5));
+  const secondsPerDraft = Math.min(120, Math.max(15, Number(miniGameData?.secondsPerDraft) || 60));
+  const draftsPerSession = Math.min(5, Math.max(1, Number(miniGameData?.draftsPerSession) || 5));
   const scoreSettings = {
-    correctPoints: Math.max(0, Number(activeGameData?.scoreSettings?.correctPoints) || 100),
-    wrongPenalty: Math.max(0, Number(activeGameData?.scoreSettings?.wrongPenalty) || 25),
-    completionBonus: Math.max(0, Number(activeGameData?.scoreSettings?.completionBonus) || 100),
-    maxTimeBonus: Math.max(0, Number(activeGameData?.scoreSettings?.maxTimeBonus) || 100),
-    hintPenalty: Math.max(0, Number(activeGameData?.scoreSettings?.hintPenalty) || 75),
+    correctPoints: Math.max(0, Number(miniGameData?.scoreSettings?.correctPoints) || 100),
+    wrongPenalty: Math.max(0, Number(miniGameData?.scoreSettings?.wrongPenalty) || 25),
+    completionBonus: Math.max(0, Number(miniGameData?.scoreSettings?.completionBonus) || 100),
+    maxTimeBonus: Math.max(0, Number(miniGameData?.scoreSettings?.maxTimeBonus) || 100),
+    hintPenalty: Math.max(0, Number(miniGameData?.scoreSettings?.hintPenalty) || 75),
   };
   const signatureRole = data?.role || '';
   const modalOpen = mode !== 'idle';
@@ -125,6 +189,14 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
   const accuracy = totalClicks ? Math.round((correctClicks / totalClicks) * 100) : 0;
   const completionRate = totalIssues ? issuesFoundTotal / totalIssues : 0;
   const finalGrade = Math.round(accuracy * completionRate);
+  const { slot: hangmanSlot, words: configuredHangmanWords } = useMemo(() => hangmanWordsFrom(miniGameData), [miniGameData]);
+  const activeHangmanWord = hangmanWords[hangmanIndex] || null;
+  const hangmanWrongCount = activeHangmanWord ? hangmanGuessed.filter((letter) => !activeHangmanWord.word.includes(letter)).length : 0;
+  const hangmanSolvedCurrent = activeHangmanWord ? [...activeHangmanWord.word].every((letter) => hangmanGuessed.includes(letter)) : false;
+  const hangmanAccuracy = hangmanTotalGuesses ? Math.round((hangmanCorrectGuesses / hangmanTotalGuesses) * 100) : 0;
+  const hangmanScore = hangmanSolved * 1000 + hangmanAccuracy * 10 + Math.max(0, hangmanTimeLeft);
+  const hangmanGradeTitles = Array.isArray(hangmanSlot?.gradeTitles) && hangmanSlot.gradeTitles.length ? hangmanSlot.gradeTitles : [{ min: 15, label: 'Master Wordsmith' }, { min: 10, label: 'Seasoned Linguist' }, { min: 5, label: 'Vocabulary Scout' }, { min: 0, label: 'Word Rookie' }];
+  const hangmanTitle = hangmanGradeTitles.slice().sort((a,b)=>Number(b.min)-Number(a.min)).find((item)=>hangmanSolved >= Number(item.min))?.label || 'Word Rookie';
 
   const closeExperience = () => {
     setMode('idle');
@@ -136,7 +208,7 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
 
   useEffect(() => {
     let ignore = false;
-    getMiniGameLeaderboard(10)
+    getMiniGameLeaderboard('red-pen', 10)
       .then((rows) => { if (!ignore && rows.length) setScoreboard(rows); })
       .catch(() => { /* local scoreboard remains available */ });
     return () => { ignore = true; };
@@ -186,7 +258,100 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
     return () => window.clearTimeout(timer);
   }, [mode, gamePhase, timeLeft]);
 
+  const startHangman = () => {
+    setHangmanWords(shuffle(configuredHangmanWords).slice(0, 15));
+    setHangmanIndex(0);
+    setHangmanGuessed([]);
+    setHangmanSolved(0);
+    setHangmanWrongLetters([]);
+    setHangmanTotalGuesses(0);
+    setHangmanCorrectGuesses(0);
+    setHangmanWordDone(false);
+    setHangmanStanding(null);
+    setHangmanLeaderboardOpen(false);
+    setHangmanPlayerName('');
+    setHangmanNotice('');
+    setHangmanTimeLeft(600);
+    setHangmanFinishedBy('');
+    setGamePhase('hangman-play');
+  };
+
+  const guessHangmanLetter = (letter) => {
+    if (!activeHangmanWord || hangmanWordDone || hangmanGuessed.includes(letter)) return;
+    const hit = activeHangmanWord.word.includes(letter);
+    const nextGuessed = [...hangmanGuessed, letter];
+    const nextWrong = nextGuessed.filter((item) => !activeHangmanWord.word.includes(item)).length;
+    const solvedNow = [...activeHangmanWord.word].every((item) => nextGuessed.includes(item));
+    setHangmanGuessed(nextGuessed);
+    setHangmanTotalGuesses((value) => value + 1);
+    if (hit) setHangmanCorrectGuesses((value) => value + 1);
+    else setHangmanWrongLetters((value) => [...value, letter]);
+    if (solvedNow) {
+      setHangmanSolved((value) => value + 1);
+      setHangmanWordDone(true);
+    } else if (nextWrong >= 6) {
+      setHangmanWordDone(true);
+      setHangmanFinishedBy('hangman');
+    }
+  };
+
+  const nextHangmanWord = () => {
+    if (hangmanIndex >= hangmanWords.length - 1) {
+      setGamePhase('hangman-result');
+      return;
+    }
+    setHangmanIndex((value) => value + 1);
+    setHangmanGuessed([]);
+    setHangmanWordDone(false);
+  };
+
+  const refreshHangmanLeaderboard = async () => {
+    try {
+      const rows = await getMiniGameLeaderboard('hangman', 10);
+      setHangmanScoreboard(rows);
+    } catch { /* public game remains playable without leaderboard */ }
+  };
+
+  const saveHangmanScore = async () => {
+    const cleanName = hangmanPlayerName.trim().replace(/\s+/g, ' ').slice(0, 24);
+    if (cleanName.length < 2) return setHangmanNotice('Nama / alias minimal 2 karakter.');
+    setHangmanSaving(true);
+    setHangmanNotice('Menyimpan skor…');
+    try {
+      const standing = await submitMiniGameScore({
+        gameId: 'hangman',
+        playerName: cleanName,
+        score: hangmanScore,
+        accuracy: hangmanAccuracy,
+        correctCount: hangmanSolved,
+        totalQuestions: 15,
+        activeSeconds: 600 - hangmanTimeLeft,
+      });
+      setHangmanPlayerName(cleanName);
+      setHangmanStanding(standing);
+      setHangmanNotice('');
+      await refreshHangmanLeaderboard();
+    } catch (error) {
+      console.error('Hangman leaderboard submit failed:', error);
+      setHangmanNotice('Skor belum bisa disimpan. Coba lagi.');
+    } finally {
+      setHangmanSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (mode !== 'game' || gamePhase !== 'hangman-play' || hangmanFinishedBy === 'hangman') return undefined;
+    if (hangmanTimeLeft <= 0) {
+      setHangmanFinishedBy('time');
+      setGamePhase('hangman-result');
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setHangmanTimeLeft((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [mode, gamePhase, hangmanTimeLeft, hangmanFinishedBy]);
+
   const openZine = (event) => {
+    showcaseOpenSound?.();
     lastTriggerRef.current = event?.currentTarget || null;
     setZineMode(null);
     setZineNotice('');
@@ -195,8 +360,8 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
   };
 
   const openGame = (event) => {
+    showcaseOpenSound?.();
     lastTriggerRef.current = event?.currentTarget || lastTriggerRef.current;
-    setSelectedGameId(libraryGames[0]?.id || 'root');
     setGamePhase('library');
     setSessionDrafts([]);
     setMode('game');
@@ -204,22 +369,12 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
 
   useEffect(() => {
     const onRailAction = (event) => {
-      if (event.detail === 'zine') {
-        setZineMode(null);
-        setZineNotice('');
-        setSelectedZine(null);
-        setMode('zine');
-      }
-      if (event.detail === 'game') {
-        setSelectedGameId(libraryGames[0]?.id || 'root');
-        setGamePhase('library');
-        setSessionDrafts([]);
-        setMode('game');
-      }
+      if (event.detail === 'zine') openZine();
+      if (event.detail === 'game') openGame();
     };
     window.addEventListener('portfolio:home-action', onRailAction);
     return () => window.removeEventListener('portfolio:home-action', onRailAction);
-  }, [libraryGames]);
+  }, []);
 
   const saveZineDraft = async () => {
     const clean = zineDraft.trim();
@@ -268,6 +423,10 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
     setActiveSeconds(0);
     setHintUsed(false);
     setHintedIssue(null);
+    setLeaderboardOpen(false);
+    setLeaderboardNotice('');
+    setPlayerStanding(null);
+    setScoreSaving(false);
     setGamePhase(selected.length ? 'play' : 'intro');
   };
 
@@ -308,20 +467,55 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
     window.setTimeout(() => setHintedIssue((current) => current === remaining.id ? null : current), 2000);
   };
 
-  const saveFinalScore = async () => {
-    const finalAccuracy = totalClicks ? Math.round((correctClicks / totalClicks) * 100) : 0;
-    const finalCompletion = totalIssues ? issuesFoundTotal / totalIssues : 0;
-    const grade = Math.round(finalAccuracy * finalCompletion);
-    const nextBoard = [{ score: grade, total: 100 }, ...scoreboard].slice(0, 5);
-    setScoreboard(nextBoard);
-    localStorage.setItem('portfolio_minigame_scores', JSON.stringify(nextBoard));
+  const refreshLeaderboard = async () => {
     try {
-      await submitMiniGameScore(grade, 100);
-      const globalBoard = await getMiniGameLeaderboard(10);
-      if (globalBoard.length) setScoreboard(globalBoard);
+      const rows = await getMiniGameLeaderboard('red-pen', 10);
+      setScoreboard(rows);
+      localStorage.setItem('portfolio_minigame_scores', JSON.stringify(rows));
+      return rows;
     } catch {
-      // Local result remains visible when the service is unavailable.
+      return scoreboard;
     }
+  };
+
+  const saveLeaderboardScore = async () => {
+    const cleanName = playerName.trim().replace(/\s+/g, ' ').slice(0, 24);
+    if (cleanName.length < 2) {
+      setLeaderboardNotice('Nama / alias minimal 2 karakter.');
+      return;
+    }
+    setScoreSaving(true);
+    setLeaderboardNotice('Menyimpan skor…');
+    try {
+      const standing = await submitMiniGameScore({
+        gameId: 'red-pen',
+        playerName: cleanName,
+        score: rawScore,
+        accuracy,
+        correctCount: issuesFoundTotal,
+        totalQuestions: totalIssues,
+        activeSeconds,
+      });
+      setPlayerName(cleanName);
+      setPlayerStanding(standing);
+      setLeaderboardNotice('');
+      await refreshLeaderboard();
+    } catch (error) {
+      // Jangan bocorkan pesan database/Supabase ke pemain, tapi simpan detailnya
+      // di console supaya kegagalan backend tetap bisa didiagnosis.
+      console.error('Red Pen leaderboard submit failed:', error);
+      setLeaderboardNotice('Skor belum bisa disimpan. Coba lagi.');
+    } finally {
+      setScoreSaving(false);
+    }
+  };
+
+  const openLeaderboard = async () => {
+    setLeaderboardOpen(true);
+    window.setTimeout(() => {
+      document.getElementById('red-pen-leaderboard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 0);
+    await refreshLeaderboard();
   };
 
   const nextDraft = () => {
@@ -335,7 +529,6 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
       return;
     }
     setGamePhase('result');
-    saveFinalScore();
   };
 
   const navigateFromGame = (page) => {
@@ -347,12 +540,17 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
     <section className="relative px-5 pb-8 pt-7 sm:min-h-[65vh] sm:px-10 sm:py-12" aria-label="Home introduction">
       <div className="relative sm:min-h-[52vh]">
         <div className="mx-auto w-full max-w-[60rem] lg:absolute lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2"><DynamicStatement settings={data?.dynamicStatement} /></div>
-        <nav className="mx-auto mt-8 grid w-full gap-2 sm:grid-cols-2 md:hidden" aria-label="Home routes and interactive features">
-          <button type="button" onClick={() => onNavigate?.('Projects')} data-hint-id="home-selected-work" className={homeRouteClass}><span>Selected work</span><span aria-hidden="true">→</span></button>
-          <button type="button" onClick={() => onNavigate?.('Career')} data-hint-id="home-experience" className={homeRouteClass}><span>Experience</span><span aria-hidden="true">→</span></button>
-          <button type="button" onClick={() => onNavigate?.('Contact')} data-hint-id="home-contact" className={homeRouteClass}><span>Contact</span><span aria-hidden="true">→</span></button>
-          {zineData?.enabled !== false && <button type="button" onClick={openZine} data-hint-id="home-wassup" className={homeRouteClass}><span>{zineData?.menuLabel || 'Wassup?'}</span><span aria-hidden="true">→</span></button>}
-          {miniGameData?.enabled !== false && <button type="button" onClick={openGame} data-hint-id="home-mini-game" className={homeRouteClass}><span>{miniGameData?.menuLabel || 'Mini Game'}</span><span aria-hidden="true">→</span></button>}
+        <nav className="mx-auto mt-8 w-full md:hidden" aria-label="Home routes and interactive features">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button type="button" onClick={() => onNavigate?.('Projects')} data-hint-id="home-selected-work" className={homeRouteClass}><span>Selected Works</span><span aria-hidden="true">→</span></button>
+            <button type="button" onClick={() => onNavigate?.('Career')} data-hint-id="home-experience" className={homeRouteClass}><span>Experience</span><span aria-hidden="true">→</span></button>
+            <button type="button" onClick={() => onNavigate?.('Contact')} data-hint-id="home-contact" className={homeRouteClass}><span>Contact</span><span aria-hidden="true">→</span></button>
+          </div>
+          <div className="my-4 border-t border-gray-300/80 dark:border-gray-600/80" aria-hidden="true" />
+          <div className="grid gap-2 sm:grid-cols-2">
+            {zineData?.enabled !== false && <button type="button" onClick={openZine} data-hint-id="home-wassup" className={homeRouteClass}><span>{zineData?.menuLabel || 'Wassup?'}</span><span aria-hidden="true">→</span></button>}
+            {miniGameData?.enabled !== false && <button type="button" onClick={openGame} data-hint-id="home-mini-game" className={homeRouteClass}><span>{miniGameData?.menuLabel || 'Mini Games'}</span><span aria-hidden="true">→</span></button>}
+          </div>
         </nav>
       </div>
       <div className="mt-9 border-t border-gray-200 pt-5 text-right dark:border-gray-700 sm:absolute sm:bottom-10 sm:right-12 sm:mt-0 sm:max-w-[70%] sm:border-0 sm:pt-0">
@@ -364,29 +562,12 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
         <div className="fixed inset-0 z-[10000] overflow-y-auto bg-[#d7d7d7] dark:bg-[#181818]">
           <section ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="home-experience-title" className="home-experience-print-in min-h-screen w-full overflow-y-auto bg-[#fbfaf6] p-5 text-gray-900 shadow-[0_0_80px_rgba(0,0,0,.22)] dark:bg-[#202020] dark:text-gray-100 sm:p-8 lg:px-[8vw] lg:py-10">
             <header className="mx-auto mb-6 flex max-w-[100rem] items-start justify-between gap-4 border-b border-gray-200 pb-4 dark:border-gray-700">
-              <div><p className="font-mono text-[0.75em] uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#8AB4E6]">{mode === 'zine' ? 'Wassup?' : gamePhase === 'library' ? 'Mini Game Archive' : (activeGameData?.gameName || 'Mini Game')}</p><h2 id="home-experience-title" className="mt-1 font-serif text-[1.75em] leading-tight text-gray-900 dark:text-white">{mode === 'zine' ? (zineData?.title || 'Write one. Receive one.') : gamePhase === 'library' ? (miniGameData?.libraryTitle || 'Choose a desk.') : (activeGameData?.title || activeGameData?.gameName || 'Inspect the unfinished draft.')}</h2></div>
-              <div className="flex items-center gap-3">{mode === 'game' && gamePhase === 'play' && <span className={`font-mono text-sm font-bold tabular-nums ${timeLeft <= 10 ? 'text-red-600' : 'text-gray-600 dark:text-gray-300'}`}>{String(Math.floor(timeLeft / 60)).padStart(2, '0')}:{String(timeLeft % 60).padStart(2, '0')}</span>}<button type="button" onClick={closeExperience} className="min-h-11 shrink-0 rounded border border-gray-300 px-4 py-2 text-sm font-semibold hover:border-[#2B579A] hover:text-[#2B579A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:border-gray-600" aria-label="Tutup dan kembali ke Home">Tutup ×</button></div>
+              <div><p className="font-mono text-[0.75em] uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#8AB4E6]">{mode === 'zine' ? 'Wassup?' : gamePhase === 'library' ? 'Mini Game Archive' : gamePhase.startsWith('hangman-') ? (hangmanSlot?.gameName || 'The Hangman') : 'The Red Pen'}</p><h2 id="home-experience-title" className="mt-1 font-serif text-[1.75em] leading-tight text-gray-900 dark:text-white">{mode === 'zine' ? (zineData?.title || 'Write one. Receive one.') : gamePhase === 'library' ? (miniGameData?.libraryTitle || 'Choose a desk.') : gamePhase.startsWith('hangman-') ? (hangmanSlot?.title || 'Guess the word before the line is complete.') : (miniGameData?.title || 'Inspect the unfinished draft.')}</h2></div>
+              <div className="flex items-center gap-3">{mode === 'game' && gamePhase === 'play' && <span className={`font-mono text-sm font-bold tabular-nums ${timeLeft <= 10 ? 'text-red-600' : 'text-gray-600 dark:text-gray-300'}`}>{String(Math.floor(timeLeft / 60)).padStart(2, '0')}:{String(timeLeft % 60).padStart(2, '0')}</span>}<button type="button" onClick={closeExperience} className="min-h-11 shrink-0 rounded border border-gray-300 px-4 py-2 text-sm font-semibold hover:border-[#2B579A] hover:text-[#2B579A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:border-gray-600" aria-label="Tutup dan kembali ke Home">{hangmanSlot?.hangmanLeaderboardCloseLabel || 'Tutup ×'}</button></div>
             </header>
 
-            {mode === 'zine' && <div className="mx-auto max-w-3xl">{!zineMode && <div className="grid gap-3 sm:grid-cols-2"><button type="button" onClick={() => setZineMode('write')} className="min-h-28 rounded border border-gray-300 p-4 text-left transition hover:border-[#2B579A] dark:border-gray-600"><strong className="block font-serif text-xl">Menulis</strong><span className="mt-2 block text-base leading-relaxed text-gray-600 dark:text-gray-300">Tinggalkan satu halaman untuk pembaca berikutnya.</span></button><button type="button" onClick={() => { setZineMode('receive'); receiveZine(); }} className="min-h-28 rounded border border-gray-300 p-4 text-left transition hover:border-[#2B579A] dark:border-gray-600"><strong className="block font-serif text-xl">Menerima</strong><span className="mt-2 block text-base leading-relaxed text-gray-600 dark:text-gray-300">Ambil satu tulisan yang sudah diterbitkan.</span></button></div>}{zineMode && <button type="button" onClick={() => { setZineMode(null); setSelectedZine(null); setZineNotice(''); }} className="mb-4 min-h-11 text-sm font-semibold text-[#2B579A] underline underline-offset-4">← Kembali ke pilihan</button>}{zineMode === 'write' && <div><textarea value={zineDraft} onChange={(event) => setZineDraft(event.target.value.slice(0, Number(zineData?.maxLength) || 1200))} rows={8} className="w-full resize-y rounded border border-gray-300 bg-transparent p-4 font-serif text-base leading-relaxed focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:border-gray-600" placeholder={zineData?.writePrompt || 'Tulis sesuatu yang layak ditemukan orang lain…'} /><div className="mt-3 flex items-center justify-between gap-3"><span className="text-sm text-gray-500">{zineDraft.length}/{Number(zineData?.maxLength) || 1200}</span><button type="button" onClick={saveZineDraft} className="min-h-11 rounded bg-[#2B579A] px-5 py-2 text-sm font-bold text-white">Kirim</button></div></div>}{zineMode === 'receive' && selectedZine && <article className="mx-auto max-w-xl animate-[zine-print_650ms_ease-out] border border-gray-200 bg-[#fffdf7] p-7 shadow-lg dark:border-gray-600 dark:bg-[#292722]"><p className="font-mono text-[0.75em] uppercase tracking-[0.16em] text-gray-600 dark:text-gray-300">{selectedZine.label || 'For a stranger'}</p><h3 className="mt-3 font-serif text-2xl">{selectedZine.title || 'Untitled'}</h3><p className="mt-5 whitespace-pre-wrap font-serif text-base leading-relaxed">{selectedZine.body}</p><p className="mt-6 text-right font-mono text-sm text-gray-600 dark:text-gray-300">— {selectedZine.author || 'Anonymous'}</p></article>}{zineNotice && <p role="status" aria-live="polite" className="mt-4 text-base">{zineNotice}</p>}</div>}
-
-            {mode === 'game' && <main className="mx-auto max-w-[55rem]">
-              {gamePhase === 'library' && <div className="grid min-h-[calc(100vh-12rem)] place-items-center py-6"><div className="w-full"><p className="mx-auto mb-7 max-w-xl text-center text-sm leading-relaxed text-gray-600 dark:text-gray-300">{miniGameData?.libraryDescription || 'Pilih satu meja kerja. Setiap permainan menguji bagian berbeda dari proses mengubah gagasan mentah menjadi naskah.'}</p><div className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-2 lg:grid-cols-3">{libraryGames.map((game, index) => <button key={game.id || `game-${index}`} type="button" onClick={() => { setSelectedGameId(game.id || `game-${index}`); setGamePhase('intro'); }} aria-label={`Buka ${game.gameName}`} className="group overflow-hidden rounded border border-gray-300 bg-white text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-[#2B579A] hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:border-gray-600 dark:bg-[#252525]"><div className="grid aspect-[4/3] place-items-center overflow-hidden bg-[#eef3fa] dark:bg-[#1b2635]">{game.illustration ? <img src={game.illustration} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" /> : <svg className="h-20 w-20 text-[#2B579A] transition-transform duration-200 group-hover:-rotate-6 group-hover:scale-105 dark:text-[#8AB4E6]" viewBox="0 0 96 96" fill="none" aria-hidden="true"><path d="M67 12 82 27 40 69 21 75l6-19L67 12Z" stroke="currentColor" strokeWidth="3" strokeLinejoin="round"/><path d="m59 20 16 16M27 56l13 13M21 75l-7 7M18 85h54" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/><path d="M43 66 28 51" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4"/></svg>}</div><div className="p-4"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-[#2B579A]">{game.gameCategory || `Game ${String(index + 1).padStart(2, '0')}`}</span><strong className="mt-1 block font-serif text-xl">{game.gameName}</strong>{game.gameCardDescription && <span className="mt-2 block text-sm leading-relaxed text-gray-600 dark:text-gray-300">{game.gameCardDescription}</span>}</div></button>)}<div aria-disabled="true" className="grid min-h-full overflow-hidden rounded border border-dashed border-gray-300 bg-gray-100/70 text-center text-gray-400 dark:border-gray-700 dark:bg-white/5 dark:text-gray-500"><div className="grid aspect-[4/3] place-items-center border-b border-dashed border-gray-300 dark:border-gray-700"><svg className="h-14 w-14" viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="13" y="13" width="38" height="38" rx="4"/><path d="M24 32h16M32 24v16" strokeLinecap="round"/></svg></div><div className="p-4"><span className="block font-mono text-[10px] font-bold uppercase tracking-[0.16em]">Coming soon</span><span className="mt-2 block text-sm leading-relaxed">Meja berikutnya sedang disiapkan.</span></div></div></div></div></div>}
-              {gamePhase === 'intro' && <div className="mx-auto max-w-3xl py-3 sm:py-6"><button type="button" onClick={() => setGamePhase('library')} className="mb-5 min-h-11 font-mono text-xs font-bold uppercase tracking-wide text-[#2B579A]">← Kembali ke pilihan game</button><section className="border-y border-gray-200 py-5 dark:border-gray-700"><p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#2B579A]">Tujuan permainan</p><p className="mt-2 font-serif text-xl leading-relaxed text-gray-700 dark:text-gray-200">{activeGameData?.objective || 'Detail permainan ini belum diisi. Game tetap ditampilkan karena namanya sudah aktif di CMS.'}</p></section><section className="mt-5"><p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#2B579A]">Aturan main</p><ol className="mt-3 grid gap-x-5 text-sm leading-relaxed sm:grid-cols-2">{[activeGameData?.rules?.click, activeGameData?.rules?.timer, activeGameData?.rules?.wrong, activeGameData?.rules?.hint, activeGameData?.rules?.review].filter(Boolean).map((rule, index, list) => <li key={index} className={`border-t border-gray-300 py-3 ${index === list.length - 1 && list.length % 2 === 1 ? 'sm:col-span-2' : ''}`}><strong>{String(index + 1).padStart(2, '0')}.</strong> {rule}</li>)}</ol></section><section className="mt-5 grid gap-5 sm:grid-cols-2"><div><p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#2B579A]">Sistem skor</p><dl className="mt-3 space-y-2 text-sm"><div className="flex justify-between border-b border-gray-200 pb-2"><dt>Temuan benar</dt><dd>+{scoreSettings.correctPoints}</dd></div><div className="flex justify-between border-b border-gray-200 pb-2"><dt>Klik salah</dt><dd>−{scoreSettings.wrongPenalty}</dd></div><div className="flex justify-between border-b border-gray-200 pb-2"><dt>Draft selesai</dt><dd>+{scoreSettings.completionBonus}</dd></div><div className="flex justify-between border-b border-gray-200 pb-2"><dt>Bonus waktu</dt><dd>maks. +{scoreSettings.maxTimeBonus}</dd></div><div className="flex justify-between"><dt>Pakai hint</dt><dd>−{scoreSettings.hintPenalty}</dd></div></dl></div><div><p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#2B579A]">Rincian gelar</p><dl className="mt-3 space-y-2 text-sm">{(activeGameData?.gradeTitles || []).filter((item) => item?.label?.trim()).slice().sort((a, b) => Number(b.min) - Number(a.min)).map((item, index, list) => <div key={`${item.min}-${item.label}`} className="flex justify-between border-b border-gray-200 pb-2"><dt>{item.label}</dt><dd>{item.min}–{index === 0 ? 100 : Number(list[index - 1].min) - 1}</dd></div>)}</dl></div></section>{availableDrafts.length ? <><button type="button" onClick={startGame} className="mt-7 min-h-12 rounded bg-[#2B579A] px-6 py-3 font-mono text-sm font-bold uppercase tracking-wide text-white hover:bg-[#234a84]">{activeGameData?.startButtonLabel || 'Mulai Mengedit'} →</button><p className="mt-3 font-mono text-xs text-gray-500">{Math.min(draftsPerSession, availableDrafts.length)} draft · maksimal {Math.ceil((Math.min(draftsPerSession, availableDrafts.length) * secondsPerDraft) / 60)} menit · mouse atau layar sentuh</p></> : <p role="status" className="mt-7 border-l-4 border-amber-500 pl-4 text-base">Game ini sudah tampil, tetapi belum bisa dimainkan karena belum punya draft valid. Lengkapi isinya di CMS.</p>}</div>}
-
-              {(gamePhase === 'play' || gamePhase === 'review') && activeDraft && <div key={activeDraft.id || draftIndex} className="red-pen-draft-in py-2"><div className="mb-5 flex flex-wrap items-center justify-between gap-3 font-mono text-xs uppercase tracking-wide text-gray-500"><span>Draft {draftIndex + 1}/{sessionDrafts.length} · {activeDraft.label || `Level ${draftIndex + 1}`}</span><span>Skor {rawScore} · Akurasi {accuracy}%</span></div><article className="border-y border-gray-200 py-7 dark:border-gray-700"><p className="whitespace-pre-wrap font-serif text-[1.15rem] leading-[2.15] sm:text-[1.32rem]">{activeSegments.map((segment) => {
-                if (segment.type === 'text') return <span key={segment.id}>{segment.text}</span>;
-                if (segment.type === 'issue') {
-                  const found = foundIssues.includes(segment.issue.id);
-                  const reveal = gamePhase === 'review';
-                  return <button key={segment.id} type="button" onClick={() => clickIssue(segment.issue)} disabled={gamePhase !== 'play' || found} className={`red-pen-token rounded px-0.5 text-left font-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] ${found ? 'bg-green-50 text-gray-900 dark:bg-green-950/30 dark:text-gray-100' : reveal ? 'bg-red-50 text-red-800 dark:bg-red-950/30 dark:text-red-200' : hintedIssue === segment.issue.id ? 'red-pen-hint bg-amber-100 dark:bg-amber-900/40' : 'hover:bg-blue-50 dark:hover:bg-blue-950/30'}`}><span className={found || reveal ? 'decoration-red-600 decoration-2 line-through' : ''}>{segment.text}</span>{(found || reveal) && <span className="ml-1 font-sans text-[0.78em] font-semibold text-green-700 no-underline dark:text-green-300">[{segment.issue.replacement || 'hapus'}]</span>}</button>;
-                }
-                const wrong = wrongTokens.includes(segment.id);
-                return <button key={segment.id} type="button" onClick={() => clickWrongWord(segment.id)} disabled={gamePhase !== 'play' || wrong} className={`red-pen-token rounded px-0.5 font-inherit focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] ${wrong ? 'red-pen-wrong text-red-700 dark:text-red-300' : 'hover:bg-blue-50 dark:hover:bg-blue-950/30'}`}>{segment.text}</button>;
-              })}</p></article>{gamePhase === 'play' && <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-gray-600 dark:text-gray-300">Ditemukan {foundIssues.length}/{activeIssues.length}</p><button type="button" onClick={useHint} disabled={hintUsed} className="min-h-11 rounded border border-gray-300 px-4 py-2 font-mono text-xs font-bold uppercase disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600">{hintUsed ? 'Hint sudah dipakai' : `Gunakan hint (−${scoreSettings.hintPenalty})`}</button></div>}{gamePhase === 'review' && <section aria-live="polite" className="mt-7"><p className="font-mono text-xs font-bold uppercase tracking-[0.16em] text-[#2B579A]">{timeLeft === 0 ? 'Waktu habis · editorial review' : 'Draft selesai · editorial review'}</p><div className="mt-4 grid gap-3">{activeIssues.map((issue) => <div key={issue.id} className="border-l-2 border-[#2B579A] pl-4"><p className="text-sm"><span className="text-red-700 line-through dark:text-red-300">{issue.phrase}</span><span className="mx-2">→</span><strong className="text-green-700 dark:text-green-300">{issue.replacement || 'hapus'}</strong></p><p className="mt-1 text-sm leading-relaxed text-gray-600 dark:text-gray-300">{issue.explanation || 'Bagian ini dapat dibuat lebih jelas dan efektif.'}</p></div>)}</div><button type="button" onClick={nextDraft} className="mt-7 min-h-11 rounded bg-[#2B579A] px-5 py-2 font-mono text-sm font-bold uppercase tracking-wide text-white">{draftIndex === sessionDrafts.length - 1 ? 'Lihat hasil →' : 'Draft berikutnya →'}</button></section>}</div>}
-
-              {gamePhase === 'result' && <div className="mx-auto max-w-2xl py-5 text-center"><p className="font-mono text-xs uppercase tracking-[0.18em] text-[#2B579A]">{activeGameData?.resultEyebrow || 'Final editorial report'} · grade {finalGrade}/100</p><h3 className="mt-3 font-serif text-4xl sm:text-5xl">{resultTitle(finalGrade, activeGameData?.gradeTitles)}</h3><div className="mt-8 grid grid-cols-2 gap-px overflow-hidden border border-gray-200 bg-gray-200 text-left dark:border-gray-700 dark:bg-gray-700 sm:grid-cols-4"><div className="bg-[#fbfaf6] p-4 dark:bg-[#202020]"><span className="block font-mono text-[10px] uppercase text-gray-500">Score</span><strong className="mt-1 block text-xl">{rawScore}</strong></div><div className="bg-[#fbfaf6] p-4 dark:bg-[#202020]"><span className="block font-mono text-[10px] uppercase text-gray-500">Accuracy</span><strong className="mt-1 block text-xl">{accuracy}%</strong></div><div className="bg-[#fbfaf6] p-4 dark:bg-[#202020]"><span className="block font-mono text-[10px] uppercase text-gray-500">Issues</span><strong className="mt-1 block text-xl">{issuesFoundTotal}/{totalIssues}</strong></div><div className="bg-[#fbfaf6] p-4 dark:bg-[#202020]"><span className="block font-mono text-[10px] uppercase text-gray-500">Active time</span><strong className="mt-1 block text-xl">{Math.floor(activeSeconds / 60)}:{String(activeSeconds % 60).padStart(2, '0')}</strong></div></div><div className="mt-8 flex flex-wrap justify-center gap-3"><button type="button" onClick={startGame} className="min-h-11 rounded bg-[#2B579A] px-5 py-2 text-sm font-bold text-white">{activeGameData?.replayLabel || 'Main lagi'}</button><button type="button" onClick={() => navigateFromGame('Projects')} className="min-h-11 rounded border border-gray-300 px-5 py-2 text-sm font-semibold dark:border-gray-600">{activeGameData?.projectsCtaLabel || 'Lihat tulisan Haikal'}</button><button type="button" onClick={() => navigateFromGame('Contact')} className="min-h-11 rounded border border-gray-300 px-5 py-2 text-sm font-semibold dark:border-gray-600">{activeGameData?.contactCtaLabel || 'Hubungi Haikal'}</button></div></div>}
-            </main>}
+            {mode === 'zine' && <WassupExperience ctx={{ mode, setMode, zineMode, setZineMode, zineDraft, setZineDraft, zineNotice, setZineNotice, selectedZine, setSelectedZine, gamePhase, setGamePhase, sessionDrafts, setSessionDrafts, draftIndex, setDraftIndex, foundIssues, setFoundIssues, wrongTokens, setWrongTokens, timeLeft, setTimeLeft, rawScore, setRawScore, correctClicks, setCorrectClicks, totalClicks, setTotalClicks, issuesFoundTotal, setIssuesFoundTotal, activeSeconds, setActiveSeconds, hintUsed, setHintUsed, hintedIssue, setHintedIssue, scoreboard, setScoreboard, leaderboardOpen, setLeaderboardOpen, playerName, setPlayerName, leaderboardNotice, setLeaderboardNotice, playerStanding, setPlayerStanding, scoreSaving, setScoreSaving, hangmanWords, setHangmanWords, hangmanIndex, setHangmanIndex, hangmanGuessed, setHangmanGuessed, hangmanSolved, setHangmanSolved, hangmanWrongLetters, setHangmanWrongLetters, hangmanTotalGuesses, setHangmanTotalGuesses, hangmanCorrectGuesses, setHangmanCorrectGuesses, hangmanWordDone, setHangmanWordDone, hangmanStanding, setHangmanStanding, hangmanScoreboard, setHangmanScoreboard, hangmanLeaderboardOpen, setHangmanLeaderboardOpen, hangmanPlayerName, setHangmanPlayerName, hangmanNotice, setHangmanNotice, hangmanSaving, setHangmanSaving, hangmanTimeLeft, setHangmanTimeLeft, hangmanFinishedBy, setHangmanFinishedBy, modalRef, lastTriggerRef, zines, availableDrafts, activeDraft, activeIssues, activeSegments, secondsPerDraft, draftsPerSession, scoreSettings, signatureRole, modalOpen, totalIssues, accuracy, completionRate, finalGrade, hangmanSlot, configuredHangmanWords, activeHangmanWord, hangmanWrongCount, hangmanSolvedCurrent, hangmanAccuracy, hangmanScore, hangmanGradeTitles, hangmanTitle, closeExperience, startHangman, guessHangmanLetter, nextHangmanWord, refreshHangmanLeaderboard, saveHangmanScore, openZine, openGame, saveZineDraft, receiveZine, startGame, finishDraft, clickIssue, clickWrongWord, useHint, refreshLeaderboard, saveLeaderboardScore, openLeaderboard, nextDraft, navigateFromGame, data, zineData, miniGameData, interactiveWords, onNavigate, resultTitle, hangmanMask }} />}
+            {mode === 'game' && <MiniGameExperience ctx={{ mode, setMode, zineMode, setZineMode, zineDraft, setZineDraft, zineNotice, setZineNotice, selectedZine, setSelectedZine, gamePhase, setGamePhase, sessionDrafts, setSessionDrafts, draftIndex, setDraftIndex, foundIssues, setFoundIssues, wrongTokens, setWrongTokens, timeLeft, setTimeLeft, rawScore, setRawScore, correctClicks, setCorrectClicks, totalClicks, setTotalClicks, issuesFoundTotal, setIssuesFoundTotal, activeSeconds, setActiveSeconds, hintUsed, setHintUsed, hintedIssue, setHintedIssue, scoreboard, setScoreboard, leaderboardOpen, setLeaderboardOpen, playerName, setPlayerName, leaderboardNotice, setLeaderboardNotice, playerStanding, setPlayerStanding, scoreSaving, setScoreSaving, hangmanWords, setHangmanWords, hangmanIndex, setHangmanIndex, hangmanGuessed, setHangmanGuessed, hangmanSolved, setHangmanSolved, hangmanWrongLetters, setHangmanWrongLetters, hangmanTotalGuesses, setHangmanTotalGuesses, hangmanCorrectGuesses, setHangmanCorrectGuesses, hangmanWordDone, setHangmanWordDone, hangmanStanding, setHangmanStanding, hangmanScoreboard, setHangmanScoreboard, hangmanLeaderboardOpen, setHangmanLeaderboardOpen, hangmanPlayerName, setHangmanPlayerName, hangmanNotice, setHangmanNotice, hangmanSaving, setHangmanSaving, hangmanTimeLeft, setHangmanTimeLeft, hangmanFinishedBy, setHangmanFinishedBy, modalRef, lastTriggerRef, zines, availableDrafts, activeDraft, activeIssues, activeSegments, secondsPerDraft, draftsPerSession, scoreSettings, signatureRole, modalOpen, totalIssues, accuracy, completionRate, finalGrade, hangmanSlot, configuredHangmanWords, activeHangmanWord, hangmanWrongCount, hangmanSolvedCurrent, hangmanAccuracy, hangmanScore, hangmanGradeTitles, hangmanTitle, closeExperience, startHangman, guessHangmanLetter, nextHangmanWord, refreshHangmanLeaderboard, saveHangmanScore, openZine, openGame, saveZineDraft, receiveZine, startGame, finishDraft, clickIssue, clickWrongWord, useHint, refreshLeaderboard, saveLeaderboardScore, openLeaderboard, nextDraft, navigateFromGame, data, zineData, miniGameData, interactiveWords, onNavigate, resultTitle, hangmanMask }} />}
           </section>
         </div>,
         document.body,

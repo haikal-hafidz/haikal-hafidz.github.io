@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 const REFRESH_MS = 60_000;
 const pickImage = (images = []) => images.filter((item) => item?.['#text']).at(-1)?.['#text'] || '';
@@ -71,17 +72,11 @@ export default function LastFmFootnote({ data = {}, style, darkMode = false }) {
   const configured = Boolean(username && apiKey);
   const shown = configured ? (track || fallback) : fallback;
   if (!shown.title && !shown.artist) {
-    if (!username || !apiKey) return null;
-    return <aside className="portfolio-rail fixed z-30 hidden overflow-hidden md:block" style={style} aria-label="Listening Footnote" aria-live="polite"><p className="mb-3 font-mono text-[0.6875em] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-300">Listening footnote</p><div className="border-y border-slate-300 py-4 font-mono text-[0.6875em] text-slate-600 dark:border-slate-700 dark:text-slate-300">{status === 'error' ? 'Live listening signal is unavailable.' : 'Connecting to listening history…'}</div></aside>;
+    return null;
   }
-  const eyebrow = shown.nowPlaying ? (data.nowPlayingLabel || 'Playing while editing') : shown.fallback ? (data.fallbackLabel || 'On repeat lately') : (data.lastPlayedLabel || 'Last heard');
   const time = !shown.nowPlaying && !shown.fallback ? relativeTime(shown.playedAt) : '';
   const card = (
     <div data-hint-id="lastfm-footnote" className={`group w-full overflow-hidden border-y border-slate-300/75 py-3 text-slate-800 ${darkMode ? 'border-slate-700/90 text-slate-100' : ''}`}>
-      <div className="mb-2 flex items-center gap-2 font-mono text-[0.625em] uppercase tracking-[0.2em] text-[#2B579A] dark:text-[#8AB4E6]">
-        {shown.nowPlaying && <span className="h-1.5 w-1.5 rounded-full bg-[#2B579A] motion-safe:animate-pulse dark:bg-[#8AB4E6]" />}
-        <span>{eyebrow}</span>
-      </div>
       <div className="flex items-center gap-3">
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-sm bg-slate-200 dark:bg-slate-800">
           {shown.image ? <img src={shown.image} alt="" className="h-full w-full object-cover grayscale transition duration-500 ease-out group-hover:grayscale-0" loading="lazy" /> : <div className="grid h-full w-full place-items-center font-serif text-2xl text-slate-400">♪</div>}
@@ -96,5 +91,7 @@ export default function LastFmFootnote({ data = {}, style, darkMode = false }) {
     </div>
   );
 
-  return <aside className="portfolio-rail fixed z-30 hidden overflow-hidden md:block" style={style} aria-label="Listening Footnote"><p className="mb-3 font-mono text-[0.6875em] uppercase tracking-[0.24em] text-slate-500 dark:text-slate-300">Listening footnote</p>{shown.url ? <a href={shown.url} target="_blank" rel="noreferrer" className="block no-underline focus-visible:ring-2 focus-visible:ring-[#2B579A]">{card}</a> : card}</aside>;
+  const rail = <aside className="portfolio-rail fixed z-30 hidden md:block" style={{ ...style, position: 'fixed', overflow: 'visible', overflowY: 'visible', overscrollBehavior: 'none' }} aria-label="Recently played on Last.fm">{shown.url ? <a href={shown.url} target="_blank" rel="noreferrer" className="block no-underline focus-visible:ring-2 focus-visible:ring-[#2B579A]">{card}</a> : card}</aside>;
+
+  return typeof document !== 'undefined' ? createPortal(rail, document.body) : rail;
 }

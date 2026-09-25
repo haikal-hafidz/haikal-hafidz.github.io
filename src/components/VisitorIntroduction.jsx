@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { normalizeVisitorIntroduction } from '../lib/visitorIntroductionData';
 
-function playPrinterSound() {
+function playPrinterSound(volume = 100) {
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     const context = new AudioCtx();
@@ -12,7 +12,7 @@ function playPrinterSound() {
       const gain = context.createGain();
       oscillator.type = index % 2 ? 'square' : 'sawtooth';
       oscillator.frequency.setValueAtTime(index % 2 ? 92 : 118, now + offset);
-      gain.gain.setValueAtTime(0.012, now + offset);
+      gain.gain.setValueAtTime(0.012 * (Math.max(0, Math.min(100, Number(volume) || 0)) / 100), now + offset);
       gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.055);
       oscillator.connect(gain).connect(context.destination);
       oscillator.start(now + offset);
@@ -26,11 +26,13 @@ export default function VisitorIntroduction({ data, style, darkMode, soundEnable
   const content = useMemo(() => normalizeVisitorIntroduction(data), [data]);
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [printingDestination, setPrintingDestination] = useState(null);
   const [printed, setPrinted] = useState(() => {
     try { return localStorage.getItem('portfolio_visitor_intro_seen') === '1'; } catch { return false; }
   });
   const triggerRef = useRef(null);
   const closeRef = useRef(null);
+  const printActionTimerRef = useRef(null);
 
   const closeSheet = (afterClose) => {
     setClosing(true);
@@ -56,19 +58,34 @@ export default function VisitorIntroduction({ data, style, darkMode, soundEnable
     };
   }, [open]);
 
+  useEffect(() => () => {
+    if (printActionTimerRef.current) window.clearTimeout(printActionTimerRef.current);
+  }, []);
+
   if (content.enabled === false) return null;
 
   const openSheet = () => {
-    if (soundEnabled) playPrinterSound();
+    if (soundEnabled) playPrinterSound(100);
     setClosing(false);
     setPrinted(true);
     try { localStorage.setItem('portfolio_visitor_intro_seen', '1'); } catch { /* optional preference */ }
     setOpen(true);
   };
 
+  const printThenOpen = (label, action) => {
+    if (printingDestination) return;
+    
+    setPrintingDestination(label);
+    printActionTimerRef.current = window.setTimeout(() => {
+      action?.();
+      setPrintingDestination(null);
+      printActionTimerRef.current = null;
+    }, 760);
+  };
+
   return (
     <>
-      <aside className={`portfolio-rail z-20 ${inline ? 'relative w-full' : 'absolute'}`} style={style} aria-label="Visitor introduction">
+      <aside className={`portfolio-rail z-20 ${inline ? 'relative w-full' : 'fixed'}`} style={style} aria-label="Visitor introduction">
         <button
           ref={triggerRef}
           type="button"
@@ -93,15 +110,15 @@ export default function VisitorIntroduction({ data, style, darkMode, soundEnable
 
         {!inline && homeNavigation && (
           <nav className={`mx-auto mt-5 w-full max-w-[10.5rem] ${darkMode ? 'text-slate-100' : 'text-slate-800'}`} aria-label="Home shortcuts">
-            <p className="mb-2 font-mono text-[0.5625em] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-300">Document index</p>
+            <p className="mb-2 font-mono text-[0.5625em] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-300">{content.documentIndexLabel ?? 'Document index'}</p>
             <div className={`border-y py-1.5 ${darkMode ? 'border-slate-700/90' : 'border-slate-300/75'}`}>
-              <button type="button" onClick={() => homeNavigation.onNavigate?.('Projects')} className="group flex min-h-8 w-full items-center justify-between gap-2 py-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
+              <button type="button" onClick={() => { homeNavigation.onPrintNavigate?.('Projects'); }} className="group flex min-h-8 w-full items-center justify-between gap-2 py-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
                 <span className="min-w-0 flex-1 font-serif text-[0.8125em] font-normal leading-tight transition group-hover:text-[#2B579A]">Selected works</span><span aria-hidden="true" className="font-mono text-[0.5625em] text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-[#2B579A]">→</span>
               </button>
-              <button type="button" onClick={() => homeNavigation.onNavigate?.('Career')} className="group flex min-h-8 w-full items-center justify-between gap-2 py-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
+              <button type="button" onClick={() => { homeNavigation.onPrintNavigate?.('Career'); }} className="group flex min-h-8 w-full items-center justify-between gap-2 py-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
                 <span className="min-w-0 flex-1 font-serif text-[0.8125em] font-normal leading-tight transition group-hover:text-[#2B579A]">Experience</span><span aria-hidden="true" className="font-mono text-[0.5625em] text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-[#2B579A]">→</span>
               </button>
-              <button type="button" onClick={() => homeNavigation.onNavigate?.('Contact')} className="group flex min-h-8 w-full items-center justify-between gap-2 py-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
+              <button type="button" onClick={() => { homeNavigation.onPrintNavigate?.('Contact'); }} className="group flex min-h-8 w-full items-center justify-between gap-2 py-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
                 <span className="min-w-0 flex-1 font-serif text-[0.8125em] font-normal leading-tight transition group-hover:text-[#2B579A]">Contact</span><span aria-hidden="true" className="font-mono text-[0.5625em] text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-[#2B579A]">→</span>
               </button>
 
@@ -121,6 +138,36 @@ export default function VisitorIntroduction({ data, style, darkMode, soundEnable
           </nav>
         )}
       </aside>
+
+      {printingDestination && createPortal(
+        <div className="portfolio-rail route-print-takeover" role="status" aria-live="polite" aria-label={`Printing ${printingDestination}`}>
+          <div className="route-print-machine" aria-hidden="true">
+            <span className="route-print-slot" />
+            <span className="route-print-light" />
+          </div>
+          <div className="route-print-paper">
+            <p>DOCUMENT REQUEST / PRINTING</p>
+            <div />
+            <h1>{printingDestination}</h1>
+            <span>PLEASE WAIT — YOUR COPY IS BEING PREPARED</span>
+          </div>
+          <style>{`
+            .route-print-takeover{position:fixed;inset:0;z-index:10020;overflow:hidden;background:#d7d7d7;color:#121a2b}
+            .route-print-machine{position:absolute;left:50%;top:0;z-index:2;width:min(420px,72vw);height:54px;transform:translateX(-50%);border:1px solid #9ca3af;border-top:0;border-radius:0 0 8px 8px;background:#c9c9c6;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+            .route-print-slot{position:absolute;left:50%;bottom:10px;width:66%;height:7px;transform:translateX(-50%);border-radius:999px;background:#252525}
+            .route-print-light{position:absolute;right:18px;bottom:11px;width:7px;height:7px;border-radius:50%;background:#2B579A;box-shadow:0 0 0 3px rgba(43,87,154,.15)}
+            .route-print-paper{position:absolute;inset:0;min-height:100vh;padding:clamp(72px,10vh,120px) clamp(24px,8vw,120px) 56px;background:#fbfaf6;box-shadow:0 0 80px rgba(0,0,0,.22);animation:route-paper-in .76s cubic-bezier(.2,.8,.2,1) both}
+            .route-print-paper p,.route-print-paper span{display:block;font:600 11px/1.4 ui-monospace,monospace;letter-spacing:.18em;color:#2B579A}
+            .route-print-paper div{height:5px;margin:20px 0 clamp(56px,12vh,130px);background:#2B579A}
+            .route-print-paper h1{max-width:1100px;margin:0;font:400 clamp(48px,8vw,118px)/.94 Georgia,'Times New Roman',serif;letter-spacing:-.045em}
+            .route-print-paper span{position:absolute;left:clamp(24px,8vw,120px);bottom:48px;color:#788294}
+            @keyframes route-paper-in{0%{clip-path:inset(0 47% 100% 47%);transform:translateY(-12%)}42%{clip-path:inset(0 34% 46% 34%)}100%{clip-path:inset(0);transform:none}}
+            @media(max-width:760px){.route-print-machine{width:76vw}.route-print-paper{padding-top:88px}.route-print-paper h1{font-size:clamp(42px,15vw,70px)}.route-print-paper span{bottom:28px}}
+            @media(prefers-reduced-motion:reduce){.route-print-paper{animation:none}}
+          `}</style>
+        </div>,
+        document.body,
+      )}
 
       {open && createPortal(
         <div className={`portfolio-rail visitor-copy-takeover ${closing ? 'is-closing' : ''}`} role="dialog" aria-modal="true" aria-labelledby="visitor-copy-title">

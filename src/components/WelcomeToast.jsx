@@ -1,44 +1,46 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+
+// Kunci sessionStorage biar notif cuma muncul SEKALI per sesi tab browser (bukan tiap
+// pindah-pindah tab Home/About/dst, dan bukan tiap refresh — tapi tetep muncul lagi
+// kalau tab/browser-nya beneran ditutup terus dibuka baru).
+const SEEN_KEY = 'portfolio_welcome_seen';
 
 export default function WelcomeToast({ settings, isMobileLayout }) {
   const [visible, setVisible] = useState(false);
   const [closing, setClosing] = useState(false);
 
   const enabled = settings?.enabled;
-  const title = settings?.title || 'Update terbaru';
+  const title = settings?.title || 'Selamat datang! 👋';
   const message = settings?.message || '';
-  const version = String(settings?.version || '').trim();
+  const items = Array.isArray(settings?.items)
+    ? settings.items.filter((item) => item && (String(item.title || '').trim() || String(item.description || '').trim()))
+    : [];
   const delaySeconds = Number.isFinite(settings?.delaySeconds) ? settings.delaySeconds : 2;
-
-  // Versi adalah identitas patch. Kalau admin lupa mengisinya, gabungan judul + pesan
-  // tetap jadi fallback agar perubahan isi otomatis dianggap sebagai patch baru.
-  const patchId = version || `${title}|${message}`;
-  const seenKey = `portfolio_patch_seen:${patchId}`;
 
   useEffect(() => {
     if (!enabled) return;
 
     let alreadySeen = false;
     try {
-      alreadySeen = localStorage.getItem(seenKey) === 'true';
+      alreadySeen = sessionStorage.getItem(SEEN_KEY) === 'true';
     } catch {
-      /* localStorage gak tersedia — anggap belum pernah lihat, gapapa muncul lagi */
+      /* sessionStorage gak tersedia — anggap belum pernah lihat, gapapa muncul lagi */
     }
     if (alreadySeen) return;
 
     const timer = setTimeout(() => {
       setVisible(true);
+      try {
+        sessionStorage.setItem(SEEN_KEY, 'true');
+      } catch {
+        /* diamkan kalau gagal nulis, gak fatal */
+      }
     }, Math.max(0, delaySeconds) * 1000);
 
     return () => clearTimeout(timer);
-  }, [enabled, delaySeconds, seenKey]);
+  }, [enabled, delaySeconds]);
 
   const handleClose = () => {
-    try {
-      localStorage.setItem(seenKey, 'true');
-    } catch {
-      /* diamkan kalau gagal nulis, gak fatal */
-    }
     setClosing(true);
     // Kasih waktu buat animasi keluar main dulu sebelum bener-bener di-unmount
     setTimeout(() => setVisible(false), 200);
@@ -78,19 +80,33 @@ export default function WelcomeToast({ settings, isMobileLayout }) {
           </svg>
         </span>
         <div className="flex-1 min-w-0">
-          {version && (
-            <span className="block mb-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#2b579a] dark:text-[#7fb0f1]">
-              Patch {version}
-            </span>
-          )}
           <h4 className="text-sm font-bold text-gray-900 dark:text-white leading-snug">
             {title}
           </h4>
-          {message && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mt-1">
-              {message}
-            </p>
-          )}
+          <div className="mt-1 max-h-40 overflow-y-auto overscroll-contain pr-1">
+            {items.length > 0 ? (
+              <div className="space-y-2">
+                {items.map((item, index) => (
+                  <div key={`welcome-patch-${index}`} className="text-xs leading-relaxed">
+                    {item.title && (
+                      <div className="font-semibold text-gray-700 dark:text-gray-200">
+                        {String(index + 1).padStart(2, '0')} · {item.title}
+                      </div>
+                    )}
+                    {item.description && (
+                      <div className="text-gray-500 dark:text-gray-400">
+                        {item.description}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : message ? (
+              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                {message}
+              </p>
+            ) : null}
+          </div>
         </div>
         <button
           type="button"

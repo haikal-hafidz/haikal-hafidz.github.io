@@ -9,6 +9,8 @@ export default function TitleBar({
   activeTab,
   soundEnabled = true,
   onToggleSound,
+  language = 'id',
+  onLanguageChange,
 }) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordQuality, setRecordQuality] = useState('1080');
@@ -143,23 +145,23 @@ export default function TitleBar({
             <span className="h-2 w-2 rounded-sm bg-white" aria-hidden="true" /> Stop
           </button>
         )}
-        <LanguageToggle activeTab={activeTab} />
-        <button
-          type="button"
-          onClick={onToggleSound}
-          data-hint-id="titlebar-sound"
-          data-hint-surface="blue"
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/25 bg-white/10 text-white transition-all hover:scale-105 hover:bg-white hover:text-[#2B579A] focus:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer"
-          title={soundEnabled ? 'Matikan suara interaksi' : 'Aktifkan suara interaksi'}
-          aria-label={soundEnabled ? 'Matikan suara interaksi' : 'Aktifkan suara interaksi'}
-          aria-pressed={soundEnabled}
-        >
-          {soundEnabled ? (
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M11 5 6.5 9H3v6h3.5L11 19V5Z" strokeLinejoin="round"/><path d="M15 9a4 4 0 0 1 0 6M17.8 6.5a7.5 7.5 0 0 1 0 11" strokeLinecap="round"/></svg>
-          ) : (
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M11 5 6.5 9H3v6h3.5L11 19V5Z" strokeLinejoin="round"/><path d="m16 10 5 5m0-5-5 5" strokeLinecap="round"/></svg>
-          )}
-        </button>
+        <LanguageToggle activeTab={activeTab} language={language} onLanguageChange={onLanguageChange} />
+        <div className="flex items-center gap-1.5" data-hint-id="titlebar-sound" data-hint-surface="blue">
+          <button
+            type="button"
+            onClick={onToggleSound}
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/25 bg-white/10 text-white transition-all hover:scale-105 hover:bg-white hover:text-[#2B579A] focus:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer"
+            title={soundEnabled ? 'Suara opening aktif · klik untuk mute' : 'Suara opening mati · klik untuk aktifkan'}
+            aria-label={soundEnabled ? 'Mute suara opening Visitor Copy, Mini Games, dan Wassup' : 'Aktifkan suara opening Visitor Copy, Mini Games, dan Wassup'}
+            aria-pressed={soundEnabled}
+          >
+            {soundEnabled ? (
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M11 5 6.5 9H3v6h3.5L11 19V5Z" strokeLinejoin="round"/><path d="M15 9a4 4 0 0 1 0 6M17.8 6.5a7.5 7.5 0 0 1 0 11" strokeLinecap="round"/></svg>
+            ) : (
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M11 5 6.5 9H3v6h3.5L11 19V5Z" strokeLinejoin="round"/><path d="m16 10 5 5m0-5-5 5" strokeLinecap="round"/></svg>
+            )}
+          </button>
+        </div>
         {/* Tombol Toggle Light / Dark Mode — di layar sempit cuma nampilin ikon, teksnya disembunyiin.
             data-hint-id cuma dipasang pas activeTab === 'Home' (lihat App.jsx: HintToggle & CSS
             .hint-mode-active), biar mode Hint di luar A4 sengaja dibatasin ke tab Home doang. */}

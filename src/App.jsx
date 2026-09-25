@@ -4,6 +4,7 @@ import { initialPortfolioData } from './cms/CmsData';
 import { isSupabaseConfigured, supabase } from './lib/supabaseClient';
 import { initAnalytics, trackPageView } from './lib/analytics';
 import { setPageMeta, setSiteIdentity } from './lib/pageMeta';
+import { localizedPortfolioData } from './lib/localization';
 
 // Import Komponen Halaman Publik
 import Home from './pages/Home';
@@ -11,7 +12,7 @@ import { FeaturedWorksRailPortal } from './components/FeaturedWorksCarousel';
 import LastFmFootnote from './components/LastFmFootnote';
 import VisitorIntroduction from './components/VisitorIntroduction';
 import { normalizeVisitorIntroduction } from './lib/visitorIntroductionData';
-import About, { AboutNotesPortal } from './pages/About';
+import About from './pages/About';
 import Career from './pages/Career';
 import Book from './pages/Book';
 import Projects from './pages/Projects';
@@ -252,13 +253,25 @@ export default function App() {
   const [railPrintedTab, setRailPrintedTab] = useState(null);
   const railPrintTimerRef = useRef(null);
   const [portfolioData, setPortfolioData] = useState(initialPortfolioData);
+  const [language, setLanguage] = useState(() => {
+    try { return localStorage.getItem('portfolio_language') === 'en' ? 'en' : 'id'; } catch { return 'id'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('portfolio_language', language); } catch { /* optional */ }
+    if (typeof document !== 'undefined') document.documentElement.lang = language === 'en' ? 'en' : 'id';
+  }, [language]);
+  const publicPortfolioData = useMemo(
+    () => localizedPortfolioData(portfolioData, language),
+    [portfolioData, language]
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [saveError, setSaveError] = useState(null);
 
   const audioContextRef = useRef(null);
   const [soundEnabled, setSoundEnabled] = useState(() => {
-    try { return localStorage.getItem('portfolio_sound') !== 'off'; } catch { return true; }
+    try { return localStorage.getItem('portfolio_sound') !== 'off'; }
+    catch { return true; }
   });
 
   const getAudioContext = useCallback(() => {
@@ -270,37 +283,32 @@ export default function App() {
     } catch { return null; }
   }, [soundEnabled]);
 
-  const playMechanicalSound = useCallback(() => {
-    const context = getAudioContext();
-    if (!context) return;
-    const play = () => {
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.type = 'square';
-      oscillator.frequency.setValueAtTime(145, context.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(85, context.currentTime + 0.035);
-      gain.gain.setValueAtTime(0.018, context.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.045);
-      oscillator.connect(gain).connect(context.destination);
-      oscillator.start(); oscillator.stop(context.currentTime + 0.05);
-    };
-    if (context.state === 'suspended') context.resume().then(play).catch(() => {});
-    else play();
+  const playShowcaseOpenSound = useCallback(() => {
+    try {
+      const context = getAudioContext();
+      if (!context) return;
+      if (context.state === 'suspended') context.resume?.();
+      const now = context.currentTime;
+      const master = context.createGain();
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(0.12, now + 0.012);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + 0.34);
+      master.connect(context.destination);
+      const a=context.createOscillator(), b=context.createOscillator();
+      const ga=context.createGain(), gb=context.createGain();
+      a.type='triangle'; b.type='sine';
+      a.frequency.setValueAtTime(220,now); a.frequency.exponentialRampToValueAtTime(520,now+.18);
+      b.frequency.setValueAtTime(440,now+.035); b.frequency.exponentialRampToValueAtTime(760,now+.22);
+      ga.gain.value=.72; gb.gain.value=.38;
+      a.connect(ga);ga.connect(master);b.connect(gb);gb.connect(master);
+      a.start(now);b.start(now+.035);a.stop(now+.30);b.stop(now+.32);
+    } catch {}
   }, [getAudioContext]);
 
   useEffect(() => {
-    try { localStorage.setItem('portfolio_sound', soundEnabled ? 'on' : 'off'); } catch { /* optional */ }
+    try { localStorage.setItem('portfolio_sound', soundEnabled ? 'on' : 'off'); }
+    catch { /* optional preference */ }
   }, [soundEnabled]);
-
-  useEffect(() => {
-    if (!soundEnabled || portfolioData.general?.soundEffects === false) return undefined;
-    const onPointerDown = (event) => {
-      if (event.target.closest('[data-printer-action="true"]')) return;
-      if (event.target.closest('button, a, [role="button"], select, input[type="checkbox"]')) playMechanicalSound();
-    };
-    document.addEventListener('pointerdown', onPointerDown, true);
-    return () => document.removeEventListener('pointerdown', onPointerDown, true);
-  }, [soundEnabled, portfolioData.general?.soundEffects, playMechanicalSound]);
 
   // Dua syarat yang HARUS dua-duanya kepenuhin sebelum layar loading (PelicanLoader)
   // ditutup: (1) data dari Supabase udah kelar diambil, (2) pesan di splash-nya
@@ -315,15 +323,6 @@ export default function App() {
       setIsLoading(false);
     }
   }, [isDataReady, isSplashDone]);
-
-  // Splash tetap sempat terlihat sebagai bagian dari identitas visual website, tetapi
-  // jangan sampai animasi mengetiknya menahan konten utama dan memperburuk LCP.
-  // Callback DocumentLoader tetap boleh menyelesaikannya lebih cepat; timer ini hanya
-  // menjadi batas maksimum penantian di perangkat atau jaringan yang lebih lambat.
-  useEffect(() => {
-    const splashDeadline = window.setTimeout(() => setIsSplashDone(true), 900);
-    return () => window.clearTimeout(splashDeadline);
-  }, []);
 
   // Ambil data dari Supabase sekali pas app pertama kali dibuka.
   // Ini yang bikin data konsisten di semua device/browser/akun — bukan lagi localStorage.
@@ -361,6 +360,10 @@ export default function App() {
             zine: normalizeZine(data.data.zine),
             miniGame: normalizeMiniGame(data.data.miniGame),
             general: normalizeGeneral(data.data.general),
+            website: {
+              title: data.data.website?.title || 'Haikal A. Hafidz — Content Writer & Editor',
+              shareImage: data.data.website?.shareImage || '',
+            },
           });
         } else {
           // Baris ada tapi masih kosong (baru setup) → pakai default template.
@@ -438,19 +441,19 @@ export default function App() {
 
   // Satukan pilihan carousel dengan data karya aslinya. Home cuma menyimpan pilihan
   // item + teaser; judul, gambar, dan jenis output selalu mengikuti sumbernya.
-  const featuredWorks = useMemo(() => normalizeFeaturedWorks(portfolioData.home?.featuredWorks)
+  const featuredWorks = useMemo(() => normalizeFeaturedWorks(publicPortfolioData.home?.featuredWorks)
     .map((entry) => {
       let source = null;
       if (entry.type === 'book') {
-        source = portfolioData.books?.items?.find((item) => item.id === entry.itemId);
+        source = publicPortfolioData.books?.items?.find((item) => item.id === entry.itemId);
       } else if (entry.type === 'article') {
-        source = portfolioData.projects?.articles?.find((item) => item.id === entry.itemId);
+        source = publicPortfolioData.projects?.articles?.find((item) => item.id === entry.itemId);
       } else if (entry.type === 'directing') {
-        source = portfolioData.projects?.directing?.items?.find((item) => item.id === entry.itemId);
+        source = publicPortfolioData.projects?.directing?.items?.find((item) => item.id === entry.itemId);
       } else if (entry.type === 'poster') {
-        source = portfolioData.projects?.poster?.items?.find((item) => item.id === entry.itemId);
+        source = publicPortfolioData.projects?.poster?.items?.find((item) => item.id === entry.itemId);
       } else if (entry.type === 'custom') {
-        const section = portfolioData.projects?.customSections?.find((item) => item.id === entry.sectionId);
+        const section = publicPortfolioData.projects?.customSections?.find((item) => item.id === entry.sectionId);
         source = section?.items?.find((item) => item.id === entry.itemId);
       }
 
@@ -463,7 +466,7 @@ export default function App() {
         teaser: entry.teaser || source.summary || source.snippet || source.premise || source.description || '',
       };
     })
-    .filter(Boolean), [portfolioData]);
+    .filter(Boolean), [publicPortfolioData]);
 
   const openFeaturedWork = (work) => {
     setWorkNavigation({ ...work, requestKey: Date.now() });
@@ -588,11 +591,13 @@ export default function App() {
     setSiteIdentity({
       name: portfolioData.home?.name,
       role: portfolioData.home?.role,
+      title: portfolioData.website?.title,
+      shareImage: portfolioData.website?.shareImage,
     });
     const tabMeta = {
       Home: {
         description: portfolioData.home?.bio,
-        image: featuredWorks[0]?.image,
+        image: portfolioData.website?.shareImage,
       },
       About: {
         title: 'About',
@@ -778,7 +783,7 @@ export default function App() {
       setDesktopLeftRailStyle({
         left: outerMargin,
         width: Math.min(width, 280),
-        top: Math.ceil(pageRect.top + window.scrollY + 28),
+        top: Math.ceil(pageRect.top + 28),
         fontFamily,
         fontSize: `${fontSize}pt`,
       });
@@ -810,24 +815,26 @@ export default function App() {
   }
 
   const documentBody = (
-    <main className={`relative z-10 w-full h-full ${isBold ? 'font-bold' : ''} ${isItalic ? 'italic' : ''} ${isUnderline ? 'underline' : ''}`}>
+    <div key={`public-language-${language}`} data-public-language={language} className={`relative z-10 w-full h-full ${isBold ? 'font-bold' : ''} ${isItalic ? 'italic' : ''} ${isUnderline ? 'underline' : ''}`}>
       {activeTab === 'Home' && (
         <Home
-          data={portfolioData.home}
-          zineData={normalizeZine(portfolioData.zine)}
-          miniGameData={normalizeMiniGame(portfolioData.miniGame)}
+          data={publicPortfolioData.home}
+          zineData={normalizeZine(publicPortfolioData.zine)}
+          miniGameData={normalizeMiniGame(publicPortfolioData.miniGame)}
           featuredWorks={featuredWorks}
           onOpenWork={openFeaturedWork}
-          interactiveWords={portfolioData.interactiveWords}
+          interactiveWords={publicPortfolioData.interactiveWords}
           onNavigate={setActiveTab}
-        />
+        
+          showcaseOpenSound={playShowcaseOpenSound}
+          soundEnabled={soundEnabled}/>
       )}
-      {activeTab === 'About' && <About data={portfolioData.about} interactiveWords={portfolioData.interactiveWords} onNavigate={setActiveTab} />}
-      {activeTab === 'Career' && <Career data={portfolioData.career} interactiveWords={portfolioData.interactiveWords} onNavigate={setActiveTab} railStyle={!isAdminMode && !isMobileLayout ? desktopRailStyle : null} darkMode={darkMode} />}
+      {activeTab === 'About' && <About data={publicPortfolioData.about} interactiveWords={publicPortfolioData.interactiveWords} onNavigate={setActiveTab} />}
+      {activeTab === 'Career' && <Career data={publicPortfolioData.career} interactiveWords={publicPortfolioData.interactiveWords} onNavigate={setActiveTab} railStyle={!isAdminMode && !isMobileLayout ? desktopRailStyle : null} darkMode={darkMode} />}
       {activeTab === 'Book' && (
         <Book
-          data={portfolioData.books}
-          interactiveWords={portfolioData.interactiveWords}
+          data={publicPortfolioData.books}
+          interactiveWords={publicPortfolioData.interactiveWords}
           onNavigate={setActiveTab}
           initialBookId={workNavigation?.type === 'book' ? workNavigation.itemId : null}
           navigationRequestKey={workNavigation?.requestKey}
@@ -835,16 +842,16 @@ export default function App() {
       )}
       {activeTab === 'Projects' && (
         <Projects
-          data={portfolioData.projects}
-          interactiveWords={portfolioData.interactiveWords}
+          data={publicPortfolioData.projects}
+          interactiveWords={publicPortfolioData.interactiveWords}
           onNavigate={setActiveTab}
           initialArticleId={initialArticleId}
           initialWorkTarget={workNavigation?.type !== 'book' ? workNavigation : null}
           navigationRequestKey={workNavigation?.requestKey}
         />
       )}
-      {activeTab === 'Contact' && <Contact data={portfolioData.contact} interactiveWords={portfolioData.interactiveWords} onNavigate={setActiveTab} />}
-    </main>
+      {activeTab === 'Contact' && <Contact data={publicPortfolioData.contact} interactiveWords={publicPortfolioData.interactiveWords} onNavigate={setActiveTab} />}
+    </div>
   );
 
   return (
@@ -922,6 +929,8 @@ export default function App() {
           activeTab={activeTab}
           soundEnabled={soundEnabled}
           onToggleSound={() => setSoundEnabled((value) => !value)}
+          language={language}
+          onLanguageChange={setLanguage}
         />
 
         {/* Tombol "Hint" — nempel di pojok KIRI ATAS, di luar kertas A4. Diklik = toggle
@@ -1036,18 +1045,26 @@ export default function App() {
             darkMode={darkMode}
             helpActive={hintActive}
             featuredWorks={featuredWorks}
-            heading={portfolioData.home?.featuredWorksHeading}
+            heading={publicPortfolioData.home?.featuredWorksHeading}
             onOpenWork={openFeaturedWork}
           />
         )}
 
-        {!isAdminMode && !isMobileLayout && activeTab === 'About' && desktopRailStyle && (
-          <AboutNotesPortal data={portfolioData.about} style={desktopRailStyle} darkMode={darkMode} />
+        {!isAdminMode && !isMobileLayout && activeTab === 'About' && desktopLeftRailStyle && (
+          <LastFmFootnote
+            data={normalizeAbout(portfolioData.about).listeningFootnote}
+            style={{
+              ...desktopLeftRailStyle,
+              fontFamily,
+              fontSize: `${fontSize}pt`,
+            }}
+            darkMode={darkMode}
+          />
         )}
 
         {!isAdminMode && !isMobileLayout && activeTab === 'Home' && desktopLeftRailStyle && (
           <VisitorIntroduction
-            data={normalizeHome(portfolioData.home).visitorIntroduction}
+            data={normalizeHome(publicPortfolioData.home).visitorIntroduction}
             style={desktopLeftRailStyle}
             darkMode={darkMode}
             soundEnabled={soundEnabled && portfolioData.general?.soundEffects !== false}
@@ -1056,17 +1073,10 @@ export default function App() {
               onNavigate: setActiveTab,
               onPrintNavigate: openPrintedTab,
               zineEnabled: normalizeZine(portfolioData.zine).enabled !== false,
-              zineLabel: normalizeZine(portfolioData.zine).menuLabel || 'Wassup?',
+              zineLabel: normalizeZine(portfolioData.zine).menuLabel || '',
               gameEnabled: normalizeMiniGame(portfolioData.miniGame).enabled !== false,
+              gameLabel: normalizeMiniGame(portfolioData.miniGame).menuLabel || '',
             }}
-          />
-        )}
-
-        {!isAdminMode && !isMobileLayout && activeTab === 'About' && desktopLeftRailStyle && (
-          <LastFmFootnote
-            data={normalizeAbout(portfolioData.about).listeningFootnote}
-            style={desktopLeftRailStyle}
-            darkMode={darkMode}
           />
         )}
 

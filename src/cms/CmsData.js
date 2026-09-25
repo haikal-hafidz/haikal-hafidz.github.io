@@ -51,6 +51,11 @@ export const initialPortfolioData = {
       closing: 'Tidak ada urutan baca yang benar. Mulailah dari tab mana pun, atau biarkan dokumen memilihkannya.',
       closeLabel: 'Close introduction',
       printedLabel: 'Visitor’s copy printed',
+      quickViewLabel: 'Quick view',
+      documentIndexLabel: 'Document index',
+      selectedWorksLabel: 'Selected works',
+      experienceLabel: 'Experience',
+      contactLabel: 'Contact',
       sections: [
         { tab: 'Home', label: 'Home', description: 'Pernyataan yang terus ditulis ulang.' },
         { tab: 'About', label: 'About', description: 'Catatan dan sifat-sifat penulisnya.' },
@@ -162,6 +167,23 @@ export const initialPortfolioData = {
 
   // 2. ABOUT DATA
   about: {
+    heading: 'About Haikal',
+    subheading: 'Notes, working principles, and the person behind the documents.',
+    authorNoteTabLabel: 'The Author',
+    bitsTabLabel: 'Bits & Pieces',
+    headline: "Ideas rarely arrive finished. I work on what they can become.",
+    bio: "Saya menulis dan menyunting cerita, esai, naskah, serta materi kreatif. Latar psikologi membantu saya membaca perilaku dan audiens; proses editorial membantu saya memberi bentuk pada hasil pengamatan itu.",
+    signature: "Haikal A. Hafidz",
+    locationLine: "Batam, Indonesia · Open to selected collaborations",
+    bitsAndPieces: {
+      title: "Bits & Pieces",
+      intro: "",
+      items: [
+        { id: "oddly-1", label: "", value: "" },
+        { id: "oddly-2", label: "", value: "" },
+        { id: "oddly-3", label: "", value: "" }
+      ]
+    },
     listeningFootnote: {
       enabled: true,
       username: "",
@@ -172,33 +194,6 @@ export const initialPortfolioData = {
       fallbackArtist: "",
       fallbackImage: "",
       fallbackUrl: ""
-    },
-    headline: "Ideas rarely arrive finished. I work on what they can become.",
-    bio: "Saya menulis dan menyunting cerita, esai, naskah, serta materi kreatif. Latar psikologi membantu saya membaca perilaku dan audiens; proses editorial membantu saya memberi bentuk pada hasil pengamatan itu.",
-    signature: "Haikal A. Hafidz",
-    locationLine: "Batam, Indonesia · Open to selected collaborations",
-    notesVisible: true,
-    notesLimit: 3,
-    note1Label: "",
-    note1: "",
-    note2Label: "",
-    note2: "",
-    note3Label: "",
-    note3: "",
-    authorProperties: {
-      enabled: true,
-      buttonLabel: "View author properties…",
-      panelTitle: "Author Properties",
-      lastRevised: "",
-      items: [
-        { id: "author-status", label: "Status", value: "Mid-river / Still becoming", url: "" },
-        { id: "author-based-in", label: "Based in", value: "Batam, Indonesia", url: "" },
-        { id: "author-writing", label: "Currently writing", value: "", url: "" },
-        { id: "author-reading", label: "Currently reading", value: "", url: "" },
-        { id: "author-soundtrack", label: "Current soundtrack", value: "", url: "" },
-        { id: "author-fixation", label: "Current fixation", value: "", url: "" },
-        { id: "author-conditions", label: "Works best when", value: "", url: "" }
-      ]
     }
   },
 
@@ -231,6 +226,9 @@ export const initialPortfolioData = {
     archiveIntro: 'An unfinished archive of where I learned, worked, led, and changed direction.',
     archiveButtonLabel: 'Open career archive',
     credentialsButtonLabel: 'View credentials',
+    credentialsHeading: 'Credentials & Attachments',
+    credentialsSubheading: 'Certificates, achievements, and supporting documents.',
+    credentialsBackLabel: 'Career cover',
     categories: [
       {
         id: 'creative-experience',
@@ -302,6 +300,9 @@ export const initialPortfolioData = {
   books: {
     heading: 'Books Corner',
     subheading: 'Buku, naskah, dan proses kreatif yang membentuknya.',
+    worksTabLabel: 'My Books',
+    readingTabLabel: 'Books I Read',
+    readingItems: [],
     items: [
       {
         id: 'book-1',
@@ -347,6 +348,14 @@ export const initialPortfolioData = {
   projects: {
     heading: 'Projects, Articles & Visuals',
     subheading: 'Tulisan, film, dan eksperimen visual pilihan.',
+    indexHeading: 'Choose a drawer. Open a work.',
+    indexDescription: 'Tulisan, film, visual, dan dokumen disimpan sebagai arsip yang berbeda.',
+    searchLabel: 'Quick find',
+    backLabel: 'Project Index',
+    openDrawerLabel: 'Open drawer',
+    articlesDescription: 'Articles, essays, dan tulisan panjang.',
+    directingDescription: 'Film, directing work, dan moving images.',
+    posterDescription: 'Poster dan eksperimen visual.',
     articlesLabel: 'Articles',
     directingLabel: 'Directing',
     posterLabel: 'Poster',
@@ -362,9 +371,10 @@ export const initialPortfolioData = {
 
   // 6. CONTACT DATA
   contact: {
-    eyebrow: 'NEW DOCUMENT / CONTACT',
     heading: 'Every collaboration begins with an unfinished sentence.',
     subheading: "Tell me what you're trying to make. We can revise the rest together.",
+    formTitle: 'Untitled Collaboration',
+    propertiesTitle: 'Document Properties',
     email: 'haikalhafidz365@gmail.com',
     location: 'Batam, Indonesia',
     draftButtonLabel: 'Create Email Draft',

@@ -15,7 +15,14 @@ export default function Ribbon({
   setIsUnderline
 }) {
   // Daftar tab navigasi murni sesuai kebutuhan website portofolio lo — TIDAK DIUBAH
-  const portfolioTabs = ['Home', 'About', 'Projects', 'Career', 'Book', 'Contact'];
+  const portfolioTabs = [
+    { key: 'Home', label: 'Home' },
+    { key: 'About', label: 'About' },
+    { key: 'Projects', label: 'Projects' },
+    { key: 'Career', label: 'Careers' },
+    { key: 'Book', label: 'Books' },
+    { key: 'Contact', label: 'Contact' },
+  ];
 
   // State lokal buat tombol-tombol tambahan ala Word (gak ganggu prop dari parent)
   const [isStrike, setIsStrike] = useState(false);
@@ -101,19 +108,19 @@ export default function Ribbon({
       <div className="flex items-center bg-[#2b579a] dark:bg-[#1e3a5f] px-2 pt-1.5 border-b border-black/10">
         <div className="flex flex-1 overflow-x-auto gap-0.5">
           {portfolioTabs.map((tab) => {
-            const isCurrent = activeTab === tab;
+            const isCurrent = activeTab === tab.key;
             return (
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                data-hint-id={`navigation-${tab.toLowerCase()}`}
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                data-hint-id={`navigation-${tab.key.toLowerCase()}`}
                 className={`px-3 sm:px-4 py-1.5 transition-colors font-medium text-[10pt] leading-4 whitespace-nowrap shrink-0 rounded-t-md ${
                   isCurrent
                     ? 'bg-white dark:bg-[#1e1e1e] text-[#2b579a] dark:text-blue-400 shadow-sm'
                     : 'text-white/85 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                {tab}
+                {tab.label}
               </button>
             );
           })}

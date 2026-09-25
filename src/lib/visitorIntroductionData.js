@@ -11,6 +11,10 @@ export const DEFAULT_VISITOR_INTRODUCTION = {
   closing: 'Tidak ada urutan baca yang benar. Mulailah dari tab mana pun, atau biarkan dokumen memilihkannya.',
   closeLabel: 'Close introduction',
   printedLabel: 'Visitor’s copy printed',
+  quickViewLabel: 'Quick view',
+  selectedWorksLabel: 'Selected works',
+  experienceLabel: 'Experience',
+  contactLabel: 'Contact',
 };
 
 export const normalizeVisitorIntroduction = (raw) => ({

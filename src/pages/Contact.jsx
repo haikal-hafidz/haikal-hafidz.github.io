@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import InteractiveText from '../components/InteractiveText';
 import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 
@@ -87,7 +88,6 @@ function splitLocation(raw = '') {
 }
 
 const FALLBACK = {
-  eyebrow: 'NEW DOCUMENT / CONTACT',
   heading: 'Every collaboration begins with an unfinished sentence.',
   subheading: "Tell me what you're trying to make. We can revise the rest together.",
   email: '',
@@ -113,7 +113,7 @@ const FALLBACK = {
   actionButtons: [],
 };
 
-export default function Contact({ data, interactiveWords = [], onNavigate }) {
+export default function Contact({ data, interactiveWords = [], onNavigate, railStyle = null, isMobileLayout = false }) {
   // Selalu utamakan data dari CMS (props). FALLBACK cuma jaring pengaman kalau
   // props-nya belum ada / ada field yang kosong dari Supabase, biar gak crash.
   const contactInfo = {
@@ -151,6 +151,34 @@ export default function Contact({ data, interactiveWords = [], onNavigate }) {
 
   const subjectDetail = activePathKind === 'project' ? service : activePathKind === 'opportunity' ? role : senderName;
   const draftSubject = [activePath.subject || activePath.label, subjectDetail].filter(Boolean).join(' — ');
+  const hasOutgoingDraft = Boolean(
+    senderName.trim() ||
+    senderEmail.trim() ||
+    message.trim() ||
+    attachmentLink.trim() ||
+    photo ||
+    company.trim() ||
+    role.trim()
+  );
+  const outgoingPreview = hasOutgoingDraft ? (
+    <div className="overflow-hidden rounded-sm border border-gray-300 bg-[#fffef8] shadow-xl dark:border-gray-700 dark:bg-[#252522]">
+      <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+        <span className="font-mono text-[0.5625em] font-bold uppercase tracking-[0.2em] text-[#2B579A] dark:text-[#6FA8DC]">Outgoing</span>
+        <span className="h-2 w-2 rounded-full bg-amber-400" aria-hidden="true" />
+      </div>
+      <dl className="space-y-3 px-4 pt-4">
+        <div><dt className="font-mono text-[0.5em] uppercase tracking-widest text-gray-400">From</dt><dd className="mt-1 truncate text-[0.75em] font-semibold text-gray-700 dark:text-gray-200">{senderName || '—'}</dd></div>
+        <div><dt className="font-mono text-[0.5em] uppercase tracking-widest text-gray-400">Reply to</dt><dd className="mt-1 truncate text-[0.75em] text-gray-600 dark:text-gray-300">{senderEmail || '—'}</dd></div>
+        <div><dt className="font-mono text-[0.5em] uppercase tracking-widest text-gray-400">Subject</dt><dd className="mt-1 text-[0.75em] leading-relaxed text-gray-700 dark:text-gray-200">{draftSubject || '—'}</dd></div>
+      </dl>
+      <div className="m-4 border-t border-gray-200 pt-4 dark:border-gray-700">
+        <p className="line-clamp-6 whitespace-pre-line font-serif text-[0.75em] leading-[1.65] text-gray-600 dark:text-gray-300">{message || 'Your message will appear here.'}</p>
+      </div>
+      <div className="border-t border-gray-200 px-4 py-3 font-mono text-[0.5em] uppercase tracking-wider text-gray-400 dark:border-gray-700">
+        {message.trim() && /^\S+@\S+\.\S+$/.test(senderEmail) ? 'Ready to send' : 'Draft in progress'}
+      </div>
+    </div>
+  ) : null;
   const draftLines = [
     `Hello Haikal,`,
     '',
@@ -231,25 +259,19 @@ export default function Contact({ data, interactiveWords = [], onNavigate }) {
 
   return (
     <div className="w-full text-gray-900 dark:text-gray-100 select-text py-2">
+      {(contactInfo.heading || contactInfo.subheading) && <header className="mb-8 border-b border-gray-200 pb-5 dark:border-gray-700">
+        {contactInfo.heading && <h1 className="text-[1.75em] font-semibold tracking-tight sm:text-[2.2em]"><InteractiveText text={contactInfo.heading} rules={interactiveWords} page="Contact" onNavigate={onNavigate} /></h1>}
+        {contactInfo.subheading && <p className="mt-2 max-w-2xl text-[0.8125em] leading-relaxed text-gray-500 dark:text-gray-400"><InteractiveText text={contactInfo.subheading} rules={interactiveWords} page="Contact" onNavigate={onNavigate} /></p>}
+      </header>}
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-12">
         <main className="min-w-0">
-        <p className="font-mono text-[0.6875em] font-bold uppercase tracking-[0.2em] text-[#2B579A] dark:text-[#6FA8DC]">
-          {contactInfo.eyebrow}
-        </p>
-        <h2 className="mt-3 max-w-3xl text-[2em] sm:text-[2.6em] font-normal font-serif text-gray-900 dark:text-white leading-[1.08] tracking-tight">
-          <InteractiveText text={contactInfo.heading} rules={interactiveWords} page="Contact" onNavigate={onNavigate} />
-        </h2>
-        <p className="max-w-2xl text-[0.875em] sm:text-[1em] text-gray-500 dark:text-gray-400 leading-relaxed mt-4">
-          <InteractiveText text={contactInfo.subheading} rules={interactiveWords} page="Contact" onNavigate={onNavigate} />
-        </p>
-
-        <div className="mt-7 flex flex-wrap gap-2" data-hint-id="contact-inquiry-paths" role="tablist" aria-label="Jenis pesan">
+        <div className="flex flex-wrap gap-2" data-hint-id="contact-inquiry-paths" role="tablist" aria-label="Jenis pesan">
           {paths.map((path) => <button key={path.id} type="button" role="tab" aria-selected={activePathId === path.id} onClick={() => { setActivePathId(path.id); setDrafted(false); setDraftError(''); }} className={`ux-action rounded-md border px-3.5 py-2 text-[0.75em] font-semibold transition ${activePathId === path.id ? 'border-[#2B579A] bg-[#2B579A] text-white shadow-sm' : 'border-gray-200 bg-white text-gray-600 hover:border-[#2B579A] hover:text-[#2B579A] dark:border-gray-700 dark:bg-[#222] dark:text-gray-300'}`}>{path.label}</button>)}
         </div>
 
         <form onSubmit={handleSubmit} className="mt-5 rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-[#202020]" data-hint-id="contact-document-brief">
           <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3 dark:border-gray-700">
-            <span className="font-mono text-[0.6875em] font-bold uppercase tracking-wider text-[#2B579A] dark:text-[#6FA8DC]">Untitled Collaboration</span>
+            {contactInfo.formTitle && <span className="font-mono text-[0.6875em] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">{contactInfo.formTitle}</span>}
             <span className="font-mono text-[0.625em] text-gray-400">{wordCount} {wordCount === 1 ? 'word' : 'words'}</span>
           </div>
           <div className="space-y-5 p-5 sm:p-6">
@@ -274,12 +296,19 @@ export default function Contact({ data, interactiveWords = [], onNavigate }) {
 
             <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between dark:border-gray-800">
               <p className="font-mono text-[0.625em] text-gray-400">Pesan disimpan dan diteruskan lewat kanal Contact yang aman.</p>
-              <button type="submit" disabled={isSending} className="ux-action inline-flex items-center justify-center gap-2 rounded-md bg-[#2B579A] px-5 py-2.5 text-[0.8125em] font-bold text-white transition hover:bg-[#23477f] disabled:cursor-wait disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] focus-visible:ring-offset-2" data-hint-id="contact-create-draft">{isSending ? 'Sending…' : (/draft/i.test(contactInfo.draftButtonLabel || '') ? 'Send Message' : (contactInfo.draftButtonLabel || 'Send Message'))}<Icon.Arrow className="h-4 w-4" /></button>
+              {contactInfo.draftButtonLabel && <button type="submit" disabled={isSending} className="ux-action inline-flex items-center justify-center gap-2 rounded-md bg-[#2B579A] px-5 py-2.5 text-[0.8125em] font-bold text-white transition hover:bg-[#23477f] disabled:cursor-wait disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] focus-visible:ring-offset-2" data-hint-id="contact-create-draft">{isSending ? 'Sending…' : contactInfo.draftButtonLabel}<Icon.Arrow className="h-4 w-4" /></button>}
             </div>
             {draftError && <p role="alert" className="text-right text-[0.75em] font-medium text-red-600 dark:text-red-400">{draftError}</p>}
             {drafted && <p role="status" className="text-right text-[0.75em] font-medium text-emerald-600 dark:text-emerald-400">Pesan berhasil dikirim. Gue akan membalas melalui email yang lu cantumkan.</p>}
           </div>
         </form>
+
+        {isMobileLayout && outgoingPreview && (
+          <details className="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-[#242424]">
+            <summary className="cursor-pointer font-mono text-[0.625em] font-bold uppercase tracking-[0.16em] text-[#2B579A] dark:text-[#6FA8DC]">Message preview</summary>
+            <div className="mt-4">{outgoingPreview}</div>
+          </details>
+        )}
 
         <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-gray-200 pt-5 dark:border-gray-700">
           <span className="text-[0.75em] text-gray-400">Prefer another channel?</span>
@@ -290,7 +319,7 @@ export default function Contact({ data, interactiveWords = [], onNavigate }) {
         </main>
 
         <aside className="h-fit border-t-4 border-[#2B579A] bg-gray-50 p-5 dark:bg-[#242424] lg:sticky lg:top-5" data-hint-id="contact-document-properties">
-          <p className="font-mono text-[0.6875em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">Document Properties</p>
+          {contactInfo.propertiesTitle && <p className="font-mono text-[0.6875em] font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">{contactInfo.propertiesTitle}</p>}
           <dl className="mt-5 space-y-4">
             {contactInfo.properties.filter((item) => item.enabled !== false && item.value).map((item) => <div key={item.id || item.label}><dt className="font-mono text-[0.5625em] uppercase tracking-widest text-gray-400">{item.label}</dt><dd className="mt-1 text-[0.8125em] leading-relaxed text-gray-700 dark:text-gray-300">{item.value}</dd></div>)}
             {!contactInfo.properties.some((item) => /based/i.test(item.label)) && location && <div><dt className="font-mono text-[0.5625em] uppercase tracking-widest text-gray-400">Based in</dt><dd className="mt-1 text-[0.8125em] text-gray-700 dark:text-gray-300">{location}</dd></div>}
@@ -298,6 +327,13 @@ export default function Contact({ data, interactiveWords = [], onNavigate }) {
           </dl>
         </aside>
       </div>
+
+      {!isMobileLayout && railStyle && outgoingPreview && typeof document !== 'undefined' && createPortal(
+        <aside className="fixed z-30" style={railStyle} aria-label="Outgoing message preview">
+          {outgoingPreview}
+        </aside>,
+        document.body
+      )}
     </div>
   );
 }

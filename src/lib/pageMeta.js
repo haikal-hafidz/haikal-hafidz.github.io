@@ -1,8 +1,9 @@
 // src/lib/pageMeta.js
 //
-// Util buat menjaga judul tab browser tetap memakai identitas situs, sambil meng-update
-// meta tags (description, Open Graph, Twitter Card) secara dinamis dari React. Dipanggil
-// dari App.jsx (default per-tab) dan Projects.jsx (override metadata per-artikel).
+// Util buat update <title> & meta tags (description, Open Graph, Twitter Card) secara
+// dinamis dari React, tanpa nambah dependency baru (gak pake react-helmet). Dipanggil dari
+// App.jsx (default per-tab) dan Projects.jsx (override per-artikel pas dibuka, biar Share
+// button ngasih preview yang sesuai artikelnya, bukan generic).
 //
 // CATATAN PENTING (biar gak salah ekspektasi): ini nge-update DOM di BROWSER doang
 // (client-side, jalan setelah JS-nya React dieksekusi). Ini udah cukup buat:
@@ -23,19 +24,25 @@
 // Poin 2 butuh akses ke index.html / netlify.toml yang belum ada di sini — kalau mau
 // dikerjain juga, tinggal kirim file-nya.
 
-const SITE_URL = 'https://haikal-hafidz.github.io/';
-const BROWSER_TITLE = 'Haikal | Content Writer & Editor';
+const SITE_URL = 'https://haikalhafidz.netlify.app/';
 let siteName = 'Haikal A. Hafidz — Content Writer & Editor';
+let browserTitle = siteName;
+let defaultShareImage = '';
 
-export function setSiteIdentity({ name, role } = {}) {
+export function setSiteIdentity({ name, role, title, shareImage } = {}) {
   const cleanName = String(name || '').trim();
   const cleanRole = String(role || '').trim();
   siteName = [cleanName, cleanRole].filter(Boolean).join(' — ') || siteName;
+  browserTitle = String(title || '').trim() || siteName;
+  defaultShareImage = String(shareImage || '').trim();
 }
 
 function upsertMeta(attr, key, content) {
-  if (!content) return;
   let el = document.querySelector(`meta[${attr}="${key}"]`);
+  if (!content) {
+    el?.remove();
+    return;
+  }
   if (!el) {
     el = document.createElement('meta');
     el.setAttribute(attr, key);
@@ -45,7 +52,7 @@ function upsertMeta(attr, key, content) {
 }
 
 /**
- * Pertahankan judul tab browser yang konsisten + set meta SEO/OG/Twitter untuk konten aktif.
+ * Set judul tab browser + meta tags SEO/OG/Twitter buat halaman/artikel yang lagi aktif.
  * @param {Object} opts
  * @param {string} [opts.title] - Judul spesifik (halaman/artikel). Kosong = pakai SITE_NAME polos.
  * @param {string} [opts.description] - Deskripsi singkat (buat meta description & og:description).
@@ -53,18 +60,19 @@ function upsertMeta(attr, key, content) {
  * @param {string} [opts.url] - URL kanonis halaman ini (default: URL saat ini).
  */
 export function setPageMeta({ title, description, image, url } = {}) {
-  const shareTitle = title ? `${title} — ${siteName}` : siteName;
-  document.title = BROWSER_TITLE;
+  const fullTitle = title ? `${title} — ${browserTitle}` : browserTitle;
+  const resolvedImage = image || defaultShareImage;
+  document.title = fullTitle;
 
   upsertMeta('name', 'description', description);
-  upsertMeta('property', 'og:site_name', siteName);
-  upsertMeta('property', 'og:title', shareTitle);
+  upsertMeta('property', 'og:site_name', browserTitle);
+  upsertMeta('property', 'og:title', fullTitle);
   upsertMeta('property', 'og:description', description);
-  upsertMeta('property', 'og:image', image);
+  upsertMeta('property', 'og:image', resolvedImage);
   upsertMeta('property', 'og:url', url || SITE_URL);
   upsertMeta('property', 'og:type', 'website');
-  upsertMeta('name', 'twitter:card', image ? 'summary_large_image' : 'summary');
-  upsertMeta('name', 'twitter:title', shareTitle);
+  upsertMeta('name', 'twitter:card', title && resolvedImage ? 'summary_large_image' : 'summary');
+  upsertMeta('name', 'twitter:title', fullTitle);
   upsertMeta('name', 'twitter:description', description);
-  upsertMeta('name', 'twitter:image', image);
+  upsertMeta('name', 'twitter:image', resolvedImage);
 }

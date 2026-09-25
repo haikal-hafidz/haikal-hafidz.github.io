@@ -1,9 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useInsertionEffect } from 'react';
 import { supabase, IMAGES_BUCKET } from '../lib/supabaseClient';
 import InteractiveLinksEditor from './InteractiveLinksEditor';
 import { normalizeVisitorIntroduction } from '../lib/visitorIntroductionData';
-import { getZineModerationQueue, moderateZineSubmission } from '../lib/homeExperienceApi';
+import { collectTranslatableStrings, normalizeTranslations, translationValue, withEnglishTranslation, localizedPortfolioData } from '../lib/localization';
+import { getZineModerationQueue, moderateZineSubmission, archiveZineSubmissions, getMiniGameLeaderboardAdmin, deleteMiniGameLeaderboardEntry } from '../lib/homeExperienceApi';
 
+import WassupEditor from './wassup/WassupEditor';
+import MiniGameEditor from './miniGames/MiniGameEditor';
 // Komponen kartu editor HARUS berada di luar CmsDashboard. Kalau didefinisikan di
 // dalam fungsi utama, React menganggapnya sebagai tipe komponen baru pada setiap
 // keystroke, lalu membongkar dan memasang ulang seluruh kartu. Akibatnya input
@@ -32,15 +35,33 @@ function AddBtn({ onClick, label }) {
   return <button type="button" onClick={onClick} className="text-xs px-3 py-1.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 rounded font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/40">+ {label}</button>;
 }
 
+function CollapsibleSection({ sectionKey, title, subtitle, children, className = '' }) {
+  const context = React.useContext(CmsCardContext);
+  const isOpen = context?.openSectionKeys?.has(sectionKey) || false;
+  const toggle = () => context?.toggleSection?.(sectionKey);
+
+  return (
+    <section className={`overflow-hidden rounded-lg border border-gray-200 bg-gray-50/70 dark:border-gray-700 dark:bg-[#282828] ${className}`}>
+      <button type="button" onClick={toggle} className="flex w-full items-center justify-between gap-4 p-4 text-left hover:bg-gray-100/70 dark:hover:bg-white/[0.03]" aria-expanded={isOpen}>
+        <span className="min-w-0">
+          <span className="block text-sm font-bold text-gray-800 dark:text-gray-100">{title}</span>
+          {subtitle && <span className="mt-1 block text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">{subtitle}</span>}
+        </span>
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded text-gray-400">{isOpen ? '⌃' : '⌄'}</span>
+      </button>
+      {isOpen && <div className="space-y-4 border-t border-gray-200 p-4 dark:border-gray-700">{children}</div>}
+    </section>
+  );
+}
+
 function ContentCard({ cardKey, listKey, idx, count, title, subtitle, onRemove, children }) {
   const context = React.useContext(CmsCardContext);
   if (!context) return null;
-  const { expandedContentKey, draggingKey, toggleContentCard, handleDragOver, handleDrop } = context;
+  const { expandedContentKey, toggleContentCard } = context;
   const isOpen = expandedContentKey === cardKey;
   return (
-    <div onDragOver={handleDragOver} onDrop={handleDrop(listKey, idx)} className={`overflow-hidden rounded-lg border border-gray-200 bg-white transition-opacity dark:border-gray-700 dark:bg-[#282828] ${draggingKey === `${listKey}-${idx}` ? 'opacity-40' : ''}`}>
+    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-[#282828]">
       <div className="flex items-center gap-2 p-3">
-        <ReorderHandle listKey={listKey} idx={idx} count={count} />
         <button type="button" onClick={() => toggleContentCard(cardKey)} className="min-w-0 flex-1 text-left">
           <span className="block truncate text-xs font-bold text-gray-700 dark:text-gray-200">{title}</span>
           {subtitle && <span className="mt-0.5 block truncate font-mono text-[10px] text-gray-400">{subtitle}</span>}
@@ -53,10 +74,10 @@ function ContentCard({ cardKey, listKey, idx, count, title, subtitle, onRemove, 
   );
 }
 
-// Enam halaman publik selalu tampil dulu sesuai urutan navbar. Semua pengaturan
-// tambahan diletakkan setelah Contact supaya menu CMS mudah dipindai.
-const MAIN_TABS = ['home', 'about', 'career', 'book', 'projects', 'contact', 'featuredWorks', 'visitorIntroduction', 'interactiveWords', 'general'];
-const EXTRA_TABS = ['zine', 'miniGame'];
+// Tiga kelompok CMS: halaman pokok, pengaturan sampingan, lalu pengalaman interaktif.
+const MAIN_TABS = ['home', 'about', 'projects', 'career', 'book', 'contact'];
+const SIDE_TABS = ['featuredWorks', 'visitorIntroduction', 'interactiveWords', 'general'];
+const EXTRA_TABS = ['zine', 'miniGame', 'leaderboardSystems'];
 
 // Metadata buat kartu menu utama CMS — cukup diedit di sini kalau mau ganti label/ikon/deskripsi
 const TAB_META = {
@@ -70,9 +91,22 @@ const TAB_META = {
   contact: { label: 'Contact', desc: 'Info kontak, sosmed & tombol aksi' },
   zine: { label: 'Wassup?', desc: 'Pengaturan menulis, menerima & moderasi kiriman' },
   miniGame: { label: 'Mini Game', desc: 'Game shelf, draft The Red Pen & koreksi editorial' },
+  leaderboardSystems: { label: 'Leaderboard Systems', desc: 'Klasemen lintas Mini Game, ranking pemain & moderasi nama' },
   interactiveWords: { label: 'Interactive Words', desc: 'Frasa klik, tujuan, warna & spellcheck underline' },
-  general: { label: 'General', desc: 'Pengaturan situs — info update patch, suara, dll' },
+  general: { label: 'Update Patch', desc: 'Info update patch, suara, dan pengaturan terkait pembaruan situs' },
+  websikee: { label: 'Websikee!', desc: 'Judul website dan gambar preview saat link dibagikan' },
 };
+
+const DEFAULT_WEBSITE = {
+  title: 'Haikal A. Hafidz — Content Writer & Editor',
+  favicon: '',
+  shareImage: '',
+};
+
+const normalizeWebsite = (raw) => ({
+  ...DEFAULT_WEBSITE,
+  ...(raw || {}),
+});
 
 const DEFAULT_GENERAL = {
   soundEffects: true,
@@ -81,6 +115,7 @@ const DEFAULT_GENERAL = {
     version: '1.0.0',
     title: 'Update terbaru',
     message: 'Catatan perubahan terbaru portofolio akan muncul di sini.',
+    items: [],
     delaySeconds: 2,
   },
 };
@@ -178,12 +213,1712 @@ const DEFAULT_MINI_GAME = {
   rules: { click: 'Klik atau tap kata/frasa bermasalah.', timer: 'Tiap draft punya waktu 60 detik.', wrong: 'Pilihan salah menurunkan akurasi dan skor.', hint: 'Satu hint tersedia untuk seluruh sesi.', review: 'Seusai tiap draft, baca alasan editorialnya—waktu berhenti saat review.' },
   startButtonLabel: 'Mulai Mengedit', secondsPerDraft: 60, draftsPerSession: 5,
   scoreSettings: { correctPoints: 100, wrongPenalty: 25, completionBonus: 100, maxTimeBonus: 100, hintPenalty: 75 },
-  gradeTitles: [{ min: 90, label: 'Senior Red Pen' }, { min: 75, label: 'Sharp-eyed Editor' }, { min: 55, label: 'Promising Proofreader' }, { min: 0, label: 'Draft Survivor' }],
+  gradeTitles: [{ min: 90, label: 'Senior Red Pen', remark: 'Naskah sulit lolos dari mata Anda.' }, { min: 75, label: 'Sharp-eyed Editor', remark: 'Mata editorialnya tajam; tinggal menjaga konsistensi.' }, { min: 55, label: 'Promising Proofreader', remark: 'Insting editornya sudah ada, tetapi beberapa masalah masih lolos.' }, { min: 0, label: 'Draft Survivor', remark: 'Draft-nya selamat. Reputasi editornya menyusul.' }],
   resultEyebrow: 'Final editorial report', replayLabel: 'Main lagi', projectsCtaLabel: 'Lihat tulisan Haikal', contactCtaLabel: 'Hubungi Haikal', gameSlots: [], drafts: DEFAULT_RED_PEN_DRAFTS,
   showInLibrary: true, illustration: '',
 };
 
+const HANGMAN_PRESET = {
+  gameType: 'hangman', enabled: true, showInLibrary: true, gameName: 'The Hangman', gameCategory: 'Kosakata',
+  gameCardDescription: 'Tebak kata dari petunjuk yang tersedia sebelum Hangman selesai digambar.', title: 'Jaga kata tetap hidup.',
+  objective: 'Lima belas kata menunggu untuk ditebak. Gunakan petunjuk yang tersedia dan temukan setiap kata sebelum waktu habis—atau Hangman selesai digambar.',
+  rules: { click: 'Pilih huruf A–Z untuk menebak kata berdasarkan petunjuk singkat.', timer: 'Setiap kata memberi enam kesempatan salah: kepala, badan, tangan kanan, tangan kiri, kaki kanan, lalu kaki kiri.', wrong: 'Tebakan benar membuka semua kemunculan huruf yang sama. Huruf yang sudah dipilih tidak dapat digunakan kembali.', hint: 'Berhasil menebak kata akan mengosongkan Hangman dan membawa Anda ke kata berikutnya. Selesaikan 15 kata dalam 10 menit.', review: 'Kesalahan keenam atau waktu 00:00 mengakhiri permainan.' },
+  startButtonLabel: 'Mulai Menggantung', secondsPerDraft: 600, draftsPerSession: 15,
+  gradeTitles: [{ min: 15, label: 'Master Wordsmith', remark: 'Lima belas kata masuk. Tidak satu pun berhasil menggantung Anda.' }, { min: 10, label: 'Seasoned Linguist', remark: 'Kosakata Anda cukup tajam untuk membuat tali kehilangan pekerjaan.' }, { min: 5, label: 'Vocabulary Scout', remark: 'Sudah menemukan jalurnya. Beberapa kata masih bersembunyi.' }, { min: 0, label: 'Word Rookie', remark: 'Untuk sekarang, alfabet masih memegang kendali.' }],
+  resultEyebrow: 'Laporan akhir',
+  replayLabel: 'Main Lagi',
+  hangmanLeaderboardLabel: 'Lihat Klasemen',
+  hangmanDeathMessage: 'Siapa Yang Bilang Kata-kata Ngga Bisa Membunuh?',
+  hangmanTimeoutMessage: 'Waktu habis. Kata-kata menang kali ini.',
+  hangmanPodiumFirst: 'Selamat. Kosa Kata Anda Menyelamatkan Nyawa.',
+  hangmanPodiumSecond: 'Runner Up. Banyak Kata, Kurang Tahta.',
+  hangmanPodiumThird: 'Peringkat Tiga. Setidaknya Bukan yang Digantung.',
+  hangmanRankPrefix: 'Anda berada di peringkat',
+  hangmanRankPlayersSuffix: 'pemain',
+  hangmanSolvedLabel: 'Terjawab',
+  hangmanAccuracyLabel: 'Akurasi',
+  hangmanWrongLettersLabel: 'Huruf salah',
+  hangmanNamePrompt: 'Masukkan nama / alias untuk masuk klasemen',
+  hangmanNamePlaceholder: 'Nama / alias',
+  hangmanSaveScoreLabel: 'Simpan Skor',
+  hangmanSavingLabel: 'Menyimpan…',
+  hangmanYourRankLabel: 'Peringkatmu',
+  hangmanBestScoreLabel: 'Skor terbaik tersimpan',
+  hangmanLeaderboardTitle: 'Klasemen',
+  hangmanLeaderboardCloseLabel: 'Tutup ×',
+  hangmanLeaderboardEmptyLabel: 'Belum ada penghuni klasemen.',
+  hangmanYouLabel: 'Kamu',
+  hangmanClueLabel: 'Petunjuk',
+  hangmanChooseLetterLabel: 'Pilih satu huruf',
+  hangmanRemainingLabel: 'Kesempatan tersisa',
+  hangmanWordCompleteLabel: 'Kata selesai',
+  hangmanDeathRevealLabel: 'Enam kesalahan · jawaban dibuka',
+  hangmanSafeMessage: 'Selamat, lehernya aman.',
+  hangmanAnswerPrefix: 'Kata yang dicari:',
+  hangmanNextWordLabel: 'Kata berikutnya →',
+  hangmanSeeResultLabel: 'Lihat hasil →',
+  drafts: [
+    { id: 'hangman-01', label: 'AMBIGUITAS', enabled: true, passage: 'Makna yang tidak pasti.', issues: [] },
+    { id: 'hangman-02', label: 'GAGASAN', enabled: true, passage: 'Ide yang dipikirkan.', issues: [] },
+    { id: 'hangman-03', label: 'JANGGAL', enabled: true, passage: 'Terasa tidak semestinya.', issues: [] },
+    { id: 'hangman-04', label: 'LUGAS', enabled: true, passage: 'Jelas dan langsung.', issues: [] },
+    { id: 'hangman-05', label: 'TAFSIR', enabled: true, passage: 'Pemaknaan terhadap sesuatu.', issues: [] },
+    { id: 'hangman-06', label: 'KHALAYAK', enabled: true, passage: 'Kelompok penerima pesan.', issues: [] },
+    { id: 'hangman-07', label: 'SANGGAH', enabled: true, passage: 'Membantah suatu pendapat.', issues: [] },
+    { id: 'hangman-08', label: 'NALURI', enabled: true, passage: 'Dorongan alami.', issues: [] },
+    { id: 'hangman-09', label: 'WACANA', enabled: true, passage: 'Gagasan dalam pembahasan.', issues: [] },
+    { id: 'hangman-10', label: 'SAMAR', enabled: true, passage: 'Tidak terlihat jelas.', issues: [] },
+    { id: 'hangman-11', label: 'NUANSA', enabled: true, passage: 'Perbedaan yang sangat halus.', issues: [] },
+    { id: 'hangman-12', label: 'SATIR', enabled: true, passage: 'Sindiran lewat humor.', issues: [] },
+    { id: 'hangman-13', label: 'DISTOPIA', enabled: true, passage: 'Masyarakat yang buruk.', issues: [] },
+    { id: 'hangman-14', label: 'PARADOKS', enabled: true, passage: 'Pernyataan tampak bertentangan.', issues: [] },
+    { id: 'hangman-15', label: 'METAFORA', enabled: true, passage: 'Perbandingan secara kiasan.', issues: [] },
+    { id: 'hangman-16', label: 'NARASI', enabled: true, passage: 'Rangkaian sebuah cerita.', issues: [] },
+    { id: 'hangman-17', label: 'RETORIKA', enabled: true, passage: 'Seni menggunakan bahasa.', issues: [] },
+    { id: 'hangman-18', label: 'SUBTEKS', enabled: true, passage: 'Makna yang tidak diucapkan.', issues: [] },
+    { id: 'hangman-19', label: 'IRONI', enabled: true, passage: 'Berlawanan dengan harapan.', issues: [] },
+    { id: 'hangman-20', label: 'BIAS', enabled: true, passage: 'Kecenderungan yang memengaruhi penilaian.', issues: [] },
+    { id: 'hangman-21', label: 'EMPATI', enabled: true, passage: 'Memahami perasaan orang lain.', issues: [] },
+    { id: 'hangman-22', label: 'WAWASAN', enabled: true, passage: 'Pemahaman yang lebih luas.', issues: [] },
+    { id: 'hangman-23', label: 'PERSEPSI', enabled: true, passage: 'Cara menangkap sesuatu.', issues: [] },
+    { id: 'hangman-24', label: 'ARKETIPE', enabled: true, passage: 'Pola yang terus berulang.', issues: [] },
+    { id: 'hangman-25', label: 'PROSA', enabled: true, passage: 'Tulisan tanpa pola sajak.', issues: [] },
+    { id: 'hangman-26', label: 'LEKSIKON', enabled: true, passage: 'Kumpulan kosakata.', issues: [] },
+    { id: 'hangman-27', label: 'SINTAKSIS', enabled: true, passage: 'Susunan kata dalam kalimat.', issues: [] },
+    { id: 'hangman-28', label: 'SEMANTIK', enabled: true, passage: 'Kajian tentang makna.', issues: [] },
+    { id: 'hangman-29', label: 'KATARSIS', enabled: true, passage: 'Pelepasan emosi.', issues: [] },
+    { id: 'hangman-30', label: 'ANEKDOT', enabled: true, passage: 'Cerita singkat menarik.', issues: [] }
+  ],
+};
+
+const PLAGIARISM_POLICE_PRESET = {
+  "gameType": "plagiarismPolice",
+  "enabled": true,
+  "showInLibrary": true,
+  "gameName": "Plagiarism Police",
+  "gameCategory": "Source Integrity",
+  "gameCardDescription": "Periksa sumber, bandingkan tulisan, dan putuskan apakah kemiripannya masih dapat dipertanggungjawabkan.",
+  "title": "Kemiripan belum tentu kejahatan.",
+  "objective": "Periksa 12 kasus penggunaan sumber. Tentukan putusan yang tepat, lalu buktikan alasan di balik keputusan Anda.",
+  "rules": {
+    "click": "Bandingkan Sumber Asli dengan Teks Penulis pada setiap kasus.",
+    "timer": "Tentukan satu putusan: Orisinal, Parafrase Etis, Parafrase Terlalu Dekat, atau Plagiarisme.",
+    "wrong": "Buktikan putusan dengan memilih alasan yang relevan dan menandai bagian teks jika diperlukan.",
+    "hint": "Setiap sesi terdiri dari 12 kasus. Ketepatan putusan dan pembuktian dinilai secara terpisah.",
+    "review": "Tidak ada batas waktu atau eliminasi. Teliti sebelum menuduh—kemiripan belum tentu plagiarisme."
+  },
+  "startButtonLabel": "Mulai Investigasi",
+  "casesPerSession": 12,
+  "verdictPoints": 600,
+  "evidencePoints": 400,
+  "perfectBonus": 100,
+  "gradeTitles": [
+    {
+      "min": 11,
+      "label": "Chief Plagiarism Officer",
+      "remark": "Sulit menyembunyikan jejak sumber dari Anda."
+    },
+    {
+      "min": 8,
+      "label": "Integrity Detective",
+      "remark": "Jejaknya terlihat. Tinggal mempertajam cara membuktikannya."
+    },
+    {
+      "min": 4,
+      "label": "Source Inspector",
+      "remark": "Anda tahu apa yang perlu dicurigai, tetapi belum semua kecurigaan layak menjadi putusan."
+    },
+    {
+      "min": 0,
+      "label": "Citation Rookie",
+      "remark": "Untuk sekarang, jangan dulu sita laptop penulisnya."
+    }
+  ],
+  "resultEyebrow": "Laporan Investigasi Akhir",
+  "replayLabel": "Main Lagi",
+  "verdictLabels": {
+    "original": "Orisinal",
+    "ethical": "Parafrase Etis",
+    "close": "Parafrase Terlalu Dekat",
+    "plagiarism": "Plagiarisme"
+  },
+  "evidenceLabels": {
+    "wording": "Pilihan Kata",
+    "structure": "Struktur",
+    "idea": "Gagasan",
+    "attribution": "Atribusi"
+  },
+  "copy": {
+    "caseLabel": "Kasus",
+    "sourceLabel": "Sumber Asli",
+    "writerLabel": "Teks Penulis",
+    "verdictPrompt": "Jatuhkan Putusan",
+    "temporaryVerdict": "Putusan Sementara",
+    "changeVerdict": "Ubah Putusan",
+    "evidenceTypeLabel": "Jenis Bukti",
+    "submitEvidence": "Ajukan Bukti",
+    "nextCase": "Kasus Berikutnya →",
+    "seeResult": "Lihat Laporan Akhir →",
+    "perfectCaseTitle": "Kasus Sempurna",
+    "correctVerdictTitle": "Putusan Tepat · Bukti Kurang Tepat",
+    "reviewTitle": "Kasus Perlu Ditinjau",
+    "riskyTitle": "Putusan Berisiko",
+    "perfectRun": "Berkas bersih. Tidak ada kasus yang lolos dari pemeriksaan.",
+    "correctLabel": "Putusan Tepat",
+    "verdictAccuracyLabel": "Ketepatan Putusan",
+    "evidenceAccuracyLabel": "Ketepatan Bukti",
+    "perfectLabel": "Kasus Sempurna",
+    "streakLabel": "Rangkaian Sempurna",
+    "riskyLabel": "Putusan Berisiko",
+    "timeLabel": "Waktu Investigasi",
+    "scoreLabel": "Skor Akhir",
+    "namePrompt": "Catat Identitas Investigator",
+    "namePlaceholder": "Nama / alias",
+    "saveLabel": "Simpan Hasil",
+    "savingLabel": "Menyimpan…",
+    "rankLabel": "Peringkat Anda",
+    "leaderboardLabel": "Lihat Klasemen",
+    "leaderboardTitle": "Klasemen",
+    "closeLabel": "Tutup ×",
+    "leaderboardError": "Klasemen belum dapat dimuat.",
+    "saveError": "Skor belum dapat disimpan.",
+    "nameError": "Nama / alias minimal 2 karakter."
+  },
+  "podium": {
+    "first": "Selamat. Bahkan sumbernya mengakui Anda.",
+    "second": "Runner Up. Nyaris orisinal, sayangnya masih nomor dua.",
+    "third": "Peringkat tiga. Setidaknya posisi ini bukan hasil salin-tempel."
+  },
+  "cases": [
+    {
+      "id": "pp-01",
+      "label": "Tidur dan Ingatan",
+      "enabled": true,
+      "difficulty": "Dasar",
+      "source": "Tidur yang cukup membantu proses konsolidasi ingatan setelah seseorang mempelajari informasi baru.",
+      "writerText": "Tidur yang cukup membantu proses konsolidasi ingatan setelah seseorang mempelajari informasi baru.",
+      "correctVerdict": "plagiarism",
+      "correctEvidenceTypes": [
+        "wording",
+        "attribution"
+      ],
+      "chunks": [
+        {
+          "id": "c1-1",
+          "text": "Tidur yang cukup"
+        },
+        {
+          "id": "c1-2",
+          "text": "membantu proses konsolidasi"
+        },
+        {
+          "id": "c1-3",
+          "text": "ingatan setelah seseorang"
+        },
+        {
+          "id": "c1-4",
+          "text": "mempelajari informasi baru."
+        }
+      ],
+      "correctChunkIds": [
+        "c1-1",
+        "c1-2"
+      ],
+      "reasonOptions": [
+        {
+          "id": "r1-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r1-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r1-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [],
+      "report": "Kalimat sumber digunakan secara utuh tanpa kutipan atau atribusi."
+    },
+    {
+      "id": "pp-02",
+      "label": "Belajar Pagi",
+      "enabled": true,
+      "difficulty": "Dasar",
+      "source": "Tidur yang memadai membantu otak mempertahankan informasi yang baru dipelajari.",
+      "writerText": "Belajar pada pagi hari terasa lebih nyaman karena lingkungan masih tenang dan gangguan belum banyak.",
+      "correctVerdict": "original",
+      "correctEvidenceTypes": [
+        "idea"
+      ],
+      "chunks": [
+        {
+          "id": "c2-1",
+          "text": "Belajar pada pagi"
+        },
+        {
+          "id": "c2-2",
+          "text": "hari terasa lebih"
+        },
+        {
+          "id": "c2-3",
+          "text": "nyaman karena lingkungan"
+        },
+        {
+          "id": "c2-4",
+          "text": "masih tenang dan gangguan belum banyak."
+        }
+      ],
+      "correctChunkIds": [],
+      "reasonOptions": [
+        {
+          "id": "r2-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r2-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r2-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [
+        "r2-1",
+        "r2-3"
+      ],
+      "report": "Topiknya berdekatan, tetapi teks penulis mengembangkan gagasan yang berbeda secara independen."
+    },
+    {
+      "id": "pp-03",
+      "label": "Media Sosial",
+      "enabled": true,
+      "difficulty": "Dasar",
+      "source": "Penggunaan media sosial yang berlebihan pada malam hari berkaitan dengan penurunan kualitas tidur.",
+      "writerText": "Menurut penelitian Pratama, kebiasaan menggunakan media sosial menjelang tidur dapat membuat kualitas istirahat menurun.",
+      "correctVerdict": "ethical",
+      "correctEvidenceTypes": [
+        "idea",
+        "attribution"
+      ],
+      "chunks": [
+        {
+          "id": "c3-1",
+          "text": "Menurut penelitian Pratama,"
+        },
+        {
+          "id": "c3-2",
+          "text": "kebiasaan menggunakan media"
+        },
+        {
+          "id": "c3-3",
+          "text": "sosial menjelang tidur"
+        },
+        {
+          "id": "c3-4",
+          "text": "dapat membuat kualitas istirahat menurun."
+        }
+      ],
+      "correctChunkIds": [],
+      "reasonOptions": [
+        {
+          "id": "r3-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r3-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r3-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [
+        "r3-1",
+        "r3-2"
+      ],
+      "report": "Gagasan sumber dipakai dengan konstruksi baru dan atribusi yang jelas."
+    },
+    {
+      "id": "pp-04",
+      "label": "Kebiasaan Membaca",
+      "enabled": true,
+      "difficulty": "Dasar",
+      "source": "Membaca secara rutin dapat memperluas kosakata dan membantu seseorang mengenali berbagai pola penggunaan bahasa.",
+      "writerText": "Membaca secara teratur dapat memperluas perbendaharaan kata dan membantu seseorang memahami berbagai pola penggunaan bahasa.",
+      "correctVerdict": "close",
+      "correctEvidenceTypes": [
+        "wording",
+        "structure"
+      ],
+      "chunks": [
+        {
+          "id": "c4-1",
+          "text": "Membaca secara teratur"
+        },
+        {
+          "id": "c4-2",
+          "text": "dapat memperluas perbendaharaan"
+        },
+        {
+          "id": "c4-3",
+          "text": "kata dan membantu"
+        },
+        {
+          "id": "c4-4",
+          "text": "seseorang memahami berbagai pola penggunaan bahasa."
+        }
+      ],
+      "correctChunkIds": [
+        "c4-1",
+        "c4-2"
+      ],
+      "reasonOptions": [
+        {
+          "id": "r4-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r4-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r4-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [],
+      "report": "Sebagian kata diganti sinonim, tetapi susunan dan alur kalimat masih mengikuti sumber dengan sangat dekat."
+    },
+    {
+      "id": "pp-05",
+      "label": "Kerja dari Rumah",
+      "enabled": true,
+      "difficulty": "Dasar",
+      "source": "Kerja jarak jauh dapat mengurangi waktu yang biasanya digunakan untuk perjalanan menuju kantor.",
+      "writerText": "Bekerja dari rumah membuat sebagian orang perlu menciptakan batas yang lebih tegas antara ruang pribadi dan ruang kerja.",
+      "correctVerdict": "original",
+      "correctEvidenceTypes": [
+        "idea"
+      ],
+      "chunks": [
+        {
+          "id": "c5-1",
+          "text": "Bekerja dari rumah membuat"
+        },
+        {
+          "id": "c5-2",
+          "text": "sebagian orang perlu menciptakan"
+        },
+        {
+          "id": "c5-3",
+          "text": "batas yang lebih tegas"
+        },
+        {
+          "id": "c5-4",
+          "text": "antara ruang pribadi dan ruang kerja."
+        }
+      ],
+      "correctChunkIds": [],
+      "reasonOptions": [
+        {
+          "id": "r5-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r5-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r5-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [
+        "r5-1",
+        "r5-3"
+      ],
+      "report": "Kedua teks membahas kerja jarak jauh, tetapi klaim yang dikembangkan berbeda."
+    },
+    {
+      "id": "pp-06",
+      "label": "Keputusan Konsumen",
+      "enabled": true,
+      "difficulty": "Dasar",
+      "source": "Konsumen sering menggunakan ulasan sebagai petunjuk ketika menghadapi ketidakpastian sebelum membeli. Informasi sosial dapat mengurangi persepsi risiko.",
+      "writerText": "Konsumen sering menggunakan ulasan sebagai petunjuk ketika menghadapi ketidakpastian sebelum membeli. Informasi sosial dapat mengurangi persepsi risiko. Karena itu ulasan penting bagi toko daring.",
+      "correctVerdict": "plagiarism",
+      "correctEvidenceTypes": [
+        "wording",
+        "attribution"
+      ],
+      "chunks": [
+        {
+          "id": "c6-1",
+          "text": "Konsumen sering menggunakan ulasan sebagai petunjuk"
+        },
+        {
+          "id": "c6-2",
+          "text": "ketika menghadapi ketidakpastian sebelum membeli. Informasi"
+        },
+        {
+          "id": "c6-3",
+          "text": "sosial dapat mengurangi persepsi risiko. Karena"
+        },
+        {
+          "id": "c6-4",
+          "text": "itu ulasan penting bagi toko daring."
+        }
+      ],
+      "correctChunkIds": [
+        "c6-1",
+        "c6-2"
+      ],
+      "reasonOptions": [
+        {
+          "id": "r6-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r6-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r6-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [],
+      "report": "Menambahkan satu kalimat sendiri tidak menghapus penyalinan dua kalimat sumber tanpa atribusi."
+    },
+    {
+      "id": "pp-07",
+      "label": "Musik dan Emosi",
+      "enabled": true,
+      "difficulty": "Dasar",
+      "source": "Musik dapat memicu ingatan autobiografis dan memengaruhi emosi yang menyertai ingatan tersebut.",
+      "writerText": "Menurut Sari, hubungan musik dengan emosi antara lain muncul karena sebuah lagu dapat membawa pendengar kembali pada pengalaman personal tertentu.",
+      "correctVerdict": "ethical",
+      "correctEvidenceTypes": [
+        "idea",
+        "attribution"
+      ],
+      "chunks": [
+        {
+          "id": "c7-1",
+          "text": "Menurut Sari, hubungan musik dengan"
+        },
+        {
+          "id": "c7-2",
+          "text": "emosi antara lain muncul karena"
+        },
+        {
+          "id": "c7-3",
+          "text": "sebuah lagu dapat membawa pendengar"
+        },
+        {
+          "id": "c7-4",
+          "text": "kembali pada pengalaman personal tertentu."
+        }
+      ],
+      "correctChunkIds": [],
+      "reasonOptions": [
+        {
+          "id": "r7-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r7-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r7-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [
+        "r7-1",
+        "r7-2"
+      ],
+      "report": "Informasi sumber direstrukturisasi dan sumber disebut dengan jelas."
+    },
+    {
+      "id": "pp-08",
+      "label": "Ruang Hijau",
+      "enabled": true,
+      "difficulty": "Dasar",
+      "source": "Akses terhadap ruang hijau dapat membantu menurunkan stres dan memberi kesempatan untuk memulihkan perhatian.",
+      "writerText": "Ketersediaan area hijau dapat membantu mengurangi tekanan dan memberikan peluang untuk memulihkan konsentrasi.",
+      "correctVerdict": "close",
+      "correctEvidenceTypes": [
+        "wording",
+        "structure"
+      ],
+      "chunks": [
+        {
+          "id": "c8-1",
+          "text": "Ketersediaan area hijau"
+        },
+        {
+          "id": "c8-2",
+          "text": "dapat membantu mengurangi"
+        },
+        {
+          "id": "c8-3",
+          "text": "tekanan dan memberikan"
+        },
+        {
+          "id": "c8-4",
+          "text": "peluang untuk memulihkan konsentrasi."
+        }
+      ],
+      "correctChunkIds": [
+        "c8-1",
+        "c8-2"
+      ],
+      "reasonOptions": [
+        {
+          "id": "r8-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r8-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r8-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [],
+      "report": "Penggantian sinonim tidak mengubah kerangka kalimat yang masih sangat dekat dengan sumber."
+    },
+    {
+      "id": "pp-09",
+      "label": "Kopi",
+      "enabled": true,
+      "difficulty": "Dasar",
+      "source": "Kafein dapat meningkatkan kewaspadaan untuk sementara pada sebagian orang.",
+      "writerText": "Bagi saya, menyiapkan kopi lebih berfungsi sebagai ritual yang menandai bahwa waktu bekerja sudah dimulai.",
+      "correctVerdict": "original",
+      "correctEvidenceTypes": [
+        "idea"
+      ],
+      "chunks": [
+        {
+          "id": "c9-1",
+          "text": "Bagi saya, menyiapkan"
+        },
+        {
+          "id": "c9-2",
+          "text": "kopi lebih berfungsi"
+        },
+        {
+          "id": "c9-3",
+          "text": "sebagai ritual yang"
+        },
+        {
+          "id": "c9-4",
+          "text": "menandai bahwa waktu bekerja sudah dimulai."
+        }
+      ],
+      "correctChunkIds": [],
+      "reasonOptions": [
+        {
+          "id": "r9-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r9-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r9-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [
+        "r9-1",
+        "r9-3"
+      ],
+      "report": "Istilah kopi dan kerja hadir pada kedua teks, tetapi teks penulis tidak mengambil klaim sumber."
+    },
+    {
+      "id": "pp-10",
+      "label": "Belanja Daring",
+      "enabled": true,
+      "difficulty": "Dasar",
+      "source": "Konsumen dapat menilai risiko pembelian daring melalui reputasi penjual dan pengalaman pembeli sebelumnya.",
+      "writerText": "Reputasi toko menjadi salah satu sinyal yang membantu pembeli menilai risiko transaksi daring, sebagaimana dijelaskan oleh Wijaya.",
+      "correctVerdict": "ethical",
+      "correctEvidenceTypes": [
+        "idea",
+        "attribution"
+      ],
+      "chunks": [
+        {
+          "id": "c10-1",
+          "text": "Reputasi toko menjadi salah"
+        },
+        {
+          "id": "c10-2",
+          "text": "satu sinyal yang membantu"
+        },
+        {
+          "id": "c10-3",
+          "text": "pembeli menilai risiko transaksi"
+        },
+        {
+          "id": "c10-4",
+          "text": "daring, sebagaimana dijelaskan oleh Wijaya."
+        }
+      ],
+      "correctChunkIds": [],
+      "reasonOptions": [
+        {
+          "id": "r10-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r10-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r10-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [
+        "r10-1",
+        "r10-2"
+      ],
+      "report": "Gagasan spesifik digunakan secara ringkas dengan atribusi dan susunan baru."
+    },
+    {
+      "id": "pp-11",
+      "label": "Ketidakpastian",
+      "enabled": true,
+      "difficulty": "Menengah",
+      "source": "Ketidakpastian membuat manusia cenderung mencari informasi tambahan sebelum mengambil keputusan.",
+      "writerText": "Kondisi yang tidak pasti membuat seseorang cenderung mencari informasi lebih banyak sebelum menentukan pilihan.",
+      "correctVerdict": "close",
+      "correctEvidenceTypes": [
+        "wording",
+        "structure"
+      ],
+      "chunks": [
+        {
+          "id": "c11-1",
+          "text": "Kondisi yang tidak"
+        },
+        {
+          "id": "c11-2",
+          "text": "pasti membuat seseorang"
+        },
+        {
+          "id": "c11-3",
+          "text": "cenderung mencari informasi"
+        },
+        {
+          "id": "c11-4",
+          "text": "lebih banyak sebelum menentukan pilihan."
+        }
+      ],
+      "correctChunkIds": [
+        "c11-1",
+        "c11-2"
+      ],
+      "reasonOptions": [
+        {
+          "id": "r11-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r11-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r11-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [],
+      "report": "Perubahan kata tidak cukup karena hubungan dan urutan unsur kalimat tetap mengikuti sumber."
+    },
+    {
+      "id": "pp-12",
+      "label": "Efek Halo",
+      "enabled": true,
+      "difficulty": "Menengah",
+      "source": "Efek halo membuat penilaian positif pada satu karakteristik memengaruhi penilaian terhadap karakteristik lain.",
+      "writerText": "Menurut Putri, efek halo memengaruhi penilaian. Efek halo membuat penilaian positif pada satu karakteristik memengaruhi penilaian terhadap karakteristik lain.",
+      "correctVerdict": "plagiarism",
+      "correctEvidenceTypes": [
+        "wording"
+      ],
+      "chunks": [
+        {
+          "id": "c12-1",
+          "text": "Menurut Putri, efek halo"
+        },
+        {
+          "id": "c12-2",
+          "text": "memengaruhi penilaian. Efek halo"
+        },
+        {
+          "id": "c12-3",
+          "text": "membuat penilaian positif pada"
+        },
+        {
+          "id": "c12-4",
+          "text": "satu karakteristik memengaruhi penilaian terhadap karakteristik lain."
+        }
+      ],
+      "correctChunkIds": [
+        "c12-1",
+        "c12-2"
+      ],
+      "reasonOptions": [
+        {
+          "id": "r12-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r12-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r12-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [],
+      "report": "Atribusi pada kalimat pertama tidak menjadikan penyalinan verbatim berikutnya sebagai parafrase."
+    },
+    {
+      "id": "pp-13",
+      "label": "Kesepian",
+      "enabled": true,
+      "difficulty": "Menengah",
+      "source": "Kualitas interaksi sosial berperan dalam pengalaman kesepian seseorang.",
+      "writerText": "Kesepian tidak selalu berarti tidak memiliki hubungan; seseorang dapat dikelilingi banyak orang tetapi tetap merasa tidak dipahami.",
+      "correctVerdict": "original",
+      "correctEvidenceTypes": [
+        "idea"
+      ],
+      "chunks": [
+        {
+          "id": "c13-1",
+          "text": "Kesepian tidak selalu berarti"
+        },
+        {
+          "id": "c13-2",
+          "text": "tidak memiliki hubungan; seseorang"
+        },
+        {
+          "id": "c13-3",
+          "text": "dapat dikelilingi banyak orang"
+        },
+        {
+          "id": "c13-4",
+          "text": "tetapi tetap merasa tidak dipahami."
+        }
+      ],
+      "correctChunkIds": [],
+      "reasonOptions": [
+        {
+          "id": "r13-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r13-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r13-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [
+        "r13-1",
+        "r13-3"
+      ],
+      "report": "Istilah yang sama muncul karena topiknya sama, namun argumen penulis berkembang secara independen."
+    },
+    {
+      "id": "pp-14",
+      "label": "Pilihan Berlebihan",
+      "enabled": true,
+      "difficulty": "Menengah",
+      "source": "Terlalu banyak pilihan dapat meningkatkan beban kognitif dan membuat proses memilih terasa lebih sulit.",
+      "writerText": "Riset Lestari menunjukkan bahwa bertambahnya alternatif tidak selalu memudahkan konsumen; banyaknya opsi justru dapat menambah beban saat menentukan pilihan.",
+      "correctVerdict": "ethical",
+      "correctEvidenceTypes": [
+        "idea",
+        "attribution"
+      ],
+      "chunks": [
+        {
+          "id": "c14-1",
+          "text": "Riset Lestari menunjukkan bahwa"
+        },
+        {
+          "id": "c14-2",
+          "text": "bertambahnya alternatif tidak selalu"
+        },
+        {
+          "id": "c14-3",
+          "text": "memudahkan konsumen; banyaknya opsi"
+        },
+        {
+          "id": "c14-4",
+          "text": "justru dapat menambah beban saat menentukan pilihan."
+        }
+      ],
+      "correctChunkIds": [],
+      "reasonOptions": [
+        {
+          "id": "r14-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r14-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r14-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [
+        "r14-1",
+        "r14-2"
+      ],
+      "report": "Gagasan sumber dipertahankan, tetapi struktur dan cara penyampaiannya telah diolah serta diberi atribusi."
+    },
+    {
+      "id": "pp-15",
+      "label": "Produktivitas",
+      "enabled": true,
+      "difficulty": "Menengah",
+      "source": "Pergantian tugas yang terlalu sering dapat memecah perhatian dan menambah waktu yang dibutuhkan untuk kembali fokus.",
+      "writerText": "Sering berpindah tugas dapat memecah perhatian. Akibatnya, seseorang membutuhkan waktu tambahan untuk kembali berkonsentrasi.",
+      "correctVerdict": "close",
+      "correctEvidenceTypes": [
+        "structure",
+        "idea"
+      ],
+      "chunks": [
+        {
+          "id": "c15-1",
+          "text": "Sering berpindah tugas"
+        },
+        {
+          "id": "c15-2",
+          "text": "dapat memecah perhatian."
+        },
+        {
+          "id": "c15-3",
+          "text": "Akibatnya, seseorang membutuhkan"
+        },
+        {
+          "id": "c15-4",
+          "text": "waktu tambahan untuk kembali berkonsentrasi."
+        }
+      ],
+      "correctChunkIds": [
+        "c15-1",
+        "c15-2"
+      ],
+      "reasonOptions": [
+        {
+          "id": "r15-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r15-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r15-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [],
+      "report": "Memecah satu kalimat menjadi dua tidak otomatis mengubah struktur gagasan yang masih mengikuti sumber."
+    },
+    {
+      "id": "pp-16",
+      "label": "Nostalgia",
+      "enabled": true,
+      "difficulty": "Menengah",
+      "source": "Nostalgia dapat memperkuat rasa keterhubungan sosial ketika seseorang mengingat pengalaman bermakna.",
+      "writerText": "Saya menyukai benda lama bukan karena ingin kembali ke masa lalu, melainkan karena benda itu memberi konteks pada siapa saya sekarang.",
+      "correctVerdict": "original",
+      "correctEvidenceTypes": [
+        "idea"
+      ],
+      "chunks": [
+        {
+          "id": "c16-1",
+          "text": "Saya menyukai benda lama bukan"
+        },
+        {
+          "id": "c16-2",
+          "text": "karena ingin kembali ke masa"
+        },
+        {
+          "id": "c16-3",
+          "text": "lalu, melainkan karena benda itu"
+        },
+        {
+          "id": "c16-4",
+          "text": "memberi konteks pada siapa saya sekarang."
+        }
+      ],
+      "correctChunkIds": [],
+      "reasonOptions": [
+        {
+          "id": "r16-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r16-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r16-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [
+        "r16-1",
+        "r16-3"
+      ],
+      "report": "Kesimpulan emosional yang berdekatan tidak berarti teks kedua bergantung pada gagasan spesifik sumber."
+    },
+    {
+      "id": "pp-17",
+      "label": "Identitas Merek",
+      "enabled": true,
+      "difficulty": "Menengah",
+      "source": "Identitas merek terbentuk melalui elemen visual, bahasa, dan pengalaman yang konsisten sehingga publik dapat mengenali karakter merek.",
+      "writerText": "Identitas merek terbentuk melalui elemen visual, bahasa, dan pengalaman. Konsistensi membuat publik dapat mengenali karakter merek.",
+      "correctVerdict": "plagiarism",
+      "correctEvidenceTypes": [
+        "wording",
+        "structure",
+        "attribution"
+      ],
+      "chunks": [
+        {
+          "id": "c17-1",
+          "text": "Identitas merek terbentuk melalui"
+        },
+        {
+          "id": "c17-2",
+          "text": "elemen visual, bahasa, dan"
+        },
+        {
+          "id": "c17-3",
+          "text": "pengalaman. Konsistensi membuat publik"
+        },
+        {
+          "id": "c17-4",
+          "text": "dapat mengenali karakter merek."
+        }
+      ],
+      "correctChunkIds": [
+        "c17-1",
+        "c17-2"
+      ],
+      "reasonOptions": [
+        {
+          "id": "r17-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r17-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r17-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [],
+      "report": "Bagian sumber dipotong dan disusun ulang, tetapi wording serta struktur inti tetap diambil tanpa atribusi."
+    },
+    {
+      "id": "pp-18",
+      "label": "Pembelian Impulsif",
+      "enabled": true,
+      "difficulty": "Menengah",
+      "source": "Dorongan membeli secara impulsif dapat muncul ketika rangsangan situasional bertemu dengan respons emosional konsumen.",
+      "writerText": "Menurut Hasan, pembelian spontan tidak hanya dipicu situasi toko; respons emosional pembeli juga ikut menentukan apakah dorongan itu berubah menjadi transaksi.",
+      "correctVerdict": "ethical",
+      "correctEvidenceTypes": [
+        "idea",
+        "attribution"
+      ],
+      "chunks": [
+        {
+          "id": "c18-1",
+          "text": "Menurut Hasan, pembelian spontan tidak"
+        },
+        {
+          "id": "c18-2",
+          "text": "hanya dipicu situasi toko; respons"
+        },
+        {
+          "id": "c18-3",
+          "text": "emosional pembeli juga ikut menentukan"
+        },
+        {
+          "id": "c18-4",
+          "text": "apakah dorongan itu berubah menjadi transaksi."
+        }
+      ],
+      "correctChunkIds": [],
+      "reasonOptions": [
+        {
+          "id": "r18-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r18-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r18-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [
+        "r18-1",
+        "r18-2"
+      ],
+      "report": "Informasi sumber disintesis menjadi penjelasan baru dan sumber tetap disebut."
+    },
+    {
+      "id": "pp-19",
+      "label": "Empati",
+      "enabled": true,
+      "difficulty": "Menengah",
+      "source": "Empati melibatkan kemampuan memahami perspektif orang lain sekaligus merespons keadaan emosionalnya.",
+      "writerText": "Menurut Sinta, empati mencakup kemampuan memahami sudut pandang orang lain sekaligus memberi respons terhadap kondisi emosional mereka.",
+      "correctVerdict": "close",
+      "correctEvidenceTypes": [
+        "wording",
+        "structure"
+      ],
+      "chunks": [
+        {
+          "id": "c19-1",
+          "text": "Menurut Sinta, empati mencakup"
+        },
+        {
+          "id": "c19-2",
+          "text": "kemampuan memahami sudut pandang"
+        },
+        {
+          "id": "c19-3",
+          "text": "orang lain sekaligus memberi"
+        },
+        {
+          "id": "c19-4",
+          "text": "respons terhadap kondisi emosional mereka."
+        }
+      ],
+      "correctChunkIds": [
+        "c19-1",
+        "c19-2"
+      ],
+      "reasonOptions": [
+        {
+          "id": "r19-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r19-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r19-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [],
+      "report": "Atribusi tersedia, tetapi parafrase masih terlalu menempel pada susunan dan pilihan kata sumber."
+    },
+    {
+      "id": "pp-20",
+      "label": "Kreativitas",
+      "enabled": true,
+      "difficulty": "Menengah",
+      "source": "Divergent thinking sering digunakan untuk menggambarkan kemampuan menghasilkan banyak kemungkinan jawaban.",
+      "writerText": "Dalam proses kreatif saya, ide biasanya muncul setelah beberapa percobaan buruk memberi petunjuk tentang arah yang tidak ingin saya ambil.",
+      "correctVerdict": "original",
+      "correctEvidenceTypes": [
+        "idea"
+      ],
+      "chunks": [
+        {
+          "id": "c20-1",
+          "text": "Dalam proses kreatif saya, ide"
+        },
+        {
+          "id": "c20-2",
+          "text": "biasanya muncul setelah beberapa percobaan"
+        },
+        {
+          "id": "c20-3",
+          "text": "buruk memberi petunjuk tentang arah"
+        },
+        {
+          "id": "c20-4",
+          "text": "yang tidak ingin saya ambil."
+        }
+      ],
+      "correctChunkIds": [],
+      "reasonOptions": [
+        {
+          "id": "r20-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r20-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r20-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [
+        "r20-1",
+        "r20-3"
+      ],
+      "report": "Istilah teknis yang sama tidak cukup untuk menunjukkan ketergantungan pada sumber."
+    },
+    {
+      "id": "pp-21",
+      "label": "Kelelahan Keputusan",
+      "enabled": true,
+      "difficulty": "Lanjut",
+      "source": "Semakin banyak keputusan yang harus dibuat, semakin besar beban kognitif; beban tersebut dapat menurunkan kualitas keputusan berikutnya.",
+      "writerText": "Ketika seseorang terus dihadapkan pada pilihan, tuntutan mentalnya bertambah dan keputusan yang dibuat setelahnya dapat menjadi kurang baik.",
+      "correctVerdict": "close",
+      "correctEvidenceTypes": [
+        "structure",
+        "idea"
+      ],
+      "chunks": [
+        {
+          "id": "c21-1",
+          "text": "Ketika seseorang terus dihadapkan"
+        },
+        {
+          "id": "c21-2",
+          "text": "pada pilihan, tuntutan mentalnya"
+        },
+        {
+          "id": "c21-3",
+          "text": "bertambah dan keputusan yang"
+        },
+        {
+          "id": "c21-4",
+          "text": "dibuat setelahnya dapat menjadi kurang baik."
+        }
+      ],
+      "correctChunkIds": [
+        "c21-1",
+        "c21-2"
+      ],
+      "reasonOptions": [
+        {
+          "id": "r21-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r21-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r21-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [],
+      "report": "Wording berubah cukup jauh, tetapi rantai sebab-akibat dan urutan argumen masih mengikuti sumber."
+    },
+    {
+      "id": "pp-22",
+      "label": "Memori Kolektif",
+      "enabled": true,
+      "difficulty": "Lanjut",
+      "source": "Memori kolektif dibentuk melalui cara kelompok memilih, menceritakan, dan mempertahankan representasi masa lalu.",
+      "writerText": "Halbwachs menempatkan ingatan sebagai sesuatu yang juga dibentuk secara sosial. Dalam konteks komunitas, masa lalu bertahan bukan hanya karena diingat individu, tetapi karena terus dipilih dan diceritakan bersama.",
+      "correctVerdict": "ethical",
+      "correctEvidenceTypes": [
+        "idea",
+        "attribution"
+      ],
+      "chunks": [
+        {
+          "id": "c22-1",
+          "text": "Halbwachs menempatkan ingatan sebagai sesuatu yang juga"
+        },
+        {
+          "id": "c22-2",
+          "text": "dibentuk secara sosial. Dalam konteks komunitas, masa"
+        },
+        {
+          "id": "c22-3",
+          "text": "lalu bertahan bukan hanya karena diingat individu,"
+        },
+        {
+          "id": "c22-4",
+          "text": "tetapi karena terus dipilih dan diceritakan bersama."
+        }
+      ],
+      "correctChunkIds": [],
+      "reasonOptions": [
+        {
+          "id": "r22-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r22-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r22-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [
+        "r22-1",
+        "r22-2"
+      ],
+      "report": "Sumber digunakan sebagai fondasi, lalu dikembangkan dengan fokus dan konstruksi baru."
+    },
+    {
+      "id": "pp-23",
+      "label": "Dark Pattern",
+      "enabled": true,
+      "difficulty": "Lanjut",
+      "source": "Salah satu dark pattern menggunakan rasa mendesak palsu, misalnya penghitung waktu yang kembali ke angka awal setelah halaman dimuat ulang.",
+      "writerText": "Situs dapat mendorong pembelian dengan penghitung mundur yang seolah akan berakhir, padahal waktunya kembali penuh ketika halaman dibuka lagi.",
+      "correctVerdict": "plagiarism",
+      "correctEvidenceTypes": [
+        "idea",
+        "attribution"
+      ],
+      "chunks": [
+        {
+          "id": "c23-1",
+          "text": "Situs dapat mendorong pembelian"
+        },
+        {
+          "id": "c23-2",
+          "text": "dengan penghitung mundur yang"
+        },
+        {
+          "id": "c23-3",
+          "text": "seolah akan berakhir, padahal"
+        },
+        {
+          "id": "c23-4",
+          "text": "waktunya kembali penuh ketika halaman dibuka lagi."
+        }
+      ],
+      "correctChunkIds": [
+        "c23-1",
+        "c23-2"
+      ],
+      "reasonOptions": [
+        {
+          "id": "r23-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r23-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r23-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [],
+      "report": "Contoh yang sangat spesifik dari sumber diambil dan ditulis ulang tanpa atribusi; perubahan wording tidak menghapus kebutuhan menyebut sumber."
+    },
+    {
+      "id": "pp-24",
+      "label": "Algoritma",
+      "enabled": true,
+      "difficulty": "Lanjut",
+      "source": "Sistem rekomendasi dapat memperkuat paparan terhadap konten serupa berdasarkan perilaku pengguna sebelumnya.",
+      "writerText": "Echo chamber tidak hanya lahir dari algoritma; pilihan pengguna untuk mengikuti, memblokir, dan mengabaikan akun tertentu juga membentuk lingkungan informasinya.",
+      "correctVerdict": "original",
+      "correctEvidenceTypes": [
+        "idea"
+      ],
+      "chunks": [
+        {
+          "id": "c24-1",
+          "text": "Echo chamber tidak hanya lahir"
+        },
+        {
+          "id": "c24-2",
+          "text": "dari algoritma; pilihan pengguna untuk"
+        },
+        {
+          "id": "c24-3",
+          "text": "mengikuti, memblokir, dan mengabaikan akun"
+        },
+        {
+          "id": "c24-4",
+          "text": "tertentu juga membentuk lingkungan informasinya."
+        }
+      ],
+      "correctChunkIds": [],
+      "reasonOptions": [
+        {
+          "id": "r24-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r24-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r24-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [
+        "r24-1",
+        "r24-3"
+      ],
+      "report": "Istilah teknis sama, tetapi fokus, klaim, dan jalur argumentasi penulis berbeda."
+    },
+    {
+      "id": "pp-25",
+      "label": "Burnout",
+      "enabled": true,
+      "difficulty": "Lanjut",
+      "source": "Burnout berkembang ketika tuntutan pekerjaan berlangsung lama tanpa sumber daya pemulihan yang memadai, sehingga kelelahan menjadi kronis.",
+      "writerText": "Kelelahan dapat menjadi menetap saat tuntutan kerja terus berlangsung sementara kesempatan untuk pulih tidak mencukupi. Kondisi inilah yang mendorong burnout.",
+      "correctVerdict": "close",
+      "correctEvidenceTypes": [
+        "structure",
+        "idea"
+      ],
+      "chunks": [
+        {
+          "id": "c25-1",
+          "text": "Kelelahan dapat menjadi menetap saat"
+        },
+        {
+          "id": "c25-2",
+          "text": "tuntutan kerja terus berlangsung sementara"
+        },
+        {
+          "id": "c25-3",
+          "text": "kesempatan untuk pulih tidak mencukupi."
+        },
+        {
+          "id": "c25-4",
+          "text": "Kondisi inilah yang mendorong burnout."
+        }
+      ],
+      "correctChunkIds": [
+        "c25-1",
+        "c25-2"
+      ],
+      "reasonOptions": [
+        {
+          "id": "r25-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r25-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r25-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [],
+      "report": "Kalimat dibalik dan kosakata diubah, tetapi kerangka hubungan tuntutan, pemulihan, dan kelelahan tetap mengikuti sumber."
+    },
+    {
+      "id": "pp-26",
+      "label": "Arsitektur Pilihan",
+      "enabled": true,
+      "difficulty": "Lanjut",
+      "source": "Arsitektur pilihan mengacu pada cara penyajian opsi yang dapat memengaruhi keputusan tanpa menghapus kebebasan memilih.",
+      "writerText": "Thaler dan Sunstein menjelaskan bahwa cara opsi ditata dapat mengarahkan keputusan tanpa meniadakan pilihan. Contohnya, formulir dapat menempatkan opsi paling aman sebagai pilihan bawaan.",
+      "correctVerdict": "ethical",
+      "correctEvidenceTypes": [
+        "idea",
+        "attribution"
+      ],
+      "chunks": [
+        {
+          "id": "c26-1",
+          "text": "Thaler dan Sunstein menjelaskan bahwa cara"
+        },
+        {
+          "id": "c26-2",
+          "text": "opsi ditata dapat mengarahkan keputusan tanpa"
+        },
+        {
+          "id": "c26-3",
+          "text": "meniadakan pilihan. Contohnya, formulir dapat menempatkan"
+        },
+        {
+          "id": "c26-4",
+          "text": "opsi paling aman sebagai pilihan bawaan."
+        }
+      ],
+      "correctChunkIds": [],
+      "reasonOptions": [
+        {
+          "id": "r26-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r26-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r26-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [
+        "r26-1",
+        "r26-2"
+      ],
+      "report": "Konsep sumber dijelaskan dengan konstruksi baru, diberi atribusi, dan dikembangkan dengan contoh tambahan."
+    },
+    {
+      "id": "pp-27",
+      "label": "Bahasa Internet",
+      "enabled": true,
+      "difficulty": "Lanjut",
+      "source": "Komunikasi daring melahirkan bentuk bahasa yang menyesuaikan keterbatasan dan kebiasaan medium digital.",
+      "writerText": "Pengulangan huruf dalam percakapan daring sering bekerja seperti intonasi: bentuk “iyaaa” dapat membawa nuansa yang tidak muncul dari “iya”.",
+      "correctVerdict": "original",
+      "correctEvidenceTypes": [
+        "idea"
+      ],
+      "chunks": [
+        {
+          "id": "c27-1",
+          "text": "Pengulangan huruf dalam percakapan"
+        },
+        {
+          "id": "c27-2",
+          "text": "daring sering bekerja seperti"
+        },
+        {
+          "id": "c27-3",
+          "text": "intonasi: bentuk “iyaaa” dapat"
+        },
+        {
+          "id": "c27-4",
+          "text": "membawa nuansa yang tidak muncul dari “iya”."
+        }
+      ],
+      "correctChunkIds": [],
+      "reasonOptions": [
+        {
+          "id": "r27-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r27-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r27-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [
+        "r27-1",
+        "r27-3"
+      ],
+      "report": "Kedua teks membahas bahasa internet, tetapi observasi spesifik dan argumentasinya independen."
+    },
+    {
+      "id": "pp-28",
+      "label": "Parasocial Relationship",
+      "enabled": true,
+      "difficulty": "Lanjut",
+      "source": "Hubungan parasosial dapat terasa intim meskipun interaksi berjalan satu arah. Paparan berulang membuat figur media terasa familier dan kedekatan semu dapat berkembang.",
+      "writerText": "Figur media dapat terasa seperti orang yang dikenal karena terus muncul dalam keseharian audiens. Kedekatan itu bisa berkembang walaupun hubungan sebenarnya hanya berjalan satu arah.",
+      "correctVerdict": "plagiarism",
+      "correctEvidenceTypes": [
+        "idea",
+        "structure",
+        "attribution"
+      ],
+      "chunks": [
+        {
+          "id": "c28-1",
+          "text": "Figur media dapat terasa seperti orang"
+        },
+        {
+          "id": "c28-2",
+          "text": "yang dikenal karena terus muncul dalam"
+        },
+        {
+          "id": "c28-3",
+          "text": "keseharian audiens. Kedekatan itu bisa berkembang"
+        },
+        {
+          "id": "c28-4",
+          "text": "walaupun hubungan sebenarnya hanya berjalan satu arah."
+        }
+      ],
+      "correctChunkIds": [
+        "c28-1",
+        "c28-2"
+      ],
+      "reasonOptions": [
+        {
+          "id": "r28-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r28-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r28-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [],
+      "report": "Beberapa bagian gagasan sumber digabung dan diurutkan ulang tanpa atribusi; tidak perlu ada salinan verbatim agar penggunaan sumber tetap bermasalah."
+    },
+    {
+      "id": "pp-29",
+      "label": "Kepercayaan Konsumen",
+      "enabled": true,
+      "difficulty": "Lanjut",
+      "source": "Transparansi informasi dapat membantu konsumen mengevaluasi kredibilitas penjual dan mengurangi ketidakpastian transaksi.",
+      "writerText": "Menurut Nugroho, transparansi membantu pembeli menilai kredibilitas penjual. Namun kepercayaan tidak berhenti pada informasi; pengalaman setelah pembelian juga menentukan apakah konsumen akan kembali.",
+      "correctVerdict": "ethical",
+      "correctEvidenceTypes": [
+        "idea",
+        "attribution"
+      ],
+      "chunks": [
+        {
+          "id": "c29-1",
+          "text": "Menurut Nugroho, transparansi membantu pembeli"
+        },
+        {
+          "id": "c29-2",
+          "text": "menilai kredibilitas penjual. Namun kepercayaan"
+        },
+        {
+          "id": "c29-3",
+          "text": "tidak berhenti pada informasi; pengalaman"
+        },
+        {
+          "id": "c29-4",
+          "text": "setelah pembelian juga menentukan apakah konsumen akan kembali."
+        }
+      ],
+      "correctChunkIds": [],
+      "reasonOptions": [
+        {
+          "id": "r29-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r29-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r29-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [
+        "r29-1",
+        "r29-2"
+      ],
+      "report": "Sumber mendukung satu bagian argumen, sementara analisis berikutnya dikembangkan secara independen dan batasnya jelas."
+    },
+    {
+      "id": "pp-30",
+      "label": "Apati",
+      "enabled": true,
+      "difficulty": "Lanjut",
+      "source": "Apati dapat muncul bukan karena seseorang tidak memiliki kepedulian, tetapi karena pengalaman berulang bahwa tindakannya tidak menghasilkan perubahan.",
+      "writerText": "Menurut Rahma, seseorang bisa terlihat tidak peduli setelah berkali-kali merasa bahwa apa pun yang dilakukan tidak mengubah keadaan. Sikap pasif kemudian menjadi respons terhadap pengalaman tersebut.",
+      "correctVerdict": "close",
+      "correctEvidenceTypes": [
+        "structure",
+        "idea"
+      ],
+      "chunks": [
+        {
+          "id": "c30-1",
+          "text": "Menurut Rahma, seseorang bisa terlihat tidak"
+        },
+        {
+          "id": "c30-2",
+          "text": "peduli setelah berkali-kali merasa bahwa apa"
+        },
+        {
+          "id": "c30-3",
+          "text": "pun yang dilakukan tidak mengubah keadaan."
+        },
+        {
+          "id": "c30-4",
+          "text": "Sikap pasif kemudian menjadi respons terhadap pengalaman tersebut."
+        }
+      ],
+      "correctChunkIds": [
+        "c30-1",
+        "c30-2"
+      ],
+      "reasonOptions": [
+        {
+          "id": "r30-1",
+          "text": "Struktur penyampaian telah diolah secara independen."
+        },
+        {
+          "id": "r30-2",
+          "text": "Penggunaan sumber memiliki atribusi yang memadai."
+        },
+        {
+          "id": "r30-3",
+          "text": "Kemiripan istilah tidak menunjukkan penyalinan struktur atau gagasan."
+        }
+      ],
+      "correctReasonIds": [],
+      "report": "Atribusi ada dan vocabulary berubah, tetapi urutan klaim serta hubungan sebab-akibat masih sangat dekat dengan sumber."
+    }
+  ],
+  "drafts": []
+};
+
 const emptyMiniGameSlot = (position = 2, existing = {}) => ({
+  ...existing,
   id: existing.id || `game-slot-${Date.now()}-${position}`,
   enabled: existing.enabled ?? true,
   showInLibrary: existing.showInLibrary ?? false,
@@ -191,6 +1926,7 @@ const emptyMiniGameSlot = (position = 2, existing = {}) => ({
   menuLabel: existing.menuLabel || '',
   libraryTitle: existing.libraryTitle || '',
   libraryDescription: existing.libraryDescription || '',
+  gameType: existing.gameType || (String(existing.gameName || existing.name || '').trim().toLowerCase() === 'the hangman' ? 'hangman' : String(existing.gameName || existing.name || '').trim().toLowerCase() === 'plagiarism police' ? 'plagiarismPolice' : 'generic'),
   gameName: existing.gameName || existing.name || `Game ${position}`,
   gameCategory: existing.gameCategory || '',
   gameCardDescription: existing.gameCardDescription || '',
@@ -206,6 +1942,36 @@ const emptyMiniGameSlot = (position = 2, existing = {}) => ({
     : [{ min: 90, label: '' }, { min: 75, label: '' }, { min: 55, label: '' }, { min: 0, label: '' }],
   resultEyebrow: existing.resultEyebrow || '',
   replayLabel: existing.replayLabel || '',
+  hangmanLeaderboardLabel: existing.hangmanLeaderboardLabel || '',
+  hangmanDeathMessage: existing.hangmanDeathMessage || '',
+  hangmanTimeoutMessage: existing.hangmanTimeoutMessage || '',
+  hangmanPodiumFirst: existing.hangmanPodiumFirst || '',
+  hangmanPodiumSecond: existing.hangmanPodiumSecond || '',
+  hangmanPodiumThird: existing.hangmanPodiumThird || '',
+  hangmanRankPrefix: existing.hangmanRankPrefix || '',
+  hangmanRankPlayersSuffix: existing.hangmanRankPlayersSuffix || '',
+  hangmanSolvedLabel: existing.hangmanSolvedLabel || '',
+  hangmanAccuracyLabel: existing.hangmanAccuracyLabel || '',
+  hangmanWrongLettersLabel: existing.hangmanWrongLettersLabel || '',
+  hangmanNamePrompt: existing.hangmanNamePrompt || '',
+  hangmanNamePlaceholder: existing.hangmanNamePlaceholder || '',
+  hangmanSaveScoreLabel: existing.hangmanSaveScoreLabel || '',
+  hangmanSavingLabel: existing.hangmanSavingLabel || '',
+  hangmanYourRankLabel: existing.hangmanYourRankLabel || '',
+  hangmanBestScoreLabel: existing.hangmanBestScoreLabel || '',
+  hangmanLeaderboardTitle: existing.hangmanLeaderboardTitle || '',
+  hangmanLeaderboardCloseLabel: existing.hangmanLeaderboardCloseLabel || '',
+  hangmanLeaderboardEmptyLabel: existing.hangmanLeaderboardEmptyLabel || '',
+  hangmanYouLabel: existing.hangmanYouLabel || '',
+  hangmanClueLabel: existing.hangmanClueLabel || '',
+  hangmanChooseLetterLabel: existing.hangmanChooseLetterLabel || '',
+  hangmanRemainingLabel: existing.hangmanRemainingLabel || '',
+  hangmanWordCompleteLabel: existing.hangmanWordCompleteLabel || '',
+  hangmanDeathRevealLabel: existing.hangmanDeathRevealLabel || '',
+  hangmanSafeMessage: existing.hangmanSafeMessage || '',
+  hangmanAnswerPrefix: existing.hangmanAnswerPrefix || '',
+  hangmanNextWordLabel: existing.hangmanNextWordLabel || '',
+  hangmanSeeResultLabel: existing.hangmanSeeResultLabel || '',
   projectsCtaLabel: existing.projectsCtaLabel || '',
   contactCtaLabel: existing.contactCtaLabel || '',
   drafts: Array.isArray(existing.drafts) ? existing.drafts.map((draft) => ({ ...draft, issues: Array.isArray(draft?.issues) ? draft.issues : [] })) : [],
@@ -236,7 +2002,11 @@ const normalizeMiniGameData = (raw) => ({
   rules: { ...DEFAULT_MINI_GAME.rules, ...(raw?.rules || {}) },
   scoreSettings: { ...DEFAULT_MINI_GAME.scoreSettings, ...(raw?.scoreSettings || {}) },
   gradeTitles: Array.isArray(raw?.gradeTitles) && raw.gradeTitles.length ? raw.gradeTitles : DEFAULT_MINI_GAME.gradeTitles,
-  gameSlots: Array.isArray(raw?.gameSlots) ? raw.gameSlots.map((slot, index) => emptyMiniGameSlot(index + 2, slot)) : [],
+  gameSlots: (() => {
+    const slots = Array.isArray(raw?.gameSlots) ? raw.gameSlots.map((slot, index) => { const isHangman = slot?.gameType === 'hangman' || String(slot?.gameName || '').trim().toLowerCase() === 'the hangman'; const isPlagiarism = slot?.gameType === 'plagiarismPolice' || String(slot?.gameName || '').trim().toLowerCase() === 'plagiarism police'; const base = isHangman ? HANGMAN_PRESET : isPlagiarism ? PLAGIARISM_POLICE_PRESET : {}; return emptyMiniGameSlot(index + 2, { ...base, ...slot, id: slot.id, illustration: slot.illustration || '' }); }) : [];
+    if (!slots.some((slot) => slot.gameType === 'plagiarismPolice' || String(slot.gameName || '').trim().toLowerCase() === 'plagiarism police')) slots.push(emptyMiniGameSlot(slots.length + 2, { ...PLAGIARISM_POLICE_PRESET, id: 'plagiarism-police' }));
+    return slots;
+  })(),
   drafts: Array.isArray(raw?.drafts) ? raw.drafts.map((draft) => ({ ...draft, issues: Array.isArray(draft?.issues) ? draft.issues : [] })) : DEFAULT_RED_PEN_DRAFTS,
 });
 
@@ -261,20 +2031,24 @@ const redPenDraftErrors = (draft) => (draft?.issues || []).flatMap((issue, issue
   return [];
 }).concat(!String(draft?.passage || '').trim() ? ['Paragraf masih kosong.'] : [], !(draft?.issues || []).length ? ['Tambahkan minimal satu koreksi editorial.'] : []);
 
-const DEFAULT_AUTHOR_PROPERTIES = {
-  enabled: true,
-  buttonLabel: 'View author properties…',
-  panelTitle: 'Author Properties',
-  lastRevised: '',
-  items: [
-    { id: 'author-status', label: 'Status', value: 'Mid-river / Still becoming', url: '' },
-    { id: 'author-based-in', label: 'Based in', value: 'Batam, Indonesia', url: '' },
-    { id: 'author-writing', label: 'Currently writing', value: '', url: '' },
-    { id: 'author-reading', label: 'Currently reading', value: '', url: '' },
-    { id: 'author-soundtrack', label: 'Current soundtrack', value: '', url: '' },
-    { id: 'author-fixation', label: 'Current fixation', value: '', url: '' },
-    { id: 'author-conditions', label: 'Works best when', value: '', url: '' },
-  ],
+const hangmanWordErrors = (draft) => {
+  const errors = [];
+  if (!String(draft?.label || '').trim()) errors.push('Kata masih kosong.');
+  if (!String(draft?.passage || '').trim()) errors.push('Petunjuk masih kosong.');
+  return errors;
+};
+
+const miniGameContentErrors = (game, draft) => {
+  const isHangman = game?.gameType === 'hangman' || String(game?.gameName || '').trim().toLowerCase() === 'the hangman';
+  if (isHangman) return hangmanWordErrors(draft);
+  if (game?.gameType === 'plagiarismPolice') return [];
+  return redPenDraftErrors(draft);
+};
+
+const DEFAULT_BITS_AND_PIECES = {
+  title: 'Bits & Pieces',
+  intro: '',
+  items: [],
 };
 
 const DEFAULT_LISTENING_FOOTNOTE = {
@@ -291,12 +2065,10 @@ const DEFAULT_LISTENING_FOOTNOTE = {
 
 const normalizeAboutData = (raw) => ({
   ...(raw || {}),
-  authorProperties: {
-    ...DEFAULT_AUTHOR_PROPERTIES,
-    ...(raw?.authorProperties || {}),
-    items: Array.isArray(raw?.authorProperties?.items)
-      ? raw.authorProperties.items
-      : DEFAULT_AUTHOR_PROPERTIES.items,
+  bitsAndPieces: {
+    ...DEFAULT_BITS_AND_PIECES,
+    ...(raw?.bitsAndPieces || {}),
+    items: Array.isArray(raw?.bitsAndPieces?.items) ? raw.bitsAndPieces.items : DEFAULT_BITS_AND_PIECES.items,
   },
   listeningFootnote: {
     ...DEFAULT_LISTENING_FOOTNOTE,
@@ -305,9 +2077,10 @@ const normalizeAboutData = (raw) => ({
 });
 
 const DEFAULT_CONTACT = {
-  eyebrow: 'NEW DOCUMENT / CONTACT',
   heading: 'Every collaboration begins with an unfinished sentence.',
   subheading: "Tell me what you're trying to make. We can revise the rest together.",
+  formTitle: 'Untitled Collaboration',
+  propertiesTitle: 'Document Properties',
   email: '', location: 'Batam, Indonesia',
   draftButtonLabel: 'Create Email Draft',
   responseNote: 'Draft created — review before sending.',
@@ -412,12 +2185,18 @@ function normalizeCareerData(raw) {
 
   if (Array.isArray(careerData.categories)) {
     return {
-      heading: careerData.heading || '',
-      subheading: careerData.subheading || '',
+      heading: careerData.heading ?? '',
+      subheading: careerData.subheading ?? '',
       archiveTitle: careerData.archiveTitle || '',
       archiveIntro: careerData.archiveIntro || '',
       archiveButtonLabel: careerData.archiveButtonLabel || '',
       credentialsButtonLabel: careerData.credentialsButtonLabel || '',
+      entriesLabel: careerData.entriesLabel ?? '',
+      periodLabel: careerData.periodLabel ?? '',
+      attachmentsLabel: careerData.attachmentsLabel ?? '',
+      credentialsHeading: careerData.credentialsHeading ?? '',
+      credentialsSubheading: careerData.credentialsSubheading ?? '',
+      credentialsBackLabel: careerData.credentialsBackLabel ?? '',
       categories: professionalFirst(careerData.categories.map((cat) => ({
         id: cat.id || emptyCareerCategory().id,
         name: cat.name || '',
@@ -440,12 +2219,18 @@ function normalizeCareerData(raw) {
   };
 
   return {
-    heading: careerData.heading || '',
-    subheading: careerData.subheading || '',
+    heading: careerData.heading ?? '',
+    subheading: careerData.subheading ?? '',
     archiveTitle: careerData.archiveTitle || '',
     archiveIntro: careerData.archiveIntro || '',
     archiveButtonLabel: careerData.archiveButtonLabel || '',
     credentialsButtonLabel: careerData.credentialsButtonLabel || '',
+    entriesLabel: careerData.entriesLabel ?? '',
+    periodLabel: careerData.periodLabel ?? '',
+    attachmentsLabel: careerData.attachmentsLabel ?? '',
+    credentialsHeading: careerData.credentialsHeading ?? '',
+    credentialsSubheading: careerData.credentialsSubheading ?? '',
+    credentialsBackLabel: careerData.credentialsBackLabel ?? '',
     categories: professionalFirst([
       legacyToCategory(careerData.professional, 'professional', 'Professional'),
       legacyToCategory(careerData.college, 'college', 'College'),
@@ -456,15 +2241,18 @@ function normalizeCareerData(raw) {
 // Sama kayak career: jaga-jaga data books di Supabase masih array polos yang lama,
 // padahal format baru butuh { heading, subheading, items }.
 function normalizeBooksData(raw) {
-  if (Array.isArray(raw)) return { heading: '', subheading: '', items: raw };
+  if (Array.isArray(raw)) return { heading: '', subheading: '', worksTabLabel: 'My Books', readingTabLabel: 'Books I Read', items: raw, readingItems: [] };
   if (raw && typeof raw === 'object') {
     return {
-      heading: raw.heading || '',
-      subheading: raw.subheading || '',
+      heading: raw.heading ?? '',
+      subheading: raw.subheading ?? '',
+      worksTabLabel: raw.worksTabLabel === undefined ? 'My Books' : raw.worksTabLabel,
+      readingTabLabel: raw.readingTabLabel === undefined ? 'Books I Read' : raw.readingTabLabel,
       items: Array.isArray(raw.items) ? raw.items : [],
+      readingItems: Array.isArray(raw.readingItems) ? raw.readingItems : [],
     };
   }
-  return { heading: '', subheading: '', items: [] };
+  return { heading: '', subheading: '', worksTabLabel: 'My Books', readingTabLabel: 'Books I Read', items: [], readingItems: [] };
 }
 
 const emptyBook = () => ({
@@ -496,6 +2284,9 @@ const emptyBook = () => ({
   secondaryUrl: '',
   hintEnabled: true,
 });
+
+
+const emptyReadingBook = () => ({ ...emptyBook(), id: `reading-${Date.now()}`, author: '' });
 
 const emptyArticle = () => ({
   id: `art-${Date.now()}`,
@@ -559,6 +2350,7 @@ const emptyCustomItem = () => ({
 const emptyCustomSection = (label = '') => ({
   id: `section-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
   label,
+  description: '',
   contentType: 'writing',
   // 'gallery' = grid foto (perilaku lama/default, buat poster/dokumentasi visual).
   // 'articles' = tampilan gaya portal berita kayak tab Articles (kartu unggulan besar +
@@ -597,8 +2389,16 @@ function normalizeProjectsData(raw) {
   }
 
   return {
-    heading: projects.heading || '',
-    subheading: projects.subheading || '',
+    heading: projects.heading ?? '',
+    subheading: projects.subheading ?? '',
+    indexHeading: projects.indexHeading ?? '',
+    indexDescription: projects.indexDescription ?? '',
+    searchLabel: projects.searchLabel ?? '',
+    backLabel: projects.backLabel ?? '',
+    openDrawerLabel: projects.openDrawerLabel ?? '',
+    articlesDescription: projects.articlesDescription ?? '',
+    directingDescription: projects.directingDescription ?? '',
+    posterDescription: projects.posterDescription ?? '',
     // Label tab navigasi buat Articles & Poster — kosong berarti pakai default
     // ('Articles'/'Poster') di halaman publik.
     articlesLabel: projects.articlesLabel || '',
@@ -613,6 +2413,7 @@ function normalizeProjectsData(raw) {
       ? projects.customSections.map((s) => ({
           id: s.id || emptyCustomSection().id,
           label: s.label || '',
+          description: s.description ?? '',
           contentType: ['writing', 'video', 'image', 'document', 'link'].includes(s.contentType)
             ? s.contentType
             : (s.layout === 'articles' ? 'writing' : 'image'),
@@ -747,24 +2548,44 @@ const dispatchCmsNotice = (message) => {
 };
 
 const PROJECT_COVER_GUIDES = {
-  writing: { text: '1600 × 1000 px (16:10) · WebP/JPG · ideal ≤ 350 KB · maksimal 700 KB', maxBytes: 700 * 1024 },
-  video: { text: '1600 × 900 px (16:9) · WebP/JPG · ideal ≤ 350 KB · maksimal 700 KB', maxBytes: 700 * 1024 },
+  writing: { text: '1600 × 1000 px (16:10) · WebP/JPG · ideal ≤ 350 KB · maksimal 700 KB', maxBytes: 700 * 1024, width: 1600, height: 1000 },
+  video: { text: '1600 × 900 px (16:9) · WebP/JPG · ideal ≤ 350 KB · maksimal 700 KB', maxBytes: 700 * 1024, width: 1600, height: 900 },
   image: { text: 'Sisi panjang 1600 px, rasio asli · WebP/JPG · ideal ≤ 500 KB · maksimal 1 MB', maxBytes: 1024 * 1024 },
-  document: { text: '1600 × 1000 px (16:10) · WebP/JPG · ideal ≤ 350 KB · maksimal 700 KB', maxBytes: 700 * 1024 },
-  link: { text: '1600 × 1000 px (16:10) · WebP/JPG · ideal ≤ 350 KB · maksimal 700 KB', maxBytes: 700 * 1024 },
+  document: { text: '1600 × 1000 px (16:10) · WebP/JPG · ideal ≤ 350 KB · maksimal 700 KB', maxBytes: 700 * 1024, width: 1600, height: 1000 },
+  link: { text: '1600 × 1000 px (16:10) · WebP/JPG · ideal ≤ 350 KB · maksimal 700 KB', maxBytes: 700 * 1024, width: 1600, height: 1000 },
 };
 
 const getProjectCoverGuide = (contentType = 'writing') => PROJECT_COVER_GUIDES[contentType] || PROJECT_COVER_GUIDES.writing;
 
-function validateProjectCover(file, contentType = 'writing') {
+async function validateProjectCover(file, contentType = 'writing') {
   const guide = getProjectCoverGuide(contentType);
-  if (!file?.type?.startsWith('image/')) {
-    dispatchCmsNotice('File cover harus berupa gambar, mang. Pakai WebP atau JPG.');
+  if (!file || !['image/jpeg', 'image/webp'].includes(file.type)) {
+    dispatchCmsNotice('Cover ditolak. Format Projects hanya WebP atau JPG.');
     return false;
   }
   if (file.size > guide.maxBytes) {
-    dispatchCmsNotice(`Cover terlalu berat. Patokan: ${guide.text}`);
+    dispatchCmsNotice(`Cover ditolak karena terlalu berat. Patokan: ${guide.text}`);
     return false;
+  }
+
+  if (guide.width && guide.height) {
+    const dimensions = await new Promise((resolve) => {
+      const url = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = () => {
+        resolve({ width: image.naturalWidth, height: image.naturalHeight });
+        URL.revokeObjectURL(url);
+      };
+      image.onerror = () => {
+        resolve(null);
+        URL.revokeObjectURL(url);
+      };
+      image.src = url;
+    });
+    if (!dimensions || dimensions.width !== guide.width || dimensions.height !== guide.height) {
+      dispatchCmsNotice(`Cover ditolak karena ukuran pixel tidak sesuai. Patokan: ${guide.text}`);
+      return false;
+    }
   }
   return true;
 }
@@ -793,6 +2614,54 @@ async function uploadImageToStorage(file) {
   return data.publicUrl;
 }
 
+// Khusus Websikee!: pakai SATU path permanen supaya index.html GitHub Pages
+// tidak perlu berubah setiap kali admin mengganti gambar share.
+async function uploadWebsiteSharePreview(file) {
+  if (!file) return null;
+
+  const fixedPath = 'website/share-preview.jpg';
+
+  const { error } = await supabase.storage
+    .from(IMAGES_BUCKET)
+    .upload(fixedPath, file, {
+      upsert: true,
+      contentType: file.type || 'image/jpeg',
+      cacheControl: '60',
+    });
+
+  if (error) {
+    console.error('Gagal memperbarui share preview:', error);
+    dispatchCmsNotice('Share Preview gagal diperbarui. Upload lama tetap aman; cek izin UPDATE/UPSERT bucket Supabase.');
+    return null;
+  }
+
+  const { data } = supabase.storage.from(IMAGES_BUCKET).getPublicUrl(fixedPath);
+  return data.publicUrl;
+}
+
+async function uploadWebsiteFavicon(file) {
+  if (!file) return null;
+
+  const fixedPath = 'website/favicon.png';
+
+  const { error } = await supabase.storage
+    .from(IMAGES_BUCKET)
+    .upload(fixedPath, file, {
+      upsert: true,
+      contentType: file.type || 'image/png',
+      cacheControl: '60',
+    });
+
+  if (error) {
+    console.error('Gagal memperbarui favicon:', error);
+    dispatchCmsNotice('Favicon gagal diperbarui. Favicon lama tetap aman; cek izin UPDATE/UPSERT bucket Supabase.');
+    return null;
+  }
+
+  const { data } = supabase.storage.from(IMAGES_BUCKET).getPublicUrl(fixedPath);
+  return data.publicUrl;
+}
+
 // Convert file .docx (Word) yang di-upload admin jadi HTML, dipakai buat isi cerpen/tulisan
 // panjang di Tab Tambahan Projects. Jalan di browser (client-side), gak lewat server —
 // mammoth baca ArrayBuffer file-nya langsung terus keluarin HTML (paragraf, bold/italic,
@@ -816,9 +2685,76 @@ async function convertWordFileToHtml(file) {
   }
 }
 
+
+function EnglishTranslationEditor({ source, rootPath, allowedPaths, translations, onChange }) {
+  const rows = React.useMemo(() => collectTranslatableStrings(source, rootPath, allowedPaths), [source, rootPath, allowedPaths]);
+  const completed = rows.filter((row) => translationValue(translations, row.path).trim()).length;
+
+  const humanize = (path) => {
+    const last = String(path).split('.').pop() || path;
+    if (last.startsWith('@') || last.startsWith('#')) return last;
+    return decodeURIComponent(last)
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/[_-]+/g, ' ')
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  };
+
+  if (!rows.length) {
+    return <div className="rounded-lg border border-dashed border-gray-300 p-5 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">Bagian ini tidak punya copy teks yang perlu diterjemahkan.</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-4 dark:border-blue-900/60 dark:bg-blue-950/20">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold text-blue-700 dark:text-blue-300">English copy</h2>
+            <p className="mt-1 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">Hanya copy English yang diedit di mode ini. Field kosong otomatis fallback ke versi Indonesia; struktur, gambar, urutan, toggle, dan data teknis tetap satu sumber.</p>
+          </div>
+          <span className="rounded-full bg-white px-2.5 py-1 font-mono text-[10px] font-bold text-blue-700 shadow-sm dark:bg-[#252525] dark:text-blue-300">{completed}/{rows.length} translated</span>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {rows.map((row) => {
+          const value = translationValue(translations, row.path);
+          const longText = row.source.length > 110 || row.source.includes('\n') || /body|content|description|objective|explanation|note|bio|summary|passage/i.test(row.keyName);
+          return (
+            <div key={row.path} className="rounded-lg border border-gray-200 bg-gray-50/70 p-3 dark:border-gray-700 dark:bg-[#282828]">
+              <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                <label className="text-xs font-bold text-gray-700 dark:text-gray-200">{humanize(row.path)}</label>
+                <span className="max-w-full truncate font-mono text-[9px] text-gray-400" title={row.path}>{row.path}</span>
+              </div>
+              <p className="mb-2 whitespace-pre-wrap text-[11px] leading-relaxed text-gray-500 dark:text-gray-400"><span className="font-semibold">ID:</span> {row.source}</p>
+              {longText ? (
+                <textarea
+                  value={value}
+                  onChange={(event) => onChange(row.path, event.target.value)}
+                  rows={Math.min(8, Math.max(3, Math.ceil((value || row.source).length / 90)))}
+                  placeholder="Tulis versi English di sini…"
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-blue-500 dark:border-gray-600 dark:bg-[#1e1e1e] dark:text-gray-100"
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={value}
+                  onChange={(event) => onChange(row.path, event.target.value)}
+                  placeholder="Tulis versi English di sini…"
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-blue-500 dark:border-gray-600 dark:bg-[#1e1e1e] dark:text-gray-100"
+                />
+              )}
+              {!value.trim() && <p className="mt-1.5 text-[10px] text-amber-600 dark:text-amber-400">Belum diterjemahkan — public EN masih memakai copy Indonesia.</p>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function CmsDashboard({ data, onSave }) {
   // Salinan lokal yang bisa diedit bebas — baru dikirim ke portfolioData asli pas Save ditekan.
-  const [formData, setFormData] = useState(() => {
+  const [sourceFormData, setSourceFormData] = useState(() => {
     const cloned = JSON.parse(JSON.stringify(data));
     return {
       ...cloned,
@@ -831,12 +2767,153 @@ export default function CmsDashboard({ data, onSave }) {
       miniGame: normalizeMiniGameData(cloned.miniGame),
       interactiveWords: Array.isArray(cloned.interactiveWords) ? cloned.interactiveWords : [],
       general: normalizeGeneral(cloned.general),
+      website: normalizeWebsite(cloned.website),
+      translations: normalizeTranslations(cloned.translations),
     };
   });
+  const [cmsLanguage, setCmsLanguage] = useState('id');
+  const [cmsDomRevision, setCmsDomRevision] = useState(0);
+  const bumpCmsDomRevision = React.useCallback(() => {
+    setCmsDomRevision((value) => value + 1);
+  }, []);
+  const englishFormData = React.useMemo(
+    () => localizedPortfolioData(sourceFormData, 'en'),
+    [sourceFormData]
+  );
+  const formData = cmsLanguage === 'en' ? englishFormData : sourceFormData;
+  const cmsCopy = React.useCallback((idText, enText) => (cmsLanguage === 'en' ? enText : idText), [cmsLanguage]);
+
+  useInsertionEffect(() => {
+    const root = document.querySelector('[data-cms-language-root]');
+    if (!root) return undefined;
+
+    // Remove stale ID references in the same React commit when leaving EN.
+    root.querySelectorAll('[data-id-source-reference]').forEach((node) => node.remove());
+    if (cmsLanguage !== 'en') return undefined;
+
+    const pairs = new Map();
+    const ambiguous = new Set();
+
+    const collectPairs = (source, translated) => {
+      if (typeof source === 'string' && typeof translated === 'string') {
+        if (pairs.has(translated) && pairs.get(translated) !== source) ambiguous.add(translated);
+        else pairs.set(translated, source);
+        return;
+      }
+      if (!source || !translated || typeof source !== 'object' || typeof translated !== 'object') return;
+      if (Array.isArray(translated)) {
+        translated.forEach((item, index) => collectPairs(Array.isArray(source) ? source[index] : undefined, item));
+        return;
+      }
+      Object.keys(translated).forEach((key) => {
+        if (key === 'translations') return;
+        collectPairs(source?.[key], translated[key]);
+      });
+    };
+
+    collectPairs(sourceFormData, englishFormData);
+    ambiguous.forEach((value) => pairs.delete(value));
+
+    const decorate = () => {
+      root.querySelectorAll('input[type="text"], input:not([type]), textarea').forEach((field) => {
+        const englishValue = field.value;
+        const indonesianValue = pairs.get(englishValue);
+        if (!indonesianValue) return;
+
+        const note = document.createElement('div');
+        note.dataset.idSourceReference = 'true';
+        note.className = 'mb-1 rounded border border-dashed border-gray-200 bg-gray-50 px-2 py-1 font-mono text-[10px] leading-relaxed text-gray-500 dark:border-gray-700 dark:bg-[#252525] dark:text-gray-400';
+        note.textContent = `ID · ${indonesianValue}`;
+        field.parentNode?.insertBefore(note, field);
+
+        // In EN mode, an untranslated field must look empty. Keep the Indonesian
+        // fallback in React state only long enough to identify its source reference,
+        // then clear the DOM value. As soon as an English translation exists,
+        // englishValue differs from the Indonesian source and is shown normally.
+        if (englishValue === indonesianValue) {
+          field.value = '';
+        }
+      });
+    };
+
+    decorate();
+    return undefined;
+  }, [cmsLanguage, sourceFormData, englishFormData, cmsDomRevision]);
+
+  const setFormData = React.useCallback((nextOrUpdater) => {
+    if (cmsLanguage !== 'en') {
+      setSourceFormData(nextOrUpdater);
+      return;
+    }
+
+    setSourceFormData((currentSource) => {
+      const currentView = localizedPortfolioData(currentSource, 'en');
+      const nextView = typeof nextOrUpdater === 'function' ? nextOrUpdater(currentView) : nextOrUpdater;
+      if (!nextView || typeof nextView !== 'object') return currentSource;
+
+      const nextTranslations = { ...(currentSource.translations || {}), en: { ...(currentSource.translations?.en || {}) } };
+      const technicalKeys = new Set(['id','type','url','href','src','image','imageUrl','coverImage','posterImage','thumbnail','fileUrl','mediaUrl','illustration','target','tab','status','kind','layout','mediaType','position','order','enabled','color','fontFamily']);
+
+      const walk = (before, after, path = '') => {
+        if (typeof after === 'string') {
+          if (path) {
+            const sourceValue = path.split('.').reduce((value, segment) => {
+              if (value == null) return undefined;
+              if (segment.startsWith('@')) {
+                const wantedId = decodeURIComponent(segment.slice(1));
+                return Array.isArray(value) ? value.find((item) => String(item?.id ?? '') === wantedId) : undefined;
+              }
+              if (segment.startsWith('#')) {
+                const index = Number(segment.slice(1));
+                return Array.isArray(value) ? value[index] : undefined;
+              }
+              return value?.[segment];
+            }, currentSource);
+            if (after !== sourceValue) nextTranslations.en[path] = after;
+            else delete nextTranslations.en[path];
+          }
+          return;
+        }
+        if (!after || typeof after !== 'object') return;
+        if (Array.isArray(after)) {
+          after.forEach((item, index) => {
+            const stable = item && typeof item === 'object' && item.id ? `@${item.id}` : `#${index}`;
+            walk(Array.isArray(before) ? before[index] : undefined, item, path ? `${path}.${stable}` : stable);
+          });
+          return;
+        }
+        Object.keys(after).forEach((key) => {
+          if (key === 'translations' || technicalKeys.has(key)) return;
+          const childPath = path ? `${path}.${key}` : key;
+          walk(before?.[key], after[key], childPath);
+        });
+      };
+
+      walk(currentView, nextView);
+      return { ...currentSource, translations: nextTranslations };
+    });
+  }, [cmsLanguage, sourceFormData]);
+
   // null = layar menu utama (pilih salah satu dari 6 tab dulu sebelum masuk ke isinya)
   const [activeTab, setActiveTab] = useState(null);
   const [cmsSection, setCmsSection] = useState(null);
+  const [openSectionKeys, setOpenSectionKeys] = useState(() => new Set());
+  const toggleSection = (sectionKey) => {
+    setOpenSectionKeys((previous) => {
+      const next = new Set(previous);
+      if (next.has(sectionKey)) next.delete(sectionKey);
+      else next.add(sectionKey);
+      return next;
+    });
+    setCmsDomRevision((value) => value + 1);
+  };
   const [activeMiniGameEditor, setActiveMiniGameEditor] = useState(null);
+  const [miniGameAutofillText, setMiniGameAutofillText] = useState('');
+  const [miniGameAutofillNotice, setMiniGameAutofillNotice] = useState('');
+  useEffect(() => {
+    setOpenSectionKeys(new Set());
+    setCmsLanguage('id');
+  }, [activeTab]);
   // Sub-tab DI DALAM panel "Projects": 'articles' | 'poster' | 'custom'. Dipisah biar
   // admin gak harus scroll ngelewatin Articles+Poster+Tab Tambahan sekaligus dalam 1
   // halaman panjang — cuma 1 section yang di-render/kelihatan dalam satu waktu, mirip
@@ -857,7 +2934,13 @@ export default function CmsDashboard({ data, onSave }) {
   // Satu pola accordion untuk seluruh kartu konten berulang di CMS.
   // Key dibuat per daftar supaya item berbeda tidak saling membuka/menutup.
   const [expandedContentKey, setExpandedContentKey] = useState(null);
-  const toggleContentCard = (key) => setExpandedContentKey((current) => current === key ? null : key);
+  const toggleContentCard = (key) => {
+    setExpandedContentKey((current) => current === key ? null : key);
+    // ContentCard dipakai lintas CMS (Projects, Contact, Book, About, Zine, Mini Game, dll).
+    // Saat editor drag/drop dibuka atau ditutup dalam mode EN, sinkronkan ulang referensi ID
+    // pada commit yang sama supaya field yang baru mount tidak kehilangan catatan Indonesia.
+    bumpCmsDomRevision();
+  };
   // Kategori Career mana yang lagi ditampilin (id kategori) — sama konsepnya kayak
   // activeProjectsSubTab: cuma 1 kategori yang keliatan isinya dalam satu waktu, sisanya
   // disembunyiin di balik pill tab. null = fallback ke kategori pertama (lihat currentCareerCatIdx
@@ -876,6 +2959,7 @@ export default function CmsDashboard({ data, onSave }) {
   const [uploadingArticleImage, setUploadingArticleImage] = useState(null);
   // Index tombol aksi (di tab Contact) yang lagi proses upload file-nya (mis. PDF resume)
   const [uploadingActionButton, setUploadingActionButton] = useState(null);
+  const [uploadingWebsitePreview, setUploadingWebsitePreview] = useState(false);
   // Kunci berupa "poster-{itemIdx}" buat nandain item poster mana yang lagi upload
   const [uploadingGalleryImage, setUploadingGalleryImage] = useState(null);
   // Kunci berupa "{sectionIdx}-{itemIdx}" buat nandain item di tab tambahan (custom section)
@@ -890,6 +2974,52 @@ export default function CmsDashboard({ data, onSave }) {
   const [zineInboxLoading, setZineInboxLoading] = useState(false);
   const [zineInboxError, setZineInboxError] = useState('');
   const [moderatingZineId, setModeratingZineId] = useState(null);
+  const [leaderboardRows, setLeaderboardRows] = useState([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [leaderboardError, setLeaderboardError] = useState('');
+  const [leaderboardGameFilter, setLeaderboardGameFilter] = useState('all');
+  const [deletingLeaderboardId, setDeletingLeaderboardId] = useState(null);
+  const [leaderboardDeleteTarget, setLeaderboardDeleteTarget] = useState(null);
+  const loadLeaderboardSystems = async () => {
+    setLeaderboardLoading(true);
+    setLeaderboardError('');
+    try {
+      setLeaderboardRows(await getMiniGameLeaderboardAdmin(500));
+    } catch (error) {
+      console.error('Gagal memuat Leaderboard Systems:', error);
+      setLeaderboardError('Leaderboard belum bisa dibaca. Pastikan tabel mini_game_scores dan policy Supabase sudah aktif.');
+    } finally {
+      setLeaderboardLoading(false);
+    }
+  };
+
+  const requestRemoveLeaderboardEntry = (entry) => {
+    if (!entry || deletingLeaderboardId) return;
+    setLeaderboardError('');
+    setLeaderboardDeleteTarget(entry);
+  };
+
+  const confirmRemoveLeaderboardEntry = async () => {
+    const entry = leaderboardDeleteTarget;
+    if (!entry) return;
+    setDeletingLeaderboardId(entry.id);
+    setLeaderboardError('');
+    try {
+      await deleteMiniGameLeaderboardEntry(entry.id);
+      setLeaderboardRows((current) => current.filter((row) => row.id !== entry.id));
+      setLeaderboardDeleteTarget(null);
+    } catch (error) {
+      console.error('Gagal menghapus leaderboard:', error);
+      setLeaderboardError('Pemain belum bisa dihapus. Coba lagi.');
+    } finally {
+      setDeletingLeaderboardId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'leaderboardSystems') loadLeaderboardSystems();
+  }, [activeTab]);
+
   useEffect(() => {
     const handleNotice = (event) => setNotice(String(event.detail || 'Terjadi kesalahan.'));
     window.addEventListener('cms-notice', handleNotice);
@@ -933,17 +3063,38 @@ export default function CmsDashboard({ data, onSave }) {
     }
   };
 
+  const archiveInboxZine = async (entry) => {
+    if (!entry || entry.status === 'pending') return;
+    if (!window.confirm(`Hapus Submission #${entry.id} dari history CMS? Kiriman Approved tetap tersedia di fitur Menerima.`)) return;
+    setModeratingZineId(entry.id);
+    setZineInboxError('');
+    try {
+      await archiveZineSubmissions(entry.id);
+      setZineInbox((current) => current.filter((item) => item.id !== entry.id));
+    } catch (error) {
+      console.error('Gagal menghapus history Zine:', error);
+      setZineInboxError('History belum bisa dihapus. Pastikan kolom/policy cms_archived di Supabase sudah aktif.');
+    } finally {
+      setModeratingZineId(null);
+    }
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     const miniGamesToValidate = [formData.miniGame, ...(formData.miniGame?.gameSlots || [])];
-    const invalidDrafts = miniGamesToValidate.flatMap((game) => (game?.drafts || []).flatMap((draft, index) => draft.enabled === false ? [] : redPenDraftErrors(draft).map((error) => `${game.gameName || 'Game baru'} · Draft ${index + 1}: ${error}`)));
+    const invalidDrafts = miniGamesToValidate.flatMap((game) => (game?.drafts || []).flatMap((draft, index) => {
+      if (draft.enabled === false) return [];
+      const isHangman = game?.gameType === 'hangman' || String(game?.gameName || '').trim().toLowerCase() === 'the hangman';
+      const itemLabel = isHangman ? `Kata ${index + 1}` : `Draft ${index + 1}`;
+      return miniGameContentErrors(game, draft).map((error) => `${game.gameName || 'Game baru'} · ${itemLabel}: ${error}`);
+    }));
     if (invalidDrafts.length) {
       setActiveTab('miniGame');
       setNotice(`Mini Game belum bisa disimpan. ${invalidDrafts[0]}`);
       return;
     }
     setIsSaving(true);
-    const cleanData = { ...formData };
+    const cleanData = { ...sourceFormData };
     delete cleanData.odds;
     delete cleanData.quotes;
     const success = await onSave(cleanData);
@@ -954,6 +3105,7 @@ export default function CmsDashboard({ data, onSave }) {
     }
     // Berhasil disimpan — balik ke menu pilih tab, TETEP di dalem admin mode.
     // Keluar dari admin mode sepenuhnya cuma lewat tombol "Exit Admin" di TitleBar.
+    if (activeTab === 'websikee') setCmsSection(null);
     setActiveTab(null);
   };
 
@@ -973,6 +3125,7 @@ export default function CmsDashboard({ data, onSave }) {
       miniGame: normalizeMiniGameData(cloned.miniGame),
       interactiveWords: Array.isArray(cloned.interactiveWords) ? cloned.interactiveWords : [],
       general: normalizeGeneral(cloned.general),
+      translations: normalizeTranslations(cloned.translations),
     });
     setActiveTab(null);
     setCmsSection(null);
@@ -1066,16 +3219,57 @@ export default function CmsDashboard({ data, onSave }) {
     return { ...previous, miniGame: { ...previous.miniGame, gameSlots } };
   });
   const setMiniGame = (field, value) => updateEditingMiniGame((game) => ({ ...game, [field]: value }));
-  const addMiniGameSlot = () => setFormData((previous) => ({
-    ...previous,
-    miniGame: {
-      ...previous.miniGame,
-      gameSlots: [
-        ...(previous.miniGame.gameSlots || []),
-        emptyMiniGameSlot((previous.miniGame.gameSlots || []).length + 2),
-      ],
-    },
-  }));
+  const applyMiniGameAutofill = () => {
+    setMiniGameAutofillNotice('');
+    let payload;
+    try {
+      payload = JSON.parse(miniGameAutofillText);
+    } catch {
+      setMiniGameAutofillNotice(cmsCopy('JSON belum valid. Periksa koma, tanda kutip, atau kurungnya.', 'The JSON is not valid yet. Check commas, quotation marks, and brackets.'));
+      return;
+    }
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      setMiniGameAutofillNotice(cmsCopy('Isi Otomatis harus berupa satu object JSON.', 'Autofill must contain one JSON object.'));
+      return;
+    }
+
+    const allowed = new Set(['gameName','gameCategory','gameCardDescription','title','objective','rules','startButtonLabel','secondsPerDraft','draftsPerSession','gradeTitles','resultEyebrow','replayLabel','projectsCtaLabel','contactCtaLabel','drafts','cases','casesPerSession','verdictPoints','evidencePoints','perfectBonus','verdictLabels','evidenceLabels','copy','podium']);
+    updateEditingMiniGame((game) => {
+      const next = { ...game };
+      Object.entries(payload).forEach(([key, value]) => {
+        if (!allowed.has(key)) return;
+        if (key === 'rules' && value && typeof value === 'object' && !Array.isArray(value)) {
+          next.rules = { ...game.rules, ...value };
+        } else if (key === 'gradeTitles' && Array.isArray(value)) {
+          next.gradeTitles = value.map((item) => ({ min: Math.max(0, Number(item?.min) || 0), label: String(item?.label || ''), remark: String(item?.remark || '') }));
+        } else if (key === 'drafts' && Array.isArray(value)) {
+          next.drafts = value.map((item, index) => ({
+            id: item?.id || `game-draft-${Date.now()}-${index}`,
+            label: String(item?.label || item?.word || ''),
+            enabled: item?.enabled !== false,
+            passage: String(item?.passage || item?.clue || ''),
+            issues: Array.isArray(item?.issues) ? item.issues : [],
+          }));
+        } else {
+          next[key] = value;
+        }
+      });
+      return next;
+    });
+    setMiniGameAutofillNotice(cmsCopy('Isi otomatis sudah masuk ke formulir. Periksa dulu, lalu Save.', 'Autofill has been applied to the form. Review it, then Save.'));
+    bumpCmsDomRevision();
+  };
+  const addMiniGameSlot = () => setFormData((previous) => {
+    const slots = previous.miniGame.gameSlots || [];
+    const hasHangman = slots.some((slot) => slot.gameType === 'hangman' || String(slot.gameName || '').trim().toLowerCase() === 'the hangman');
+    const hasPlagiarism = slots.some((slot) => slot.gameType === 'plagiarismPolice' || String(slot.gameName || '').trim().toLowerCase() === 'plagiarism police');
+    const next = !hasHangman
+      ? emptyMiniGameSlot(slots.length + 2, HANGMAN_PRESET)
+      : !hasPlagiarism
+        ? emptyMiniGameSlot(slots.length + 2, PLAGIARISM_POLICE_PRESET)
+        : emptyMiniGameSlot(slots.length + 2);
+    return { ...previous, miniGame: { ...previous.miniGame, gameSlots: [...slots, next] } };
+  });
   const removeMiniGameSlot = (index) => setFormData((previous) => ({
     ...previous,
     miniGame: { ...previous.miniGame, gameSlots: (previous.miniGame.gameSlots || []).filter((_, slotIndex) => slotIndex !== index) },
@@ -1125,6 +3319,66 @@ export default function CmsDashboard({ data, onSave }) {
       },
     }));
 
+  const setWelcomePatchItem = (index, field, value) =>
+    setFormData((p) => {
+      const current = p.general?.welcomeNotification || {};
+      const items = [...(current.items || [])];
+      items[index] = { ...(items[index] || {}), [field]: value };
+      return {
+        ...p,
+        general: {
+          ...p.general,
+          welcomeNotification: { ...current, items },
+        },
+      };
+    });
+
+  const addWelcomePatchItem = () =>
+    setFormData((p) => {
+      const current = p.general?.welcomeNotification || {};
+      return {
+        ...p,
+        general: {
+          ...p.general,
+          welcomeNotification: {
+            ...current,
+            items: [...(current.items || []), { title: '', description: '' }],
+          },
+        },
+      };
+    });
+
+  const removeWelcomePatchItem = (index) =>
+    setFormData((p) => {
+      const current = p.general?.welcomeNotification || {};
+      return {
+        ...p,
+        general: {
+          ...p.general,
+          welcomeNotification: {
+            ...current,
+            items: (current.items || []).filter((_, itemIndex) => itemIndex !== index),
+          },
+        },
+      };
+    });
+
+  const moveWelcomePatchItem = (index, direction) =>
+    setFormData((p) => {
+      const current = p.general?.welcomeNotification || {};
+      const items = [...(current.items || [])];
+      const target = index + direction;
+      if (target < 0 || target >= items.length) return p;
+      [items[index], items[target]] = [items[target], items[index]];
+      return {
+        ...p,
+        general: {
+          ...p.general,
+          welcomeNotification: { ...current, items },
+        },
+      };
+    });
+
   const setFeaturedWork = (index, patch) => setFormData((previous) => {
     const featuredWorks = [...(previous.home.featuredWorks || [])];
     featuredWorks[index] = { ...(featuredWorks[index] || {}), ...patch };
@@ -1140,7 +3394,6 @@ export default function CmsDashboard({ data, onSave }) {
   }));
 
   /* ============ ABOUT ============ */
-  // Author's Note dan annotation yang tampil di area abu-abu kanan.
   const setAboutField = (field, value) =>
     setFormData((p) => ({ ...p, about: { ...p.about, [field]: value } }));
 
@@ -1153,29 +3406,32 @@ export default function CmsDashboard({ data, onSave }) {
       },
     }));
 
-  const setAuthorPropertiesField = (field, value) =>
-    setFormData((p) => ({ ...p, about: { ...p.about, authorProperties: { ...p.about.authorProperties, [field]: value } } }));
-
-  const updateAuthorProperty = (index, patch) => setFormData((p) => {
-    const items = [...p.about.authorProperties.items];
+  const updateBitsAndPiecesItem = (index, patch) => setFormData((p) => {
+    const items = [...(p.about.bitsAndPieces?.items || [])];
     items[index] = { ...items[index], ...patch };
-    return { ...p, about: { ...p.about, authorProperties: { ...p.about.authorProperties, items } } };
+    return { ...p, about: { ...p.about, bitsAndPieces: { ...p.about.bitsAndPieces, items } } };
   });
 
-  const addAuthorProperty = () => setFormData((p) => ({
+  const addBitsAndPiecesItem = () => setFormData((p) => ({
     ...p,
     about: {
       ...p.about,
-      authorProperties: {
-        ...p.about.authorProperties,
-        items: [...p.about.authorProperties.items, { id: `author-property-${Date.now()}`, label: '', value: '', url: '' }],
+      bitsAndPieces: {
+        ...p.about.bitsAndPieces,
+        items: [...(p.about.bitsAndPieces?.items || []), { id: `about-bit-${Date.now()}`, label: '', value: '' }],
       },
     },
   }));
 
-  const removeAuthorProperty = (index) => setFormData((p) => ({
+  const removeBitsAndPiecesItem = (index) => setFormData((p) => ({
     ...p,
-    about: { ...p.about, authorProperties: { ...p.about.authorProperties, items: p.about.authorProperties.items.filter((_, itemIndex) => itemIndex !== index) } },
+    about: {
+      ...p.about,
+      bitsAndPieces: {
+        ...p.about.bitsAndPieces,
+        items: (p.about.bitsAndPieces?.items || []).filter((_, itemIndex) => itemIndex !== index),
+      },
+    },
   }));
 
   /* ============ CAREER ============ */
@@ -1195,6 +3451,7 @@ export default function CmsDashboard({ data, onSave }) {
   const addCareerCategory = (type = 'career') => {
     const newCat = emptyCareerCategory(type);
     setActiveCareerCategory(newCat.id);
+    bumpCmsDomRevision();
     setFormData((p) => ({
       ...p,
       career: { ...p.career, categories: [...p.career.categories, newCat] },
@@ -1274,6 +3531,9 @@ export default function CmsDashboard({ data, onSave }) {
     setFormData((p) => ({ ...p, books: { ...p.books, items: [...p.books.items, emptyBook()] } }));
   const removeBook = (idx) =>
     setFormData((p) => ({ ...p, books: { ...p.books, items: p.books.items.filter((_, i) => i !== idx) } }));
+  const addReadingBook = () => setFormData((p) => ({ ...p, books: { ...p.books, readingItems: [...(p.books.readingItems || []), emptyReadingBook()] } }));
+  const removeReadingBook = (idx) => setFormData((p) => ({ ...p, books: { ...p.books, readingItems: (p.books.readingItems || []).filter((_, i) => i !== idx) } }));
+  const setReadingBookField = (idx, field, value) => setFormData((p) => { const readingItems = [...(p.books.readingItems || [])]; readingItems[idx] = { ...readingItems[idx], [field]: value }; return { ...p, books: { ...p.books, readingItems } }; });
 
   /* ============ PROJECTS: ARTICLES & GALLERY (Poster/Photo) ============ */
   const setProjectsField = (field, value) =>
@@ -1325,6 +3585,18 @@ export default function CmsDashboard({ data, onSave }) {
   const removeDirectingItem = (idx) => setFormData((p) => ({
     ...p, projects: { ...p.projects, directing: { items: p.projects.directing.items.filter((_, i) => i !== idx) } },
   }));
+  const setExclusiveReadingBookFlag = (idx, field, checked) =>
+    setFormData((p) => ({
+      ...p,
+      books: {
+        ...p.books,
+        readingItems: (p.books.readingItems || []).map((item, itemIdx) => ({
+          ...item,
+          [field]: checked ? itemIdx === idx : (itemIdx === idx ? false : item[field]),
+        })),
+      },
+    }));
+
 
   /* ============ PROJECTS: POSTER (daftar file langsung, tanpa Sub Bab) ============ */
   const setPosterItemField = (itemIdx, field, value) =>
@@ -1359,6 +3631,7 @@ export default function CmsDashboard({ data, onSave }) {
       projects: { ...p.projects, customSections: [...p.projects.customSections, newSection] },
     }));
     setActiveProjectsSubTab(`custom:${newSection.id}`);
+    bumpCmsDomRevision();
   };
   const removeCustomSection = (sectionIdx) => {
     const removedId = formData.projects.customSections[sectionIdx]?.id;
@@ -1384,6 +3657,12 @@ export default function CmsDashboard({ data, onSave }) {
         contentType,
         layout: contentType === 'writing' ? 'articles' : 'gallery',
       };
+      return { ...p, projects: { ...p.projects, customSections } };
+    });
+  const setCustomSectionDescription = (sectionIdx, description) =>
+    setFormData((p) => {
+      const customSections = [...p.projects.customSections];
+      customSections[sectionIdx] = { ...customSections[sectionIdx], description };
       return { ...p, projects: { ...p.projects, customSections } };
     });
   const setCustomItemField = (sectionIdx, itemIdx, field, value) =>
@@ -1521,12 +3800,13 @@ export default function CmsDashboard({ data, onSave }) {
         const [moved] = items.splice(fromIdx, 1); items.splice(toIdx, 0, moved);
         return { ...p, home: { ...p.home, featuredWorks: items } };
       });
-    } else if (listKey === 'authorProperties') {
+    } else if (listKey === 'bitsAndPieces') {
       setFormData((p) => {
-        const items = [...p.about.authorProperties.items];
+        const items = [...(p.about.bitsAndPieces?.items || [])];
         if (toIdx >= items.length) return p;
-        const [moved] = items.splice(fromIdx, 1); items.splice(toIdx, 0, moved);
-        return { ...p, about: { ...p.about, authorProperties: { ...p.about.authorProperties, items } } };
+        const [moved] = items.splice(fromIdx, 1);
+        items.splice(toIdx, 0, moved);
+        return { ...p, about: { ...p.about, bitsAndPieces: { ...p.about.bitsAndPieces, items } } };
       });
     } else if (listKey === 'books') {
       setFormData((p) => {
@@ -1641,7 +3921,7 @@ export default function CmsDashboard({ data, onSave }) {
             onChange={async (e) => {
               const file = e.target.files[0];
               if (!file) return;
-              if (!validateProjectCover(file, 'image')) { e.target.value = ''; return; }
+              if (!(await validateProjectCover(file, 'image'))) { e.target.value = ''; return; }
               setUploadingGalleryImage(`${listKey}-${idx}`);
               const url = await uploadImageToStorage(file);
               setUploadingGalleryImage(null);
@@ -1684,6 +3964,10 @@ export default function CmsDashboard({ data, onSave }) {
           />
           <RemoveBtn onClick={() => removeCustomSection(sectionIdx)} label="Hapus Tab Ini" />
         </div>
+
+        <Field label="Keterangan kartu tab (kosongkan untuk menghapus)">
+          <input value={section.description || ''} onChange={(e) => setCustomSectionDescription(sectionIdx, e.target.value)} className={inputClsSm} />
+        </Field>
 
         <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-900 dark:bg-blue-950/20">
           <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">Jenis konten tab</label>
@@ -1738,7 +4022,7 @@ export default function CmsDashboard({ data, onSave }) {
                 <>
                   <div className="flex items-center gap-2">
                     {it.imageUrl && <img src={it.imageUrl} alt="" className="h-14 w-20 shrink-0 rounded object-cover border border-gray-300 dark:border-gray-600" />}
-                    <input type="file" accept="image/*" disabled={uploadingCustomImage === `${sectionIdx}-${idx}`} onChange={async (e) => { const file = e.target.files[0]; if (!file) return; if (!validateProjectCover(file, contentType)) { e.target.value = ''; return; } setUploadingCustomImage(`${sectionIdx}-${idx}`); const url = await uploadImageToStorage(file); setUploadingCustomImage(null); if (url) setCustomItemField(sectionIdx, idx, 'imageUrl', url); e.target.value = ''; }} className="flex-1 text-[10px]" />
+                    <input type="file" accept="image/*" disabled={uploadingCustomImage === `${sectionIdx}-${idx}`} onChange={async (e) => { const file = e.target.files[0]; if (!file) return; if (!(await validateProjectCover(file, contentType))) { e.target.value = ''; return; } setUploadingCustomImage(`${sectionIdx}-${idx}`); const url = await uploadImageToStorage(file); setUploadingCustomImage(null); if (url) setCustomItemField(sectionIdx, idx, 'imageUrl', url); e.target.value = ''; }} className="flex-1 text-[10px]" />
                   </div>
                   <ProjectCoverHint contentType={contentType} />
                   <input type="text" value={it.imageUrl || ''} onChange={(e) => setCustomItemField(sectionIdx, idx, 'imageUrl', e.target.value)} placeholder={contentType === 'video' ? 'URL thumbnail/poster' : 'Atau tempel URL gambar/cover'} className={inputClsSm} />
@@ -1794,9 +4078,71 @@ export default function CmsDashboard({ data, onSave }) {
     ...(formData.projects?.customSections || []).flatMap((section) => (section.items || []).map((item) => ({ value: `custom|${section.id}|${item.id}`, label: `${section.label || 'Project'} — ${item.title}` }))),
   ];
 
+  const translationSourceForTab = () => {
+    switch (activeTab) {
+      case 'home': return {
+        source: formData.home, rootPath: 'home',
+        allowedPaths: ['home.name', 'home.role', 'home.dynamicStatement.prefix', 'home.dynamicStatement.connector', 'home.dynamicStatement.highlightedWord', 'home.dynamicStatement.pairs'],
+      };
+      case 'featuredWorks': return {
+        source: { featuredWorksHeading: formData.home?.featuredWorksHeading || '', featuredWorks: formData.home?.featuredWorks || [] },
+        rootPath: 'home',
+        allowedPaths: ['home.featuredWorksHeading', 'home.featuredWorks'],
+      };
+      case 'about': return {
+        source: formData.about, rootPath: 'about',
+        allowedPaths: ['about.heading', 'about.subheading', 'about.headline', 'about.locationLine', 'about.bio', 'about.signature', 'about.authorNoteTabLabel', 'about.bitsTabLabel', 'about.bitsAndPieces.items', 'about.listeningFootnote.nowPlayingLabel', 'about.listeningFootnote.lastPlayedLabel', 'about.listeningFootnote.fallbackLabel', 'about.listeningFootnote.fallbackTitle', 'about.listeningFootnote.fallbackArtist'],
+      };
+      case 'career': return {
+        source: formData.career, rootPath: 'career',
+        allowedPaths: ['career.heading', 'career.subheading', 'career.archiveTitle', 'career.archiveIntro', 'career.archiveButtonLabel', 'career.credentialsButtonLabel', 'career.credentialsHeading', 'career.credentialsSubheading', 'career.credentialsBackLabel', 'career.categories'],
+      };
+      case 'book': return {
+        source: formData.books, rootPath: 'books',
+        allowedPaths: ['books.heading', 'books.subheading', 'books.worksTabLabel', 'books.readingTabLabel', 'books.items', 'books.readingItems'],
+      };
+      case 'projects': return {
+        source: formData.projects, rootPath: 'projects',
+        allowedPaths: ['projects.heading', 'projects.subheading', 'projects.indexHeading', 'projects.indexDescription', 'projects.searchLabel', 'projects.openDrawerLabel', 'projects.backLabel', 'projects.articlesLabel', 'projects.articlesDescription', 'projects.posterLabel', 'projects.posterDescription', 'projects.directingLabel', 'projects.directingDescription', 'projects.articles', 'projects.poster', 'projects.directing', 'projects.customSections'],
+      };
+      case 'contact': return {
+        source: formData.contact, rootPath: 'contact',
+        allowedPaths: ['contact.heading', 'contact.subheading', 'contact.email', 'contact.location', 'contact.formTitle', 'contact.responseNote', 'contact.draftButtonLabel', 'contact.propertiesTitle', 'contact.properties', 'contact.inquiryPaths', 'contact.actionButtons', 'contact.socials'],
+      };
+      case 'visitorIntroduction': return {
+        source: formData.home?.visitorIntroduction || {}, rootPath: 'home.visitorIntroduction',
+        allowedPaths: ['home.visitorIntroduction.kicker', 'home.visitorIntroduction.title', 'home.visitorIntroduction.recipient', 'home.visitorIntroduction.body', 'home.visitorIntroduction.closing', 'home.visitorIntroduction.documentCode', 'home.visitorIntroduction.documentIndexLabel', 'home.visitorIntroduction.printedLabel', 'home.visitorIntroduction.quickViewLabel', 'home.visitorIntroduction.experienceLabel', 'home.visitorIntroduction.selectedWorksLabel', 'home.visitorIntroduction.contactLabel', 'home.visitorIntroduction.closeLabel', 'home.visitorIntroduction.triggerEyebrow', 'home.visitorIntroduction.triggerTitle', 'home.visitorIntroduction.triggerAction'],
+      };
+      case 'zine': return {
+        source: formData.zine, rootPath: 'zine',
+        allowedPaths: ['zine.menuLabel', 'zine.title', 'zine.writePrompt', 'zine.submitSuccess', 'zine.entries'],
+      };
+      case 'miniGame': return {
+        source: formData.miniGame, rootPath: 'miniGame',
+        allowedPaths: ['miniGame.menuLabel', 'miniGame.libraryTitle', 'miniGame.libraryDescription', 'miniGame.gameName', 'miniGame.gameCategory', 'miniGame.gameCardDescription', 'miniGame.title', 'miniGame.objective', 'miniGame.rules', 'miniGame.startButtonLabel', 'miniGame.gradeTitles', 'miniGame.resultEyebrow', 'miniGame.replayLabel', 'miniGame.projectsCtaLabel', 'miniGame.contactCtaLabel', 'miniGame.drafts', 'miniGame.gameSlots'],
+      };
+      case 'interactiveWords': return {
+        source: formData.interactiveWords, rootPath: 'interactiveWords',
+        allowedPaths: ['interactiveWords'],
+      };
+      case 'leaderboardSystems': return { source: {}, rootPath: '', allowedPaths: [] };
+      case 'general': return {
+        source: formData.general, rootPath: 'general',
+        allowedPaths: ['general.welcomeNotification.title', 'general.welcomeNotification.message', 'general.welcomeNotification.items', 'general.welcomeNotification.version', 'general.soundEffects'],
+      };
+      case 'websikee': return { source: {}, rootPath: '', allowedPaths: [] };
+      default: return { source: {}, rootPath: '', allowedPaths: [] };
+    }
+  };
+  const currentTranslationSource = translationSourceForTab();
+  const setEnglishTranslation = (path, value) => setFormData((previous) => ({
+    ...previous,
+    translations: withEnglishTranslation(previous.translations, path, value),
+  }));
+
   return (
-    <CmsCardContext.Provider value={{ expandedContentKey, draggingKey, toggleContentCard, reorderList, handleDragStart, handleDragEnd, handleDragOver, handleDrop }}>
-    <div className="max-w-4xl mx-auto space-y-6 text-gray-900 dark:text-gray-100 p-4">
+    <CmsCardContext.Provider value={{ expandedContentKey, draggingKey, toggleContentCard, reorderList, handleDragStart, handleDragEnd, handleDragOver, handleDrop, openSectionKeys, toggleSection }}>
+    <div data-cms-language-root="true" className="max-w-4xl mx-auto space-y-6 text-gray-900 dark:text-gray-100 p-4">
 
       {showCancelConfirm && (
         <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/55 px-4" role="dialog" aria-modal="true" aria-labelledby="cancel-cms-title">
@@ -1856,8 +4202,8 @@ export default function CmsDashboard({ data, onSave }) {
 
       {activeTab === null ? (
         <div>
-          {cmsSection === null ? <><h2 className="mb-4 text-xs font-mono uppercase tracking-widest text-gray-400 dark:text-gray-500">Pilih kelompok pengaturan</h2><div className="mx-auto grid max-w-2xl gap-4 sm:grid-cols-2"><button type="button" onClick={() => setCmsSection('main')} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">01 / Pokok</span><strong className="mt-4 block font-mono text-xl">UTAMA</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Halaman, karya, identitas, kata interaktif, tampilan Home, dan pengaturan situs.</span></button><button type="button" onClick={() => setCmsSection('extra')} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">02 / Interaktif</span><strong className="mt-4 block font-mono text-xl">TAMBAHAN</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Wassup? dan Mini Game untuk pengalaman tambahan pengunjung.</span></button></div></> : <><div className="mb-4 flex items-center justify-between gap-3"><div><button type="button" onClick={() => setCmsSection(null)} className="mb-2 font-mono text-xs text-gray-500 hover:text-blue-600">← Pilih kelompok lain</button><h2 className="text-xs font-mono uppercase tracking-widest text-gray-400 dark:text-gray-500">{cmsSection === 'main' ? 'Utama / kebutuhan pokok portofolio' : 'Tambahan / pengalaman interaktif'}</h2></div></div><div className="grid max-h-[calc(100vh-17rem)] grid-cols-2 gap-3 overflow-y-auto overscroll-contain pr-1 sm:grid-cols-3">
-            {(cmsSection === 'main' ? MAIN_TABS : EXTRA_TABS).map((tab) => {
+          {cmsSection === null ? <><h2 className="mb-4 text-xs font-mono uppercase tracking-widest text-gray-400 dark:text-gray-500">Pilih kelompok pengaturan</h2><div className="mx-auto grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-4"><button type="button" onClick={() => setCmsSection('main')} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">01 / Pokok</span><strong className="mt-4 block font-mono text-xl">UTAMA</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Home, About, Projects, Career, Book, dan Contact.</span></button><button type="button" onClick={() => setCmsSection('side')} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">02 / Sampingan</span><strong className="mt-4 block font-mono text-xl">SAMPINGAN</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Featured Works, Visitor Introduction, Interactive Words, dan Update Patch.</span></button><button type="button" onClick={() => setCmsSection('extra')} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">03 / Interaktif</span><strong className="mt-4 block font-mono text-xl">INTERAKTIF</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Wassup? dan Mini Game untuk pengalaman tambahan pengunjung.</span></button><button type="button" onClick={() => { setCmsSection('websikee'); setActiveTab('websikee'); }} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">04 / Metadata</span><strong className="mt-4 block font-mono text-xl">WEBSIKEE!</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Judul website dan foto preview saat link dibagikan.</span></button></div></> : <><div className="mb-4 flex items-center justify-between gap-3"><div><button type="button" onClick={() => setCmsSection(null)} className="mb-2 font-mono text-xs text-gray-500 hover:text-blue-600">← Pilih kelompok lain</button><h2 className="text-xs font-mono uppercase tracking-widest text-gray-400 dark:text-gray-500">{cmsSection === 'main' ? 'Pokok / kebutuhan utama portofolio' : cmsSection === 'side' ? 'Sampingan / fitur pendukung portofolio' : cmsSection === 'websikee' ? 'Websikee! / metadata website' : 'Interaktif / pengalaman tambahan pengunjung'}</h2></div></div><div className="grid max-h-[calc(100vh-17rem)] grid-cols-2 gap-3 overflow-y-auto overscroll-contain pr-1 sm:grid-cols-3">
+            {(cmsSection === 'main' ? MAIN_TABS : cmsSection === 'side' ? SIDE_TABS : EXTRA_TABS).map((tab) => {
               const meta = TAB_META[tab];
               return (
                 <button
@@ -1882,11 +4228,115 @@ export default function CmsDashboard({ data, onSave }) {
         {/* Tombol kembali ke menu — pola sama kayak halaman publik Career.jsx */}
         <button
           type="button"
-          onClick={() => { setActiveTab(null); setActiveMiniGameEditor(null); }}
+          onClick={() => { setActiveTab(null); setActiveMiniGameEditor(null); if (cmsSection === 'websikee') setCmsSection(null); }}
           className="flex items-center gap-1.5 text-xs font-mono text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 mb-2 transition-colors"
         >
-          <span>←</span> Kembali ke {cmsSection === 'extra' ? 'Tambahan' : 'Utama'}
+          <span>←</span> Kembali ke {cmsSection === 'main' ? 'Pokok' : cmsSection === 'side' ? 'Sampingan' : cmsSection === 'websikee' ? 'Websikee!' : 'Interaktif'}
         </button>
+
+        {activeTab !== 'websikee' && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-[#282828]">
+          <div>
+            <p className="text-xs font-bold text-gray-700 dark:text-gray-200">Bahasa konten</p>
+            <p className="text-[10px] text-gray-400">Edit di tab yang sama. ID adalah sumber; EN adalah versi resmi buatan sendiri.</p>
+          </div>
+          <div className="flex shrink-0 overflow-hidden rounded-md border border-gray-300 bg-white font-mono text-[10px] font-bold dark:border-gray-600 dark:bg-[#1e1e1e]">
+            <button type="button" onClick={() => setCmsLanguage('id')} className={`px-3 py-1.5 ${cmsLanguage === 'id' ? 'bg-[#2B579A] text-white' : 'text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'}`}>ID</button>
+            <button type="button" onClick={() => setCmsLanguage('en')} className={`border-l border-gray-300 px-3 py-1.5 dark:border-gray-600 ${cmsLanguage === 'en' ? 'bg-[#2B579A] text-white' : 'text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'}`}>EN</button>
+          </div>
+        </div>
+
+
+
+        )}
+
+        {/* ================= WEBSIKEE! ================= */}
+        {activeTab === 'websikee' && (
+          <section className="space-y-5">
+            <div>
+              <h2 className="font-mono text-lg font-bold">Websikee!</h2>
+              <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">Metadata website. Website Title tersimpan lewat CMS. Share Preview Image di bawah ini menimpa satu file tetap di Supabase, sehingga GitHub Pages dan crawler share memakai sumber gambar yang sama.</p>
+            </div>
+
+            <Field label="Website Title">
+              <input
+                type="text"
+                value={sourceFormData.website?.title || ''}
+                onChange={(e) => setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), title: e.target.value } }))}
+                className={inputCls}
+                placeholder="Haikal A. Hafidz — Content Writer & Editor"
+              />
+            </Field>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Favicon / Website Icon</p>
+              <p className="text-[10px] leading-relaxed text-gray-400">Icon kecil di tab browser, tepat di sebelah Website Title. Gunakan gambar kotak. File ditimpa ke path tetap website/favicon.png di Supabase.</p>
+              {sourceFormData.website?.favicon && (
+                <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-[#282828]">
+                  <img src={sourceFormData.website.favicon} alt="Favicon website" className="h-12 w-12 rounded border border-gray-300 object-cover dark:border-gray-600" />
+                  <p className="min-w-0 break-all font-mono text-[9px] text-gray-400">{sourceFormData.website.favicon}</p>
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                disabled={uploadingWebsitePreview}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setUploadingWebsitePreview(true);
+                  const url = await uploadWebsiteFavicon(file);
+                  setUploadingWebsitePreview(false);
+                  if (url) setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), favicon: url } }));
+                  e.target.value = '';
+                }}
+                className="w-full text-[10px]"
+              />
+              {uploadingWebsitePreview && <p className="text-[10px] text-blue-500">Mengupload gambar…</p>}
+              <input
+                type="text"
+                value={sourceFormData.website?.favicon || ''}
+                onChange={(e) => setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), favicon: e.target.value } }))}
+                className={inputCls}
+                placeholder="Atau tempel URL favicon"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Share Preview Image</p>
+              <p className="text-[10px] leading-relaxed text-gray-400">Upload gambar baru untuk mengganti preview link. File akan ditimpa ke path tetap website/share-preview.jpg di Supabase; URL-nya tidak berubah. Bentuk kartu akhirnya tetap ditentukan aplikasi tempat link dibagikan.</p>
+              {sourceFormData.website?.shareImage && (
+                <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-[#282828]">
+                  <img src={sourceFormData.website.shareImage} alt="Preview link website" className="h-20 w-28 rounded border border-gray-300 object-cover dark:border-gray-600" />
+                  <button type="button" onClick={() => setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: '' } }))} className="text-xs font-semibold text-red-500 hover:text-red-600">Hapus gambar</button>
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                disabled={uploadingWebsitePreview}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setUploadingWebsitePreview(true);
+                  const url = await uploadWebsiteSharePreview(file);
+                  setUploadingWebsitePreview(false);
+                  if (url) setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: url } }));
+                  e.target.value = '';
+                }}
+                className="w-full text-[10px]"
+              />
+              {uploadingWebsitePreview && <p className="text-[10px] text-blue-500">Mengupload gambar…</p>}
+              <input
+                type="text"
+                value={sourceFormData.website?.shareImage || ''}
+                onChange={(e) => setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: e.target.value } }))}
+                className={inputCls}
+                placeholder="Atau tempel URL gambar"
+              />
+            </div>
+          </section>
+        )}
 
         {/* ================= HOME ================= */}
         {activeTab === 'home' && (
@@ -1898,7 +4348,8 @@ export default function CmsDashboard({ data, onSave }) {
             <Field label="Role / Jabatan Singkat">
               <input type="text" value={formData.home.role} onChange={(e) => setHome('role', e.target.value)} className={inputCls} />
             </Field>
-            <section className="space-y-4 rounded-xl border border-blue-200 bg-blue-50/40 p-4 dark:border-blue-900/70 dark:bg-blue-950/20">
+            <CollapsibleSection sectionKey="home-dynamic-statement" title="Dynamic Statement" subtitle="Kalimat besar di kanan identitas Home.">
+
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h3 className="text-sm font-bold text-blue-700 dark:text-blue-300">Dynamic Statement</h3>
@@ -1952,7 +4403,8 @@ export default function CmsDashboard({ data, onSave }) {
                 ))}
                 {!formData.home.dynamicStatement.pairs.length && <p className="rounded-lg border border-dashed border-gray-300 p-3 text-center text-xs text-gray-400 dark:border-gray-700">Belum ada pasangan kata. Tambahkan minimal satu.</p>}
               </div>
-            </section>
+            
+            </CollapsibleSection>
           </div>
         )}
 
@@ -1984,94 +4436,86 @@ export default function CmsDashboard({ data, onSave }) {
         {activeTab === 'about' && (
           <div className="space-y-5">
             <h2 className="text-sm font-bold border-b pb-2 border-gray-100 dark:border-gray-800 text-blue-600 dark:text-blue-400">Tab About</h2>
-            <p className="text-xs text-gray-500 italic">Bio utama tampil sebagai Author’s Note. Catatan aktif tampil di sisi kanan desktop dan di bawah bio pada HP.</p>
-            <Field label="Headline"><input value={formData.about.headline || ''} onChange={(e) => setAboutField('headline', e.target.value)} className={inputCls} /></Field>
-            <Field label="Bio (1–2 kalimat)"><textarea rows={5} value={formData.about.bio || ''} onChange={(e) => setAboutField('bio', e.target.value)} className={`${inputCls} resize-y`} /></Field>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Field label="Tanda tangan"><input value={formData.about.signature || ''} onChange={(e) => setAboutField('signature', e.target.value)} className={inputCls} /></Field>
-              <Field label="Lokasi / closing"><input value={formData.about.locationLine || ''} onChange={(e) => setAboutField('locationLine', e.target.value)} className={inputCls} /></Field>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 rounded-lg border border-blue-100 bg-blue-50/50 p-3 dark:border-blue-900/60 dark:bg-blue-950/20">
-              <Field label="Tampilkan catatan di halaman About">
-                <label className="flex min-h-10 items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                  <input type="checkbox" checked={formData.about.notesVisible !== false} onChange={(e) => setAboutField('notesVisible', e.target.checked)} className="h-4 w-4 accent-[#2B579A]" />
-                  <span>{formData.about.notesVisible !== false ? 'Ditampilkan' : 'Disembunyikan'}</span>
-                </label>
-              </Field>
-              <Field label="Maksimal catatan yang tampil">
-                <select value={formData.about.notesLimit || 3} onChange={(e) => setAboutField('notesLimit', Number(e.target.value))} className={inputCls} disabled={formData.about.notesVisible === false}>
-                  <option value={1}>1 catatan</option>
-                  <option value={2}>2 catatan</option>
-                  <option value={3}>3 catatan</option>
-                </select>
-              </Field>
-            </div>
-            {[1, 2, 3].map((number) => <div key={number} className="grid grid-cols-1 md:grid-cols-[0.35fr_1fr] gap-3 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
-              <Field label={`Label catatan ${number}`}><input value={formData.about[`note${number}Label`] || ''} onChange={(e) => setAboutField(`note${number}Label`, e.target.value)} className={inputCls} /></Field>
-              <Field label={`Isi catatan ${number}`}><textarea rows={2} value={formData.about[`note${number}`] || ''} onChange={(e) => setAboutField(`note${number}`, e.target.value)} className={`${inputCls} resize-y`} /></Field>
-            </div>)}
+            <p className="text-xs text-gray-500 italic">The Author dan Bits & Pieces tampil sebagai dua tab yang mengganti isi halaman A4.</p>
 
-            <div className="space-y-4 rounded-lg border border-blue-200 bg-blue-50/40 p-4 dark:border-blue-900/70 dark:bg-blue-950/20">
-              <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <Field label="Judul Halaman"><input value={formData.about.heading || ''} onChange={(e) => setAboutField('heading', e.target.value)} className={inputCls} /></Field>
+              <Field label="Subheading Halaman"><input value={formData.about.subheading || ''} onChange={(e) => setAboutField('subheading', e.target.value)} className={inputCls} /></Field>
+              <Field label="Nama tab bio"><input value={formData.about.authorNoteTabLabel || ''} onChange={(e) => setAboutField('authorNoteTabLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Nama tab Bits & Pieces"><input value={formData.about.bitsTabLabel || ''} onChange={(e) => setAboutField('bitsTabLabel', e.target.value)} className={inputCls} /></Field>
+            </div>
+
+            <CollapsibleSection sectionKey="about-author" title="The Author">
+
+              <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400">The Author</h3>
+              <Field label="Headline"><input value={formData.about.headline || ''} onChange={(e) => setAboutField('headline', e.target.value)} className={inputCls} /></Field>
+              <Field label="Bio"><textarea rows={5} value={formData.about.bio || ''} onChange={(e) => setAboutField('bio', e.target.value)} className={`${inputCls} resize-y`} /></Field>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Field label="Tanda tangan"><input value={formData.about.signature || ''} onChange={(e) => setAboutField('signature', e.target.value)} className={inputCls} /></Field>
+                <Field label="Lokasi / closing"><input value={formData.about.locationLine || ''} onChange={(e) => setAboutField('locationLine', e.target.value)} className={inputCls} /></Field>
+              </div>
+            
+            </CollapsibleSection>
+
+            <CollapsibleSection sectionKey="about-bits" title="Bits & Pieces">
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-sm font-bold text-blue-700 dark:text-blue-300">Listening Footnote · Last.fm</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">Muncul di area abu-abu kiri luar A4 pada halaman About. API key dibaca dari file .env, bukan disimpan di CMS.</p>
+                  <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400">Bits & Pieces</h3>
+                  <p className="mt-1 text-xs text-gray-500">Buat tab seperti Status, Currently Writing, Currently Reading, dan lainnya. Urutannya bisa di-drag & drop.</p>
+                </div>
+                <button type="button" onClick={addBitsAndPiecesItem} className="rounded bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-100 dark:bg-blue-950/40">+ Tambah Tab</button>
+              </div>
+              <div className="space-y-3">
+                {(formData.about.bitsAndPieces?.items || []).map((item, index) => (
+                  <ContentCard
+                    key={item.id || index}
+                    cardKey={`bits-and-pieces-${item.id || index}`}
+                    listKey="bitsAndPieces"
+                    idx={index}
+                    count={(formData.about.bitsAndPieces?.items || []).length}
+                    title={item.label || 'Tab tanpa judul'}
+                    subtitle={item.value || 'Belum diisi'}
+                    onRemove={() => removeBitsAndPiecesItem(index)}
+                  >
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-[0.35fr_1fr]">
+                      <Field label="Nama tab"><input value={item.label || ''} onChange={(e) => updateBitsAndPiecesItem(index, { label: e.target.value })} className={inputCls} placeholder="Status / Currently Writing / Currently Reading" /></Field>
+                      <Field label="Isi"><textarea rows={3} value={item.value || ''} onChange={(e) => updateBitsAndPiecesItem(index, { value: e.target.value })} className={`${inputCls} resize-y`} placeholder="Isi tab" /></Field>
+                    </div>
+                  </ContentCard>
+                ))}
+              </div>
+            
+            </CollapsibleSection>
+
+
+            <CollapsibleSection sectionKey="about-lastfm" title="Last.fm / Listening Footnote">
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400">Last.fm / Listening Footnote</h3>
+                  <p className="mt-1 text-xs text-gray-500">Menampilkan lagu yang sedang atau terakhir didengar di area abu-abu kiri halaman About.</p>
+                
                 </div>
                 <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-200">
                   <input type="checkbox" checked={formData.about.listeningFootnote.enabled !== false} onChange={(e) => setListeningFootnote('enabled', e.target.checked)} className="h-4 w-4 accent-[#2B579A]" />
                   {formData.about.listeningFootnote.enabled !== false ? 'Ditampilkan' : 'Disembunyikan'}
                 </label>
               </div>
-              <Field label="Username Last.fm">
-                <input value={formData.about.listeningFootnote.username || ''} onChange={(e) => setListeningFootnote('username', e.target.value.trim())} className={inputCls} placeholder="contoh: haikalhafidz" />
-              </Field>
+              <Field label="Username Last.fm"><input value={formData.about.listeningFootnote.username || ''} onChange={(e) => setListeningFootnote('username', e.target.value)} className={inputCls} placeholder="Username Last.fm" /></Field>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <Field label="Label saat sedang memutar"><input value={formData.about.listeningFootnote.nowPlayingLabel || ''} onChange={(e) => setListeningFootnote('nowPlayingLabel', e.target.value)} className={inputCls} /></Field>
-                <Field label="Label lagu terakhir"><input value={formData.about.listeningFootnote.lastPlayedLabel || ''} onChange={(e) => setListeningFootnote('lastPlayedLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Label sedang diputar"><input value={formData.about.listeningFootnote.nowPlayingLabel || ''} onChange={(e) => setListeningFootnote('nowPlayingLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Label terakhir diputar"><input value={formData.about.listeningFootnote.lastPlayedLabel || ''} onChange={(e) => setListeningFootnote('lastPlayedLabel', e.target.value)} className={inputCls} /></Field>
                 <Field label="Label fallback"><input value={formData.about.listeningFootnote.fallbackLabel || ''} onChange={(e) => setListeningFootnote('fallbackLabel', e.target.value)} className={inputCls} /></Field>
               </div>
-              <div className="border-t border-blue-200 pt-4 dark:border-blue-900/70">
-                <p className="mb-3 text-[11px] text-gray-500">Fallback hanya dipakai saat Last.fm belum dikonfigurasi atau sedang gagal. Isi ini supaya kolom kiri tidak mendadak kosong.</p>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                  <Field label="Judul lagu fallback"><input value={formData.about.listeningFootnote.fallbackTitle || ''} onChange={(e) => setListeningFootnote('fallbackTitle', e.target.value)} className={inputCls} /></Field>
-                  <Field label="Artis fallback"><input value={formData.about.listeningFootnote.fallbackArtist || ''} onChange={(e) => setListeningFootnote('fallbackArtist', e.target.value)} className={inputCls} /></Field>
-                  <Field label="URL cover fallback"><input value={formData.about.listeningFootnote.fallbackImage || ''} onChange={(e) => setListeningFootnote('fallbackImage', e.target.value)} className={inputCls} placeholder="https://..." /></Field>
-                  <Field label="URL lagu fallback"><input value={formData.about.listeningFootnote.fallbackUrl || ''} onChange={(e) => setListeningFootnote('fallbackUrl', e.target.value)} className={inputCls} placeholder="https://..." /></Field>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4 rounded-lg border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-[#282828]">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400">Author Properties</h3>
-                  <p className="mt-1 text-xs text-gray-500">Panel informasi tambahan yang dibuka dari halaman About.</p>
-                </div>
-                <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-200">
-                  <input type="checkbox" checked={formData.about.authorProperties.enabled !== false} onChange={(e) => setAuthorPropertiesField('enabled', e.target.checked)} className="h-4 w-4 accent-[#2B579A]" />
-                  {formData.about.authorProperties.enabled !== false ? 'Ditampilkan' : 'Disembunyikan'}
-                </label>
-              </div>
-
+              <p className="text-xs text-gray-500">Fallback dipakai kalau live Last.fm belum tersedia.</p>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <Field label="Tulisan tombol"><input value={formData.about.authorProperties.buttonLabel || ''} onChange={(e) => setAuthorPropertiesField('buttonLabel', e.target.value)} className={inputCls} /></Field>
-                <Field label="Judul panel"><input value={formData.about.authorProperties.panelTitle || ''} onChange={(e) => setAuthorPropertiesField('panelTitle', e.target.value)} className={inputCls} /></Field>
+                <Field label="Judul lagu fallback"><input value={formData.about.listeningFootnote.fallbackTitle || ''} onChange={(e) => setListeningFootnote('fallbackTitle', e.target.value)} className={inputCls} /></Field>
+                <Field label="Artis fallback"><input value={formData.about.listeningFootnote.fallbackArtist || ''} onChange={(e) => setListeningFootnote('fallbackArtist', e.target.value)} className={inputCls} /></Field>
+                <Field label="URL cover fallback"><input value={formData.about.listeningFootnote.fallbackImage || ''} onChange={(e) => setListeningFootnote('fallbackImage', e.target.value)} className={inputCls} /></Field>
+                <Field label="Link lagu fallback"><input value={formData.about.listeningFootnote.fallbackUrl || ''} onChange={(e) => setListeningFootnote('fallbackUrl', e.target.value)} className={inputCls} /></Field>
               </div>
-              <Field label="Terakhir direvisi"><input value={formData.about.authorProperties.lastRevised || ''} onChange={(e) => setAuthorPropertiesField('lastRevised', e.target.value)} className={inputCls} placeholder="21 September 2026" /></Field>
-
-              <div className="max-h-[32rem] space-y-3 overflow-y-auto pr-1">
-                {formData.about.authorProperties.items.map((item, index) => (
-                  <ContentCard key={item.id || index} cardKey={`author-property-${item.id || index}`} listKey="authorProperties" idx={index} count={formData.about.authorProperties.items.length} title={item.label || `Property #${index + 1}`} subtitle={item.value || 'Belum diisi'} onRemove={() => removeAuthorProperty(index)}>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      <Field label="Label"><input value={item.label || ''} onChange={(e) => updateAuthorProperty(index, { label: e.target.value })} className={inputCls} placeholder="Currently writing" /></Field>
-                      <Field label="Isi"><input value={item.value || ''} onChange={(e) => updateAuthorProperty(index, { value: e.target.value })} className={inputCls} /></Field>
-                    </div>
-                    <div className="mt-3"><Field label="Link opsional"><input value={item.url || ''} onChange={(e) => updateAuthorProperty(index, { url: e.target.value })} className={inputCls} placeholder="https://open.spotify.com/…" /></Field></div>
-                  </ContentCard>
-                ))}
-              </div>
-              <button type="button" onClick={addAuthorProperty} className="rounded-md border border-dashed border-blue-400 px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30">+ Tambah Property</button>
-            </div>
+            </CollapsibleSection>
           </div>
         )}
 
@@ -2094,393 +4538,402 @@ export default function CmsDashboard({ data, onSave }) {
               </Field>
             </div>
 
-            <div className="space-y-3 rounded-lg border border-blue-100 bg-blue-50/50 p-3 dark:border-blue-900/60 dark:bg-blue-950/20">
-              <p className="text-xs font-bold text-blue-600 dark:text-blue-300">Career Archive Cover</p>
-              <Field label="Judul besar sampul"><textarea rows={2} value={formData.career.archiveTitle || ''} onChange={(e) => setCareerHeading('archiveTitle', e.target.value)} className={`${inputCls} resize-y`} placeholder="A record of work, study..." /></Field>
-              <Field label="Pengantar sampul"><textarea rows={2} value={formData.career.archiveIntro || ''} onChange={(e) => setCareerHeading('archiveIntro', e.target.value)} className={`${inputCls} resize-y`} /></Field>
-              <Field label="Tulisan tombol buka arsip"><input type="text" value={formData.career.archiveButtonLabel || ''} onChange={(e) => setCareerHeading('archiveButtonLabel', e.target.value)} className={inputCls} placeholder="Open career archive" /></Field>
-              <Field label="Tulisan tombol credentials"><input type="text" value={formData.career.credentialsButtonLabel || ''} onChange={(e) => setCareerHeading('credentialsButtonLabel', e.target.value)} className={inputCls} placeholder="View credentials" /></Field>
-            </div>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <CollapsibleSection sectionKey="career-archive-cover" title="Career Archive Cover">
+                <Field label="Judul besar sampul"><textarea rows={2} value={formData.career.archiveTitle || ''} onChange={(e) => setCareerHeading('archiveTitle', e.target.value)} className={`${inputCls} resize-y`} placeholder="A record of work, study..." /></Field>
+                <Field label="Pengantar sampul"><textarea rows={2} value={formData.career.archiveIntro || ''} onChange={(e) => setCareerHeading('archiveIntro', e.target.value)} className={`${inputCls} resize-y`} /></Field>
+                <Field label="Tulisan tombol buka arsip"><input type="text" value={formData.career.archiveButtonLabel || ''} onChange={(e) => setCareerHeading('archiveButtonLabel', e.target.value)} className={inputCls} placeholder="Open career archive" /></Field>
+              </CollapsibleSection>
 
-            {formData.career.categories.length === 0 && (
-              <p className="text-[11px] text-gray-400 italic">Belum ada kategori. Tambah salah satu tipe di bawah buat mulai.</p>
-            )}
-
-            {/* Pola tab pill: cuma 1 kategori yang keliatan isinya dalam satu waktu (Professional
-                ATAU College ATAU dst), sisanya ngumpet di balik pill-nya — sama kayak sub-tab
-                Articles/Poster di tab Projects. Ini yang bikin CMS gak numpuk-panjang kalau
-                kategorinya banyak. */}
-            {formData.career.categories.length > 0 && (() => {
-              const foundIdx = formData.career.categories.findIndex((c) => c.id === activeCareerCategory);
-              const catIdx = foundIdx === -1 ? 0 : foundIdx;
-              const category = formData.career.categories[catIdx];
-              const bgKey = category.id || catIdx;
-              const isCredential = category.type === 'credential';
-              const listKey = `career:${catIdx}`;
-
-              return (
-                <>
-                  <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-3 flex-wrap items-center">
-                    {formData.career.categories.map((cat, idx) => (
-                      <button
-                        key={cat.id || idx}
-                        type="button"
-                        onClick={() => setActiveCareerCategory(cat.id)}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${
-                          catIdx === idx
-                            ? 'bg-blue-600 text-white shadow-sm'
-                            : 'bg-gray-100 dark:bg-[#2d2d2d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#383838]'
-                        }`}
-                      >
-                        {cat.name || `Kategori #${idx + 1}`} ({cat.items.length})
-                      </button>
-                    ))}
-                    <button type="button" onClick={() => addCareerCategory('career')} className="rounded border border-dashed border-blue-400 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-950/30">+ Tambah Tab</button>
-                  </div>
-
-                  <div key={category.id || catIdx} className="space-y-3 p-4 rounded-lg border-2 border-gray-100 dark:border-gray-800">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                      <input
-                        type="text"
-                        value={category.name}
-                        onChange={(e) => setCareerCategoryName(catIdx, e.target.value)}
-                        placeholder="Nama Kategori (mis. Professional, Achievements, dst)"
-                        className={`${inputClsSm} font-semibold flex-1`}
-                      />
-                      <select
-                        value={category.type}
-                        onChange={(e) => setCareerCategoryType(catIdx, e.target.value)}
-                        className={`${inputClsSm} sm:w-56 shrink-0`}
-                      >
-                        <option value="career">{CAREER_TYPE_LABEL.career}</option>
-                        <option value="credential">{CAREER_TYPE_LABEL.credential}</option>
-                      </select>
-                      <RemoveBtn onClick={() => removeCareerCategory(catIdx)} label="Hapus Kategori" />
+              <CollapsibleSection sectionKey="career-view-credentials" title="View Credentials">
+                <Field label="Tulisan tombol credentials"><input type="text" value={formData.career.credentialsButtonLabel || ''} onChange={(e) => setCareerHeading('credentialsButtonLabel', e.target.value)} className={inputCls} placeholder="View credentials" /></Field>
+                <Field label="Judul halaman Credentials"><input value={formData.career.credentialsHeading || ''} onChange={(e) => setCareerHeading('credentialsHeading', e.target.value)} className={inputCls} /></Field>
+                  <Field label="Subheading halaman Credentials"><textarea rows={2} value={formData.career.credentialsSubheading || ''} onChange={(e) => setCareerHeading('credentialsSubheading', e.target.value)} className={`${inputCls} resize-y`} /></Field>
+                  <Field label="Tulisan kembali dari Credentials"><input value={formData.career.credentialsBackLabel || ''} onChange={(e) => setCareerHeading('credentialsBackLabel', e.target.value)} className={inputCls} /></Field>
+                </CollapsibleSection>
+              </div>
+  
+            <CollapsibleSection sectionKey="career-content-manager" title="Konten Career" subtitle="Kategori, item career, credentials, dan urutan konten">
+              {formData.career.categories.length === 0 && (
+                <p className="text-[11px] text-gray-400 italic">Belum ada kategori. Tambah salah satu tipe di bawah buat mulai.</p>
+              )}
+  
+              {/* Pola tab pill: cuma 1 kategori yang keliatan isinya dalam satu waktu (Professional
+                  ATAU College ATAU dst), sisanya ngumpet di balik pill-nya — sama kayak sub-tab
+                  Articles/Poster di tab Projects. Ini yang bikin CMS gak numpuk-panjang kalau
+                  kategorinya banyak. */}
+              {formData.career.categories.length > 0 && (() => {
+                const foundIdx = formData.career.categories.findIndex((c) => c.id === activeCareerCategory);
+                const catIdx = foundIdx === -1 ? 0 : foundIdx;
+                const category = formData.career.categories[catIdx];
+                const bgKey = category.id || catIdx;
+                const isCredential = category.type === 'credential';
+                const listKey = `career:${catIdx}`;
+  
+                return (
+                  <>
+                    <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-3 flex-wrap items-center">
+                      {formData.career.categories.map((cat, idx) => (
+                        <button
+                          key={cat.id || idx}
+                          type="button"
+                          onClick={() => { setActiveCareerCategory(cat.id); bumpCmsDomRevision(); }}
+                          className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${
+                            catIdx === idx
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'bg-gray-100 dark:bg-[#2d2d2d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#383838]'
+                          }`}
+                        >
+                          {cat.name || `Kategori #${idx + 1}`} ({cat.items.length})
+                        </button>
+                      ))}
+                      <button type="button" onClick={() => addCareerCategory('career')} className="rounded border border-dashed border-blue-400 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-950/30">+ Tambah Tab</button>
                     </div>
-
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                        {category.items.length} item — seret ⠿ atau pakai ▲▼ buat urutin
-                      </h3>
-                      <AddBtn onClick={() => addCareerItem(catIdx)} label="Tambah Item" />
-                    </div>
-
-                    {/* Gambar latar kartu menu kategori ini di halaman publik */}
-                    <div className="p-3 bg-blue-50/50 dark:bg-blue-950/20 rounded border border-dashed border-blue-200 dark:border-blue-900 space-y-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500">
-                        Gambar Latar Kartu Menu "{category.name || 'Tanpa Nama'}"
-                      </span>
-                      <div className="flex items-center gap-3">
-                        {category.bgImage && (
-                          <img src={category.bgImage} alt={category.name} className="w-16 h-12 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
+  
+                    <div key={category.id || catIdx} className="space-y-3 p-4 rounded-lg border-2 border-gray-100 dark:border-gray-800">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                        <input
+                          type="text"
+                          value={category.name}
+                          onChange={(e) => setCareerCategoryName(catIdx, e.target.value)}
+                          placeholder="Nama Kategori (mis. Professional, Achievements, dst)"
+                          className={`${inputClsSm} font-semibold flex-1`}
+                        />
+                        <select
+                          value={category.type}
+                          onChange={(e) => setCareerCategoryType(catIdx, e.target.value)}
+                          className={`${inputClsSm} sm:w-56 shrink-0`}
+                        >
+                          <option value="career">{CAREER_TYPE_LABEL.career}</option>
+                          <option value="credential">{CAREER_TYPE_LABEL.credential}</option>
+                        </select>
+                        <RemoveBtn onClick={() => removeCareerCategory(catIdx)} label="Hapus Kategori" />
+                      </div>
+  
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                          {category.items.length} item — seret ⠿ atau pakai ▲▼ buat urutin
+                        </h3>
+                        <AddBtn onClick={() => addCareerItem(catIdx)} label="Tambah Item" />
+                      </div>
+  
+                      {/* Gambar latar kartu menu kategori ini di halaman publik */}
+                      <div className="p-3 bg-blue-50/50 dark:bg-blue-950/20 rounded border border-dashed border-blue-200 dark:border-blue-900 space-y-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500">
+                          Gambar Latar Kartu Menu "{category.name || 'Tanpa Nama'}"
+                        </span>
+                        <div className="flex items-center gap-3">
+                          {category.bgImage && (
+                            <img src={category.bgImage} alt={category.name} className="w-16 h-12 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={uploadingCareerBg === bgKey}
+                            onChange={async (e) => {
+                              const file = e.target.files[0];
+                              if (!file) return;
+                              setUploadingCareerBg(bgKey);
+                              const url = await uploadImageToStorage(file);
+                              setUploadingCareerBg(null);
+                              if (url) setCareerBgImage(catIdx, url);
+                              e.target.value = '';
+                            }}
+                            className="flex-1 text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
+                          />
+                          {category.bgImage && (
+                            <button type="button" onClick={() => setCareerBgImage(catIdx, '')} className="text-[10px] text-red-500 hover:text-red-600 font-semibold shrink-0">
+                              Hapus
+                            </button>
+                          )}
+                        </div>
+                        {uploadingCareerBg === bgKey && (
+                          <p className="text-[10px] text-blue-500 animate-pulse">Mengupload gambar...</p>
                         )}
                         <input
-                          type="file"
-                          accept="image/*"
-                          disabled={uploadingCareerBg === bgKey}
-                          onChange={async (e) => {
-                            const file = e.target.files[0];
-                            if (!file) return;
-                            setUploadingCareerBg(bgKey);
-                            const url = await uploadImageToStorage(file);
-                            setUploadingCareerBg(null);
-                            if (url) setCareerBgImage(catIdx, url);
-                            e.target.value = '';
-                          }}
-                          className="flex-1 text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
+                          type="text"
+                          value={category.bgImage}
+                          onChange={(e) => setCareerBgImage(catIdx, e.target.value)}
+                          placeholder="Atau tempel URL gambar langsung di sini"
+                          className={inputClsSm}
                         />
-                        {category.bgImage && (
-                          <button type="button" onClick={() => setCareerBgImage(catIdx, '')} className="text-[10px] text-red-500 hover:text-red-600 font-semibold shrink-0">
-                            Hapus
-                          </button>
-                        )}
+                        <p className="text-[10px] text-gray-400">Kosongkan aja kalau belum ada — nanti otomatis pakai warna gradasi default.</p>
                       </div>
-                      {uploadingCareerBg === bgKey && (
-                        <p className="text-[10px] text-blue-500 animate-pulse">Mengupload gambar...</p>
+  
+                      {category.items.length === 0 && (
+                        <p className="text-[11px] text-gray-400 italic">Belum ada item.</p>
                       )}
-                      <input
-                        type="text"
-                        value={category.bgImage}
-                        onChange={(e) => setCareerBgImage(catIdx, e.target.value)}
-                        placeholder="Atau tempel URL gambar langsung di sini"
-                        className={inputClsSm}
-                      />
-                      <p className="text-[10px] text-gray-400">Kosongkan aja kalau belum ada — nanti otomatis pakai warna gradasi default.</p>
+  
+                      {/* -------- Item TIPE 'career': Posisi @ Instansi + pop-up detail instansi -------- */}
+                      {/* Collapsed by default (cuma judul + tombol Edit) — sama pola kayak Articles di
+                          tab Projects, biar kategori yang isinya banyak item (Professional, College, dst)
+                          gak numpuk-panjang sekaligus di layar. Klik "Edit" buat buka form lengkapnya.
+                          ReorderHandle (⠿ / ▲ / ▼) dipasang di kedua mode (collapsed & expanded) buat
+                          geser urutan item — misal item yang baru diupdate mau ditaruh paling atas. */}
+                      {!isCredential && category.items.map((item, idx) => {
+                        const itemKey = `${catIdx}-${idx}`;
+                        const isOpen = expandedCareerKey === itemKey;
+  
+                        if (!isOpen) {
+                          return (
+                            <div
+                              key={item.id || idx}
+                              onDragOver={handleDragOver}
+                              onDrop={handleDrop(listKey, idx)}
+                              className={`flex items-center gap-2 p-3 bg-gray-50 dark:bg-[#2d2d2d] rounded border border-gray-200 dark:border-gray-700 transition-opacity ${
+                                draggingKey === `${listKey}-${idx}` ? 'opacity-40' : ''
+                              }`}
+                            >
+                              <ReorderHandle listKey={listKey} idx={idx} count={category.items.length} />
+                              <button
+                                type="button"
+                                onClick={() => setExpandedCareerKey(itemKey)}
+                                className="flex-1 min-w-0 text-left"
+                              >
+                                <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                  {item.role || <span className="italic text-gray-400 font-normal">Item #{idx + 1} — belum ada judul</span>}
+                                </span>
+                                {(item.company || item.period) && (
+                                  <span className="block text-[10px] font-mono text-gray-400 mt-0.5 truncate">
+                                    {[item.company, item.period].filter(Boolean).join(' · ')}
+                                  </span>
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedCareerKey(itemKey)}
+                                className="text-[10px] px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 rounded font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/40 shrink-0"
+                              >
+                                Edit
+                              </button>
+                              <RemoveBtn onClick={() => removeCareerItem(catIdx, idx)} />
+                            </div>
+                          );
+                        }
+  
+                        return (
+                        <div
+                          key={item.id || idx}
+                          onDragOver={handleDragOver}
+                          onDrop={handleDrop(listKey, idx)}
+                          className={`p-4 bg-gray-50 dark:bg-[#2d2d2d] rounded border border-blue-300 dark:border-blue-700 space-y-3 transition-opacity ${
+                            draggingKey === `${listKey}-${idx}` ? 'opacity-40' : ''
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <ReorderHandle listKey={listKey} idx={idx} count={category.items.length} />
+                              <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">Item #{idx + 1}</h4>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={item.hintEnabled !== false}
+                                  onChange={(e) => setCareerItemField(catIdx, idx, 'hintEnabled', e.target.checked)}
+                                  className="accent-blue-600"
+                                />
+                                Blink pas mode Hint
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedCareerKey(null)}
+                                className="text-[10px] px-2.5 py-1 bg-gray-200 dark:bg-[#3a3a3a] text-gray-600 dark:text-gray-300 rounded font-semibold hover:bg-gray-300 dark:hover:bg-[#454545]"
+                              >
+                                Tutup
+                              </button>
+                              <RemoveBtn onClick={() => removeCareerItem(catIdx, idx)} label="Hapus Item" />
+                            </div>
+                          </div>
+  
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <input type="text" value={item.role} onChange={(e) => setCareerItemField(catIdx, idx, 'role', e.target.value)} placeholder="Posisi / Peran" className={inputClsSm} />
+                            <input type="text" value={item.company} onChange={(e) => setCareerItemField(catIdx, idx, 'company', e.target.value)} placeholder="Nama Instansi / Perusahaan" className={inputClsSm} />
+                            <input type="text" value={item.location} onChange={(e) => setCareerItemField(catIdx, idx, 'location', e.target.value)} placeholder="Lokasi" className={inputClsSm} />
+                            <input type="text" value={item.period} onChange={(e) => setCareerItemField(catIdx, idx, 'period', e.target.value)} placeholder="Periode (mis. 2024 – Present)" className={inputClsSm} />
+                          </div>
+                          <textarea rows={2} value={item.description} onChange={(e) => setCareerItemField(catIdx, idx, 'description', e.target.value)} placeholder="Deskripsi singkat" className={`${inputClsSm} resize-none`} />
+  
+                          <div className="space-y-2 rounded border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-900 dark:bg-blue-950/20">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-300">Version History</span>
+                            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                              <input type="number" value={item.timelineOrder ?? ''} onChange={(e) => setCareerItemField(catIdx, idx, 'timelineOrder', e.target.value)} placeholder="Urutan timeline (1, 2, 3...)" className={inputClsSm} />
+                              <input type="text" value={item.revisionTitle || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'revisionTitle', e.target.value)} placeholder="Judul refleksi (mis. Ideas became visible.)" className={inputClsSm} />
+                            </div>
+                            <textarea rows={2} value={item.shortSummary || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'shortSummary', e.target.value)} placeholder="Ringkasan pendek yang tampil di A4" className={`${inputClsSm} resize-y`} />
+                            <textarea rows={2} value={item.whatChanged || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'whatChanged', e.target.value)} placeholder="What changed — pelajaran/perubahan dari fase ini" className={`${inputClsSm} resize-y`} />
+                            <input type="text" value={item.coverImage || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'coverImage', e.target.value)} placeholder="URL gambar dokumentasi opsional (kosong = pakai foto instansi)" className={inputClsSm} />
+                            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                              <input type="text" value={item.relatedLabel || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'relatedLabel', e.target.value)} placeholder="Label related work" className={inputClsSm} />
+                              <input type="text" value={item.relatedUrl || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'relatedUrl', e.target.value)} placeholder="URL related work" className={inputClsSm} />
+                            </div>
+                          </div>
+  
+                          <div className="p-3 bg-white dark:bg-[#1e1e1e] rounded border border-dashed border-gray-300 dark:border-gray-600 space-y-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500">Pop-up Detail Instansi</span>
+                            <input type="text" value={item.companyInfo.name} onChange={(e) => setCareerCompanyInfoField(catIdx, idx, 'name', e.target.value)} placeholder="Nama Lengkap Instansi" className={inputClsSm} />
+                            <input type="text" value={item.companyInfo.address} onChange={(e) => setCareerCompanyInfoField(catIdx, idx, 'address', e.target.value)} placeholder="Alamat Instansi" className={inputClsSm} />
+  
+                            <div className="flex items-center gap-2">
+                              {item.companyInfo.photo && (
+                                <img src={item.companyInfo.photo} alt={item.companyInfo.name} className="w-10 h-10 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
+                              )}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                disabled={uploadingCompanyPhoto === `${catIdx}-${idx}`}
+                                onChange={async (e) => {
+                                  const file = e.target.files[0];
+                                  if (!file) return;
+                                  const key = `${catIdx}-${idx}`;
+                                  setUploadingCompanyPhoto(key);
+                                  const url = await uploadImageToStorage(file);
+                                  setUploadingCompanyPhoto(null);
+                                  if (url) setCareerCompanyInfoField(catIdx, idx, 'photo', url);
+                                  e.target.value = '';
+                                }}
+                                className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
+                              />
+                            </div>
+                            <input type="text" value={item.companyInfo.photo} onChange={(e) => setCareerCompanyInfoField(catIdx, idx, 'photo', e.target.value)} placeholder="Atau tempel URL Foto Instansi" className={inputClsSm} />
+  
+                            <textarea rows={2} value={item.companyInfo.about} onChange={(e) => setCareerCompanyInfoField(catIdx, idx, 'about', e.target.value)} placeholder="Deskripsi Singkat Instansi" className={`${inputClsSm} resize-none`} />
+                          </div>
+                        </div>
+                        );
+                      })}
+  
+                      {/* -------- Item TIPE 'credential': nama pencapaian/sertifikat, penyelenggara, tanggal, bukti -------- */}
+                      {/* Sama pola collapsed/expand + reorder kayak tipe 'career' di atas. */}
+                      {isCredential && category.items.map((item, idx) => {
+                        const itemKey = `${catIdx}-${idx}`;
+                        const isOpen = expandedCareerKey === itemKey;
+  
+                        if (!isOpen) {
+                          return (
+                            <div
+                              key={item.id || idx}
+                              onDragOver={handleDragOver}
+                              onDrop={handleDrop(listKey, idx)}
+                              className={`flex items-center gap-2 p-3 bg-gray-50 dark:bg-[#2d2d2d] rounded border border-gray-200 dark:border-gray-700 transition-opacity ${
+                                draggingKey === `${listKey}-${idx}` ? 'opacity-40' : ''
+                              }`}
+                            >
+                              <ReorderHandle listKey={listKey} idx={idx} count={category.items.length} />
+                              <button
+                                type="button"
+                                onClick={() => setExpandedCareerKey(itemKey)}
+                                className="flex-1 min-w-0 text-left"
+                              >
+                                <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                                  {item.title || <span className="italic text-gray-400 font-normal">Item #{idx + 1} — belum ada judul</span>}
+                                </span>
+                                {(item.issuer || item.date) && (
+                                  <span className="block text-[10px] font-mono text-gray-400 mt-0.5 truncate">
+                                    {[item.issuer, item.date].filter(Boolean).join(' · ')}
+                                  </span>
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedCareerKey(itemKey)}
+                                className="text-[10px] px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 rounded font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/40 shrink-0"
+                              >
+                                Edit
+                              </button>
+                              <RemoveBtn onClick={() => removeCareerItem(catIdx, idx)} />
+                            </div>
+                          );
+                        }
+  
+                        return (
+                        <div
+                          key={item.id || idx}
+                          onDragOver={handleDragOver}
+                          onDrop={handleDrop(listKey, idx)}
+                          className={`p-4 bg-gray-50 dark:bg-[#2d2d2d] rounded border border-blue-300 dark:border-blue-700 space-y-3 transition-opacity ${
+                            draggingKey === `${listKey}-${idx}` ? 'opacity-40' : ''
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <ReorderHandle listKey={listKey} idx={idx} count={category.items.length} />
+                              <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">Item #{idx + 1}</h4>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={item.hintEnabled !== false}
+                                  onChange={(e) => setCareerItemField(catIdx, idx, 'hintEnabled', e.target.checked)}
+                                  className="accent-blue-600"
+                                />
+                                Blink pas mode Hint
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedCareerKey(null)}
+                                className="text-[10px] px-2.5 py-1 bg-gray-200 dark:bg-[#3a3a3a] text-gray-600 dark:text-gray-300 rounded font-semibold hover:bg-gray-300 dark:hover:bg-[#454545]"
+                              >
+                                Tutup
+                              </button>
+                              <RemoveBtn onClick={() => removeCareerItem(catIdx, idx)} label="Hapus Item" />
+                            </div>
+                          </div>
+  
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <input type="text" value={item.title} onChange={(e) => setCareerItemField(catIdx, idx, 'title', e.target.value)} placeholder="Nama Pencapaian / Sertifikat" className={inputClsSm} />
+                            <input type="text" value={item.issuer} onChange={(e) => setCareerItemField(catIdx, idx, 'issuer', e.target.value)} placeholder="Penyelenggara / Penerbit" className={inputClsSm} />
+                            <input type="text" value={item.date} onChange={(e) => setCareerItemField(catIdx, idx, 'date', e.target.value)} placeholder="Tanggal (mis. Mei 2026)" className={inputClsSm} />
+                            <input type="text" value={item.verifyUrl} onChange={(e) => setCareerItemField(catIdx, idx, 'verifyUrl', e.target.value)} placeholder="Link Verifikasi / Bukti (opsional)" className={inputClsSm} />
+                          </div>
+                          <textarea rows={2} value={item.description} onChange={(e) => setCareerItemField(catIdx, idx, 'description', e.target.value)} placeholder="Deskripsi singkat (opsional)" className={`${inputClsSm} resize-none`} />
+  
+                          <div className="space-y-2 rounded border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-900 dark:bg-blue-950/20">
+                            <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-200">
+                              <input type="checkbox" checked={item.showOnTimeline === true} onChange={(e) => setCareerItemField(catIdx, idx, 'showOnTimeline', e.target.checked)} className="accent-blue-600" />
+                              Jadikan credential ini milestone utama di Version History
+                            </label>
+                            {item.showOnTimeline === true && <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                              <input type="number" value={item.timelineOrder ?? ''} onChange={(e) => setCareerItemField(catIdx, idx, 'timelineOrder', e.target.value)} placeholder="Urutan timeline" className={inputClsSm} />
+                              <input type="text" value={item.revisionTitle || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'revisionTitle', e.target.value)} placeholder="Judul refleksi" className={inputClsSm} />
+                              <textarea rows={2} value={item.whatChanged || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'whatChanged', e.target.value)} placeholder="What changed" className={`${inputClsSm} resize-y md:col-span-2`} />
+                            </div>}
+                          </div>
+  
+                          <div className="p-3 bg-white dark:bg-[#1e1e1e] rounded border border-dashed border-gray-300 dark:border-gray-600 space-y-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500">Gambar Bukti (sertifikat/foto pencapaian)</span>
+                            <div className="flex items-center gap-2">
+                              {item.image && (
+                                <img src={item.image} alt={item.title} className="w-14 h-14 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
+                              )}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                disabled={uploadingCompanyPhoto === `${catIdx}-${idx}`}
+                                onChange={async (e) => {
+                                  const file = e.target.files[0];
+                                  if (!file) return;
+                                  const key = `${catIdx}-${idx}`;
+                                  setUploadingCompanyPhoto(key);
+                                  const url = await uploadImageToStorage(file);
+                                  setUploadingCompanyPhoto(null);
+                                  if (url) setCareerItemField(catIdx, idx, 'image', url);
+                                  e.target.value = '';
+                                }}
+                                className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
+                              />
+                            </div>
+                            <input type="text" value={item.image} onChange={(e) => setCareerItemField(catIdx, idx, 'image', e.target.value)} placeholder="Atau tempel URL Gambar" className={inputClsSm} />
+                          </div>
+                        </div>
+                        );
+                      })}
                     </div>
-
-                    {category.items.length === 0 && (
-                      <p className="text-[11px] text-gray-400 italic">Belum ada item.</p>
-                    )}
-
-                    {/* -------- Item TIPE 'career': Posisi @ Instansi + pop-up detail instansi -------- */}
-                    {/* Collapsed by default (cuma judul + tombol Edit) — sama pola kayak Articles di
-                        tab Projects, biar kategori yang isinya banyak item (Professional, College, dst)
-                        gak numpuk-panjang sekaligus di layar. Klik "Edit" buat buka form lengkapnya.
-                        ReorderHandle (⠿ / ▲ / ▼) dipasang di kedua mode (collapsed & expanded) buat
-                        geser urutan item — misal item yang baru diupdate mau ditaruh paling atas. */}
-                    {!isCredential && category.items.map((item, idx) => {
-                      const itemKey = `${catIdx}-${idx}`;
-                      const isOpen = expandedCareerKey === itemKey;
-
-                      if (!isOpen) {
-                        return (
-                          <div
-                            key={item.id || idx}
-                            onDragOver={handleDragOver}
-                            onDrop={handleDrop(listKey, idx)}
-                            className={`flex items-center gap-2 p-3 bg-gray-50 dark:bg-[#2d2d2d] rounded border border-gray-200 dark:border-gray-700 transition-opacity ${
-                              draggingKey === `${listKey}-${idx}` ? 'opacity-40' : ''
-                            }`}
-                          >
-                            <ReorderHandle listKey={listKey} idx={idx} count={category.items.length} />
-                            <button
-                              type="button"
-                              onClick={() => setExpandedCareerKey(itemKey)}
-                              className="flex-1 min-w-0 text-left"
-                            >
-                              <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                                {item.role || <span className="italic text-gray-400 font-normal">Item #{idx + 1} — belum ada judul</span>}
-                              </span>
-                              {(item.company || item.period) && (
-                                <span className="block text-[10px] font-mono text-gray-400 mt-0.5 truncate">
-                                  {[item.company, item.period].filter(Boolean).join(' · ')}
-                                </span>
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setExpandedCareerKey(itemKey)}
-                              className="text-[10px] px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 rounded font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/40 shrink-0"
-                            >
-                              Edit
-                            </button>
-                            <RemoveBtn onClick={() => removeCareerItem(catIdx, idx)} />
-                          </div>
-                        );
-                      }
-
-                      return (
-                      <div
-                        key={item.id || idx}
-                        onDragOver={handleDragOver}
-                        onDrop={handleDrop(listKey, idx)}
-                        className={`p-4 bg-gray-50 dark:bg-[#2d2d2d] rounded border border-blue-300 dark:border-blue-700 space-y-3 transition-opacity ${
-                          draggingKey === `${listKey}-${idx}` ? 'opacity-40' : ''
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <ReorderHandle listKey={listKey} idx={idx} count={category.items.length} />
-                            <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">Item #{idx + 1}</h4>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
-                              <input
-                                type="checkbox"
-                                checked={item.hintEnabled !== false}
-                                onChange={(e) => setCareerItemField(catIdx, idx, 'hintEnabled', e.target.checked)}
-                                className="accent-blue-600"
-                              />
-                              Blink pas mode Hint
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => setExpandedCareerKey(null)}
-                              className="text-[10px] px-2.5 py-1 bg-gray-200 dark:bg-[#3a3a3a] text-gray-600 dark:text-gray-300 rounded font-semibold hover:bg-gray-300 dark:hover:bg-[#454545]"
-                            >
-                              Tutup
-                            </button>
-                            <RemoveBtn onClick={() => removeCareerItem(catIdx, idx)} label="Hapus Item" />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          <input type="text" value={item.role} onChange={(e) => setCareerItemField(catIdx, idx, 'role', e.target.value)} placeholder="Posisi / Peran" className={inputClsSm} />
-                          <input type="text" value={item.company} onChange={(e) => setCareerItemField(catIdx, idx, 'company', e.target.value)} placeholder="Nama Instansi / Perusahaan" className={inputClsSm} />
-                          <input type="text" value={item.location} onChange={(e) => setCareerItemField(catIdx, idx, 'location', e.target.value)} placeholder="Lokasi" className={inputClsSm} />
-                          <input type="text" value={item.period} onChange={(e) => setCareerItemField(catIdx, idx, 'period', e.target.value)} placeholder="Periode (mis. 2024 – Present)" className={inputClsSm} />
-                        </div>
-                        <textarea rows={2} value={item.description} onChange={(e) => setCareerItemField(catIdx, idx, 'description', e.target.value)} placeholder="Deskripsi singkat" className={`${inputClsSm} resize-none`} />
-
-                        <div className="space-y-2 rounded border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-900 dark:bg-blue-950/20">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-300">Version History</span>
-                          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                            <input type="number" value={item.timelineOrder ?? ''} onChange={(e) => setCareerItemField(catIdx, idx, 'timelineOrder', e.target.value)} placeholder="Urutan timeline (1, 2, 3...)" className={inputClsSm} />
-                            <input type="text" value={item.revisionTitle || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'revisionTitle', e.target.value)} placeholder="Judul refleksi (mis. Ideas became visible.)" className={inputClsSm} />
-                          </div>
-                          <textarea rows={2} value={item.shortSummary || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'shortSummary', e.target.value)} placeholder="Ringkasan pendek yang tampil di A4" className={`${inputClsSm} resize-y`} />
-                          <textarea rows={2} value={item.whatChanged || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'whatChanged', e.target.value)} placeholder="What changed — pelajaran/perubahan dari fase ini" className={`${inputClsSm} resize-y`} />
-                          <input type="text" value={item.coverImage || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'coverImage', e.target.value)} placeholder="URL gambar dokumentasi opsional (kosong = pakai foto instansi)" className={inputClsSm} />
-                          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                            <input type="text" value={item.relatedLabel || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'relatedLabel', e.target.value)} placeholder="Label related work" className={inputClsSm} />
-                            <input type="text" value={item.relatedUrl || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'relatedUrl', e.target.value)} placeholder="URL related work" className={inputClsSm} />
-                          </div>
-                        </div>
-
-                        <div className="p-3 bg-white dark:bg-[#1e1e1e] rounded border border-dashed border-gray-300 dark:border-gray-600 space-y-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500">Pop-up Detail Instansi</span>
-                          <input type="text" value={item.companyInfo.name} onChange={(e) => setCareerCompanyInfoField(catIdx, idx, 'name', e.target.value)} placeholder="Nama Lengkap Instansi" className={inputClsSm} />
-                          <input type="text" value={item.companyInfo.address} onChange={(e) => setCareerCompanyInfoField(catIdx, idx, 'address', e.target.value)} placeholder="Alamat Instansi" className={inputClsSm} />
-
-                          <div className="flex items-center gap-2">
-                            {item.companyInfo.photo && (
-                              <img src={item.companyInfo.photo} alt={item.companyInfo.name} className="w-10 h-10 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
-                            )}
-                            <input
-                              type="file"
-                              accept="image/*"
-                              disabled={uploadingCompanyPhoto === `${catIdx}-${idx}`}
-                              onChange={async (e) => {
-                                const file = e.target.files[0];
-                                if (!file) return;
-                                const key = `${catIdx}-${idx}`;
-                                setUploadingCompanyPhoto(key);
-                                const url = await uploadImageToStorage(file);
-                                setUploadingCompanyPhoto(null);
-                                if (url) setCareerCompanyInfoField(catIdx, idx, 'photo', url);
-                                e.target.value = '';
-                              }}
-                              className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
-                            />
-                          </div>
-                          <input type="text" value={item.companyInfo.photo} onChange={(e) => setCareerCompanyInfoField(catIdx, idx, 'photo', e.target.value)} placeholder="Atau tempel URL Foto Instansi" className={inputClsSm} />
-
-                          <textarea rows={2} value={item.companyInfo.about} onChange={(e) => setCareerCompanyInfoField(catIdx, idx, 'about', e.target.value)} placeholder="Deskripsi Singkat Instansi" className={`${inputClsSm} resize-none`} />
-                        </div>
-                      </div>
-                      );
-                    })}
-
-                    {/* -------- Item TIPE 'credential': nama pencapaian/sertifikat, penyelenggara, tanggal, bukti -------- */}
-                    {/* Sama pola collapsed/expand + reorder kayak tipe 'career' di atas. */}
-                    {isCredential && category.items.map((item, idx) => {
-                      const itemKey = `${catIdx}-${idx}`;
-                      const isOpen = expandedCareerKey === itemKey;
-
-                      if (!isOpen) {
-                        return (
-                          <div
-                            key={item.id || idx}
-                            onDragOver={handleDragOver}
-                            onDrop={handleDrop(listKey, idx)}
-                            className={`flex items-center gap-2 p-3 bg-gray-50 dark:bg-[#2d2d2d] rounded border border-gray-200 dark:border-gray-700 transition-opacity ${
-                              draggingKey === `${listKey}-${idx}` ? 'opacity-40' : ''
-                            }`}
-                          >
-                            <ReorderHandle listKey={listKey} idx={idx} count={category.items.length} />
-                            <button
-                              type="button"
-                              onClick={() => setExpandedCareerKey(itemKey)}
-                              className="flex-1 min-w-0 text-left"
-                            >
-                              <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                                {item.title || <span className="italic text-gray-400 font-normal">Item #{idx + 1} — belum ada judul</span>}
-                              </span>
-                              {(item.issuer || item.date) && (
-                                <span className="block text-[10px] font-mono text-gray-400 mt-0.5 truncate">
-                                  {[item.issuer, item.date].filter(Boolean).join(' · ')}
-                                </span>
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setExpandedCareerKey(itemKey)}
-                              className="text-[10px] px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 rounded font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/40 shrink-0"
-                            >
-                              Edit
-                            </button>
-                            <RemoveBtn onClick={() => removeCareerItem(catIdx, idx)} />
-                          </div>
-                        );
-                      }
-
-                      return (
-                      <div
-                        key={item.id || idx}
-                        onDragOver={handleDragOver}
-                        onDrop={handleDrop(listKey, idx)}
-                        className={`p-4 bg-gray-50 dark:bg-[#2d2d2d] rounded border border-blue-300 dark:border-blue-700 space-y-3 transition-opacity ${
-                          draggingKey === `${listKey}-${idx}` ? 'opacity-40' : ''
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <ReorderHandle listKey={listKey} idx={idx} count={category.items.length} />
-                            <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">Item #{idx + 1}</h4>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
-                              <input
-                                type="checkbox"
-                                checked={item.hintEnabled !== false}
-                                onChange={(e) => setCareerItemField(catIdx, idx, 'hintEnabled', e.target.checked)}
-                                className="accent-blue-600"
-                              />
-                              Blink pas mode Hint
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => setExpandedCareerKey(null)}
-                              className="text-[10px] px-2.5 py-1 bg-gray-200 dark:bg-[#3a3a3a] text-gray-600 dark:text-gray-300 rounded font-semibold hover:bg-gray-300 dark:hover:bg-[#454545]"
-                            >
-                              Tutup
-                            </button>
-                            <RemoveBtn onClick={() => removeCareerItem(catIdx, idx)} label="Hapus Item" />
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          <input type="text" value={item.title} onChange={(e) => setCareerItemField(catIdx, idx, 'title', e.target.value)} placeholder="Nama Pencapaian / Sertifikat" className={inputClsSm} />
-                          <input type="text" value={item.issuer} onChange={(e) => setCareerItemField(catIdx, idx, 'issuer', e.target.value)} placeholder="Penyelenggara / Penerbit" className={inputClsSm} />
-                          <input type="text" value={item.date} onChange={(e) => setCareerItemField(catIdx, idx, 'date', e.target.value)} placeholder="Tanggal (mis. Mei 2026)" className={inputClsSm} />
-                          <input type="text" value={item.verifyUrl} onChange={(e) => setCareerItemField(catIdx, idx, 'verifyUrl', e.target.value)} placeholder="Link Verifikasi / Bukti (opsional)" className={inputClsSm} />
-                        </div>
-                        <textarea rows={2} value={item.description} onChange={(e) => setCareerItemField(catIdx, idx, 'description', e.target.value)} placeholder="Deskripsi singkat (opsional)" className={`${inputClsSm} resize-none`} />
-
-                        <div className="space-y-2 rounded border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-900 dark:bg-blue-950/20">
-                          <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-200">
-                            <input type="checkbox" checked={item.showOnTimeline === true} onChange={(e) => setCareerItemField(catIdx, idx, 'showOnTimeline', e.target.checked)} className="accent-blue-600" />
-                            Jadikan credential ini milestone utama di Version History
-                          </label>
-                          {item.showOnTimeline === true && <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                            <input type="number" value={item.timelineOrder ?? ''} onChange={(e) => setCareerItemField(catIdx, idx, 'timelineOrder', e.target.value)} placeholder="Urutan timeline" className={inputClsSm} />
-                            <input type="text" value={item.revisionTitle || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'revisionTitle', e.target.value)} placeholder="Judul refleksi" className={inputClsSm} />
-                            <textarea rows={2} value={item.whatChanged || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'whatChanged', e.target.value)} placeholder="What changed" className={`${inputClsSm} resize-y md:col-span-2`} />
-                          </div>}
-                        </div>
-
-                        <div className="p-3 bg-white dark:bg-[#1e1e1e] rounded border border-dashed border-gray-300 dark:border-gray-600 space-y-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500">Gambar Bukti (sertifikat/foto pencapaian)</span>
-                          <div className="flex items-center gap-2">
-                            {item.image && (
-                              <img src={item.image} alt={item.title} className="w-14 h-14 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
-                            )}
-                            <input
-                              type="file"
-                              accept="image/*"
-                              disabled={uploadingCompanyPhoto === `${catIdx}-${idx}`}
-                              onChange={async (e) => {
-                                const file = e.target.files[0];
-                                if (!file) return;
-                                const key = `${catIdx}-${idx}`;
-                                setUploadingCompanyPhoto(key);
-                                const url = await uploadImageToStorage(file);
-                                setUploadingCompanyPhoto(null);
-                                if (url) setCareerItemField(catIdx, idx, 'image', url);
-                                e.target.value = '';
-                              }}
-                              className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
-                            />
-                          </div>
-                          <input type="text" value={item.image} onChange={(e) => setCareerItemField(catIdx, idx, 'image', e.target.value)} placeholder="Atau tempel URL Gambar" className={inputClsSm} />
-                        </div>
-                      </div>
-                      );
-                    })}
-                  </div>
-                </>
-              );
-            })()}
+                  </>
+                );
+              })()}
+            </CollapsibleSection>
 
           </div>
         )}
@@ -2488,12 +4941,11 @@ export default function CmsDashboard({ data, onSave }) {
         {/* ================= BOOK ================= */}
         {activeTab === 'book' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between border-b pb-2 border-gray-100 dark:border-gray-800">
-              <h2 className="text-sm font-bold text-blue-600 dark:text-blue-400">Tab Book</h2>
-              <AddBtn onClick={addBook} label="Tambah Buku/Karya" />
-            </div>
+            <div className="border-b pb-2 border-gray-100 dark:border-gray-800"><h2 className="text-sm font-bold text-blue-600 dark:text-blue-400">Tab Book</h2></div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Field label="Nama tab karya saya"><input type="text" value={formData.books.worksTabLabel || ''} onChange={(e) => setBooksHeading('worksTabLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Nama tab buku yang dibaca"><input type="text" value={formData.books.readingTabLabel || ''} onChange={(e) => setBooksHeading('readingTabLabel', e.target.value)} className={inputCls} /></Field>
               <Field label="Judul Halaman (mis. Books, Writings & Open Source)">
                 <input type="text" value={formData.books.heading} onChange={(e) => setBooksHeading('heading', e.target.value)} className={inputCls} />
               </Field>
@@ -2502,132 +4954,266 @@ export default function CmsDashboard({ data, onSave }) {
               </Field>
             </div>
 
-            {formData.books.items.length === 0 && (
-              <p className="text-[11px] text-gray-400 italic">Belum ada karya.</p>
-            )}
-
-            {formData.books.items.map((book, idx) => (
-              <ContentCard key={book.id || idx} cardKey={`book-${book.id || idx}`} listKey="books" idx={idx} count={formData.books.items.length} title={book.title || `Buku/Karya #${idx + 1}`} subtitle={[book.category, book.pageCount ? `${book.pageCount} halaman` : ''].filter(Boolean).join(' · ')} onRemove={() => removeBook(idx)}>
-                  <div className="flex flex-wrap justify-end gap-4">
-                    <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
-                      <input type="checkbox" checked={book.featured === true} onChange={(e) => setExclusiveBookFlag(idx, 'featured', e.target.checked)} className="accent-blue-600" />
-                      Current Manuscript
-                    </label>
-                    <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
-                      <input type="checkbox" checked={book.startHere === true} onChange={(e) => setExclusiveBookFlag(idx, 'startHere', e.target.checked)} className="accent-blue-600" />
-                      Start Here
-                    </label>
-                    <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={book.hintEnabled !== false}
-                        onChange={(e) => setBookField(idx, 'hintEnabled', e.target.checked)}
-                        className="accent-blue-600"
-                      />
-                      Blink pas mode Hint
-                    </label>
-                  </div>
-                <input type="text" value={book.title} onChange={(e) => setBookField(idx, 'title', e.target.value)} placeholder="Judul Buku / Karya" className={inputClsSm} />
-                <Field label="Peran / Kontribusi Saya">
-                  <input type="text" value={book.myRoles || ''} onChange={(e) => setBookField(idx, 'myRoles', e.target.value)} placeholder="Penulis, Editor, Desainer Buku (pisahkan dengan koma)" className={inputClsSm} />
-                  <p className="mt-1 text-[10px] leading-relaxed text-gray-400">Boleh satu atau beberapa peran. Urutan yang ditulis di sini menjadi urutan chip pada Book Autopsy.</p>
-                </Field>
-                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                  <input type="text" value={book.author || ''} onChange={(e) => setBookField(idx, 'author', e.target.value)} placeholder="Nama penulis" className={inputClsSm} />
-                  <input type="text" value={book.publisher || ''} onChange={(e) => setBookField(idx, 'publisher', e.target.value)} placeholder="Penerbit / imprint" className={inputClsSm} />
-                  <input type="text" value={book.publicationDate || ''} onChange={(e) => setBookField(idx, 'publicationDate', e.target.value)} placeholder="Tanggal terbit (mis. September 2026)" className={inputClsSm} />
-                  <input type="text" value={book.isbn || ''} onChange={(e) => setBookField(idx, 'isbn', e.target.value)} placeholder="ISBN (opsional)" className={inputClsSm} />
-                  <input type="text" value={book.edition || ''} onChange={(e) => setBookField(idx, 'edition', e.target.value)} placeholder="Edisi (opsional)" className={inputClsSm} />
-                </div>
-                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                  <input type="text" value={book.category} onChange={(e) => setBookField(idx, 'category', e.target.value)} placeholder="Kategori (mis. Fiksi / Esai)" className={inputClsSm} />
-                  <select value={book.status || 'published'} onChange={(e) => setBookField(idx, 'status', e.target.value)} className={inputClsSm}>
-                    <option value="published">Published</option><option value="writing">In Progress</option><option value="draft">Draft</option><option value="archived">Archived</option>
-                  </select>
-                  <input type="text" value={book.year || ''} onChange={(e) => setBookField(idx, 'year', e.target.value)} placeholder="Tahun (mis. 2026)" className={inputClsSm} />
-                  <input type="text" value={book.language || ''} onChange={(e) => setBookField(idx, 'language', e.target.value)} placeholder="Bahasa" className={inputClsSm} />
-                  <input type="text" value={book.format || ''} onChange={(e) => setBookField(idx, 'format', e.target.value)} placeholder="Format (Novel, E-Book, Booklet...)" className={inputClsSm} />
-                  <input type="number" min="0" max="100" value={book.progress || ''} onChange={(e) => setBookField(idx, 'progress', e.target.value)} placeholder="Progress naskah (%)" className={inputClsSm} />
-                </div>
-                <textarea rows={2} value={book.pitch || ''} onChange={(e) => setBookField(idx, 'pitch', e.target.value)} placeholder="One-line pitch — satu kalimat yang menjual gagasan karya" className={`${inputClsSm} resize-none`} />
-                <textarea rows={2} value={book.summary} onChange={(e) => setBookField(idx, 'summary', e.target.value)} placeholder="Ringkasan singkat" className={`${inputClsSm} resize-none`} />
-                <textarea rows={3} value={book.fullDescription} onChange={(e) => setBookField(idx, 'fullDescription', e.target.value)} placeholder="Deskripsi lengkap" className={`${inputClsSm} resize-none`} />
-                <textarea rows={3} value={book.whyWritten || ''} onChange={(e) => setBookField(idx, 'whyWritten', e.target.value)} placeholder="Why I wrote this — alasan personal/kreatif menulis karya ini" className={`${inputClsSm} resize-none`} />
-
-                <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-900 dark:bg-blue-950/20">
-                  <div className="mb-2">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-700 dark:text-blue-300">Book Autopsy</p>
-                    <p className="mt-1 text-[10px] leading-relaxed text-gray-500 dark:text-gray-400">Empat catatan pendek yang mengelilingi cover di halaman Book. Kosongkan field yang tidak ingin ditampilkan.</p>
+            <CollapsibleSection sectionKey="book-content-manager" title="Konten Book" subtitle="My Books dan Books I Read">
+              <section className="mt-6 space-y-4 border-t border-gray-200 pt-6 dark:border-gray-700"><div className="flex items-center justify-between"><div><h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">My Books</h3><p className="mt-1 text-[10px] text-gray-400">Pengaturan karya / buku saya.</p></div><AddBtn onClick={addBook} label="Tambah Buku/Karya" /></div>
+              {formData.books.items.map((book, idx) => (
+                <ContentCard key={book.id || idx} cardKey={`book-${book.id || idx}`} listKey="books" idx={idx} count={formData.books.items.length} title={book.title || `Buku/Karya #${idx + 1}`} subtitle={[book.category, book.pageCount ? `${book.pageCount} halaman` : ''].filter(Boolean).join(' · ')} onRemove={() => removeBook(idx)}>
+                    <div className="flex flex-wrap justify-end gap-4">
+                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+                        <input type="checkbox" checked={book.featured === true} onChange={(e) => setExclusiveBookFlag(idx, 'featured', e.target.checked)} className="accent-blue-600" />
+                        Current Manuscript
+                      </label>
+                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+                        <input type="checkbox" checked={book.startHere === true} onChange={(e) => setExclusiveBookFlag(idx, 'startHere', e.target.checked)} className="accent-blue-600" />
+                        Start Here
+                      </label>
+                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={book.hintEnabled !== false}
+                          onChange={(e) => setBookField(idx, 'hintEnabled', e.target.checked)}
+                          className="accent-blue-600"
+                        />
+                        Blink pas mode Hint
+                      </label>
+                    </div>
+                  <input type="text" value={book.title} onChange={(e) => setBookField(idx, 'title', e.target.value)} placeholder="Judul Buku / Karya" className={inputClsSm} />
+                  <Field label="Peran / Kontribusi Saya">
+                    <input type="text" value={book.myRoles || ''} onChange={(e) => setBookField(idx, 'myRoles', e.target.value)} placeholder="Penulis, Editor, Desainer Buku (pisahkan dengan koma)" className={inputClsSm} />
+                    <p className="mt-1 text-[10px] leading-relaxed text-gray-400">Boleh satu atau beberapa peran. Urutan yang ditulis di sini menjadi urutan chip pada Book Autopsy.</p>
+                  </Field>
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    <input type="text" value={book.author || ''} onChange={(e) => setBookField(idx, 'author', e.target.value)} placeholder="Nama penulis" className={inputClsSm} />
+                    <input type="text" value={book.publisher || ''} onChange={(e) => setBookField(idx, 'publisher', e.target.value)} placeholder="Penerbit / imprint" className={inputClsSm} />
+                    <input type="text" value={book.publicationDate || ''} onChange={(e) => setBookField(idx, 'publicationDate', e.target.value)} placeholder="Tanggal terbit (mis. September 2026)" className={inputClsSm} />
+                    <input type="text" value={book.isbn || ''} onChange={(e) => setBookField(idx, 'isbn', e.target.value)} placeholder="ISBN (opsional)" className={inputClsSm} />
+                    <input type="text" value={book.edition || ''} onChange={(e) => setBookField(idx, 'edition', e.target.value)} placeholder="Edisi (opsional)" className={inputClsSm} />
                   </div>
                   <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    <textarea rows={2} value={book.origin || ''} onChange={(e) => setBookField(idx, 'origin', e.target.value)} placeholder="Origin — dari mana gagasan buku ini lahir?" className={`${inputClsSm} resize-none`} />
-                    <textarea rows={2} value={book.coreQuestion || ''} onChange={(e) => setBookField(idx, 'coreQuestion', e.target.value)} placeholder="Core Question — pertanyaan utama buku" className={`${inputClsSm} resize-none`} />
-                    <textarea rows={2} value={book.writtenDuring || ''} onChange={(e) => setBookField(idx, 'writtenDuring', e.target.value)} placeholder="Written During — periode atau keadaan saat ditulis" className={`${inputClsSm} resize-none`} />
-                    <textarea rows={2} value={book.almostDeleted || ''} onChange={(e) => setBookField(idx, 'almostDeleted', e.target.value)} placeholder="Almost Deleted — bagian yang nyaris dibuang" className={`${inputClsSm} resize-none`} />
+                    <input type="text" value={book.category} onChange={(e) => setBookField(idx, 'category', e.target.value)} placeholder="Kategori (mis. Fiksi / Esai)" className={inputClsSm} />
+                    <select value={book.status || 'published'} onChange={(e) => setBookField(idx, 'status', e.target.value)} className={inputClsSm}>
+                      <option value="published">Published</option><option value="writing">In Progress</option><option value="draft">Draft</option><option value="archived">Archived</option>
+                    </select>
+                    <input type="text" value={book.year || ''} onChange={(e) => setBookField(idx, 'year', e.target.value)} placeholder="Tahun (mis. 2026)" className={inputClsSm} />
+                    <input type="text" value={book.language || ''} onChange={(e) => setBookField(idx, 'language', e.target.value)} placeholder="Bahasa" className={inputClsSm} />
+                    <input type="text" value={book.format || ''} onChange={(e) => setBookField(idx, 'format', e.target.value)} placeholder="Format (Novel, E-Book, Booklet...)" className={inputClsSm} />
+                    <input type="number" min="0" max="100" value={book.progress || ''} onChange={(e) => setBookField(idx, 'progress', e.target.value)} placeholder="Progress naskah (%)" className={inputClsSm} />
                   </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {book.coverImage && (
-                    <img src={book.coverImage} alt={book.title} className="w-10 h-14 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    disabled={uploadingBookCover === idx}
-                    onChange={async (e) => {
-                      const file = e.target.files[0];
-                      if (!file) return;
-                      setUploadingBookCover(idx);
-                      const url = await uploadImageToStorage(file);
-                      setUploadingBookCover(null);
-                      if (url) setBookField(idx, 'coverImage', url);
-                      e.target.value = '';
-                    }}
-                    className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
-                  />
-                </div>
-                <input type="text" value={book.coverImage} onChange={(e) => setBookField(idx, 'coverImage', e.target.value)} placeholder="Atau tempel URL Cover Buku" className={inputClsSm} />
-
-                <div className="pt-1 border-t border-gray-200 dark:border-gray-700">
-                  <p className="text-[10px] text-gray-400 mb-1.5 mt-2">
-                    Foto overview — muncul di halaman kiri pas sampul buku diklik/dibuka di halaman publik (opsional)
-                  </p>
+                  <textarea rows={2} value={book.pitch || ''} onChange={(e) => setBookField(idx, 'pitch', e.target.value)} placeholder="One-line pitch — satu kalimat yang menjual gagasan karya" className={`${inputClsSm} resize-none`} />
+                  <textarea rows={2} value={book.summary} onChange={(e) => setBookField(idx, 'summary', e.target.value)} placeholder="Ringkasan singkat" className={`${inputClsSm} resize-none`} />
+                  <textarea rows={3} value={book.fullDescription} onChange={(e) => setBookField(idx, 'fullDescription', e.target.value)} placeholder="Deskripsi lengkap" className={`${inputClsSm} resize-none`} />
+                  <textarea rows={3} value={book.whyWritten || ''} onChange={(e) => setBookField(idx, 'whyWritten', e.target.value)} placeholder="Why I wrote this — alasan personal/kreatif menulis karya ini" className={`${inputClsSm} resize-none`} />
+  
+                  <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-900 dark:bg-blue-950/20">
+                    <div className="mb-2">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-700 dark:text-blue-300">Book Autopsy</p>
+                      <p className="mt-1 text-[10px] leading-relaxed text-gray-500 dark:text-gray-400">Empat catatan pendek yang mengelilingi cover di halaman Book. Kosongkan field yang tidak ingin ditampilkan.</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <textarea rows={2} value={book.origin || ''} onChange={(e) => setBookField(idx, 'origin', e.target.value)} placeholder="Origin — dari mana gagasan buku ini lahir?" className={`${inputClsSm} resize-none`} />
+                      <textarea rows={2} value={book.coreQuestion || ''} onChange={(e) => setBookField(idx, 'coreQuestion', e.target.value)} placeholder="Core Question — pertanyaan utama buku" className={`${inputClsSm} resize-none`} />
+                      <textarea rows={2} value={book.writtenDuring || ''} onChange={(e) => setBookField(idx, 'writtenDuring', e.target.value)} placeholder="Written During — periode atau keadaan saat ditulis" className={`${inputClsSm} resize-none`} />
+                      <textarea rows={2} value={book.almostDeleted || ''} onChange={(e) => setBookField(idx, 'almostDeleted', e.target.value)} placeholder="Almost Deleted — bagian yang nyaris dibuang" className={`${inputClsSm} resize-none`} />
+                    </div>
+                  </div>
+  
                   <div className="flex items-center gap-2">
-                    {book.overviewImage && (
-                      <img src={book.overviewImage} alt="" className="w-14 h-10 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
+                    {book.coverImage && (
+                      <img src={book.coverImage} alt={book.title} className="w-10 h-14 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
                     )}
                     <input
                       type="file"
                       accept="image/*"
-                      disabled={uploadingBookOverview === idx}
+                      disabled={uploadingBookCover === idx}
                       onChange={async (e) => {
                         const file = e.target.files[0];
                         if (!file) return;
-                        setUploadingBookOverview(idx);
+                        setUploadingBookCover(idx);
                         const url = await uploadImageToStorage(file);
-                        setUploadingBookOverview(null);
-                        if (url) setBookField(idx, 'overviewImage', url);
+                        setUploadingBookCover(null);
+                        if (url) setBookField(idx, 'coverImage', url);
                         e.target.value = '';
                       }}
                       className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
                     />
                   </div>
-                  <input type="text" value={book.overviewImage || ''} onChange={(e) => setBookField(idx, 'overviewImage', e.target.value)} placeholder="Atau tempel URL Foto Overview" className={`${inputClsSm} mt-2`} />
+                  <input type="text" value={book.coverImage} onChange={(e) => setBookField(idx, 'coverImage', e.target.value)} placeholder="Atau tempel URL Cover Buku" className={inputClsSm} />
+  
+                  <div className="pt-1 border-t border-gray-200 dark:border-gray-700">
+                    <p className="text-[10px] text-gray-400 mb-1.5 mt-2">
+                      Foto overview — muncul di halaman kiri pas sampul buku diklik/dibuka di halaman publik (opsional)
+                    </p>
+                    <div className="flex items-center gap-2">
+                      {book.overviewImage && (
+                        <img src={book.overviewImage} alt="" className="w-14 h-10 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingBookOverview === idx}
+                        onChange={async (e) => {
+                          const file = e.target.files[0];
+                          if (!file) return;
+                          setUploadingBookOverview(idx);
+                          const url = await uploadImageToStorage(file);
+                          setUploadingBookOverview(null);
+                          if (url) setBookField(idx, 'overviewImage', url);
+                          e.target.value = '';
+                        }}
+                        className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
+                      />
+                    </div>
+                    <input type="text" value={book.overviewImage || ''} onChange={(e) => setBookField(idx, 'overviewImage', e.target.value)} placeholder="Atau tempel URL Foto Overview" className={`${inputClsSm} mt-2`} />
+                  </div>
+  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <input type="text" value={book.pageCount || ''} onChange={(e) => setBookField(idx, 'pageCount', e.target.value)} placeholder="Jumlah Halaman (mis. 184)" className={inputClsSm} />
+                  </div>
+  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <input type="text" value={book.actionText} onChange={(e) => setBookField(idx, 'actionText', e.target.value)} placeholder="Teks Tombol (mis. Beli Buku Ini)" className={inputClsSm} />
+                    <input type="text" value={book.actionUrl} onChange={(e) => setBookField(idx, 'actionUrl', e.target.value)} placeholder="Link Tombol" className={inputClsSm} />
+                    <input type="text" value={book.secondaryText || ''} onChange={(e) => setBookField(idx, 'secondaryText', e.target.value)} placeholder="Teks tombol kedua (opsional)" className={inputClsSm} />
+                    <input type="text" value={book.secondaryUrl || ''} onChange={(e) => setBookField(idx, 'secondaryUrl', e.target.value)} placeholder="Link tombol kedua" className={inputClsSm} />
+                  </div>
+                </ContentCard>
+              ))}
+  
+              </section>
+  
+              <section className="mt-8 space-y-4 border-t border-gray-200 pt-6 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Books I Read</h3>
+                    <p className="mt-1 text-[10px] text-gray-400">Pengaturan buku bacaan — fitur dan treatment sama dengan My Books.</p>
+                  </div>
+                  <AddBtn onClick={addReadingBook} label="Tambah Buku Bacaan" />
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <input type="text" value={book.pageCount || ''} onChange={(e) => setBookField(idx, 'pageCount', e.target.value)} placeholder="Jumlah Halaman (mis. 184)" className={inputClsSm} />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <input type="text" value={book.actionText} onChange={(e) => setBookField(idx, 'actionText', e.target.value)} placeholder="Teks Tombol (mis. Beli Buku Ini)" className={inputClsSm} />
-                  <input type="text" value={book.actionUrl} onChange={(e) => setBookField(idx, 'actionUrl', e.target.value)} placeholder="Link Tombol" className={inputClsSm} />
-                  <input type="text" value={book.secondaryText || ''} onChange={(e) => setBookField(idx, 'secondaryText', e.target.value)} placeholder="Teks tombol kedua (opsional)" className={inputClsSm} />
-                  <input type="text" value={book.secondaryUrl || ''} onChange={(e) => setBookField(idx, 'secondaryUrl', e.target.value)} placeholder="Link tombol kedua" className={inputClsSm} />
-                </div>
-              </ContentCard>
-            ))}
+              {(formData.books.readingItems || []).map((book, idx) => (
+                <ContentCard key={book.id || idx} cardKey={`book-${book.id || idx}`} listKey="readingBooks" idx={idx} count={formData.books.items.length} title={book.title || `Buku/Karya #${idx + 1}`} subtitle={[book.category, book.pageCount ? `${book.pageCount} halaman` : ''].filter(Boolean).join(' · ')} onRemove={() => removeReadingBook(idx)}>
+                    <div className="flex flex-wrap justify-end gap-4">
+                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+                        <input type="checkbox" checked={book.featured === true} onChange={(e) => setExclusiveReadingBookFlag(idx, 'featured', e.target.checked)} className="accent-blue-600" />
+                        Current Manuscript
+                      </label>
+                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+                        <input type="checkbox" checked={book.startHere === true} onChange={(e) => setExclusiveReadingBookFlag(idx, 'startHere', e.target.checked)} className="accent-blue-600" />
+                        Start Here
+                      </label>
+                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={book.hintEnabled !== false}
+                          onChange={(e) => setReadingBookField(idx, 'hintEnabled', e.target.checked)}
+                          className="accent-blue-600"
+                        />
+                        Blink pas mode Hint
+                      </label>
+                    </div>
+                  <input type="text" value={book.title} onChange={(e) => setReadingBookField(idx, 'title', e.target.value)} placeholder="Judul Buku / Karya" className={inputClsSm} />
+                  <Field label="Peran / Kontribusi Saya">
+                    <input type="text" value={book.myRoles || ''} onChange={(e) => setReadingBookField(idx, 'myRoles', e.target.value)} placeholder="Penulis, Editor, Desainer Buku (pisahkan dengan koma)" className={inputClsSm} />
+                    <p className="mt-1 text-[10px] leading-relaxed text-gray-400">Boleh satu atau beberapa peran. Urutan yang ditulis di sini menjadi urutan chip pada Book Autopsy.</p>
+                  </Field>
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    <input type="text" value={book.author || ''} onChange={(e) => setReadingBookField(idx, 'author', e.target.value)} placeholder="Nama penulis" className={inputClsSm} />
+                    <input type="text" value={book.publisher || ''} onChange={(e) => setReadingBookField(idx, 'publisher', e.target.value)} placeholder="Penerbit / imprint" className={inputClsSm} />
+                    <input type="text" value={book.publicationDate || ''} onChange={(e) => setReadingBookField(idx, 'publicationDate', e.target.value)} placeholder="Tanggal terbit (mis. September 2026)" className={inputClsSm} />
+                    <input type="text" value={book.isbn || ''} onChange={(e) => setReadingBookField(idx, 'isbn', e.target.value)} placeholder="ISBN (opsional)" className={inputClsSm} />
+                    <input type="text" value={book.edition || ''} onChange={(e) => setReadingBookField(idx, 'edition', e.target.value)} placeholder="Edisi (opsional)" className={inputClsSm} />
+                  </div>
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    <input type="text" value={book.category} onChange={(e) => setReadingBookField(idx, 'category', e.target.value)} placeholder="Kategori (mis. Fiksi / Esai)" className={inputClsSm} />
+                    <select value={book.status || 'published'} onChange={(e) => setReadingBookField(idx, 'status', e.target.value)} className={inputClsSm}>
+                      <option value="published">Published</option><option value="writing">In Progress</option><option value="draft">Draft</option><option value="archived">Archived</option>
+                    </select>
+                    <input type="text" value={book.year || ''} onChange={(e) => setReadingBookField(idx, 'year', e.target.value)} placeholder="Tahun (mis. 2026)" className={inputClsSm} />
+                    <input type="text" value={book.language || ''} onChange={(e) => setReadingBookField(idx, 'language', e.target.value)} placeholder="Bahasa" className={inputClsSm} />
+                    <input type="text" value={book.format || ''} onChange={(e) => setReadingBookField(idx, 'format', e.target.value)} placeholder="Format (Novel, E-Book, Booklet...)" className={inputClsSm} />
+                    <input type="number" min="0" max="100" value={book.progress || ''} onChange={(e) => setReadingBookField(idx, 'progress', e.target.value)} placeholder="Progress naskah (%)" className={inputClsSm} />
+                  </div>
+                  <textarea rows={2} value={book.pitch || ''} onChange={(e) => setReadingBookField(idx, 'pitch', e.target.value)} placeholder="One-line pitch — satu kalimat yang menjual gagasan karya" className={`${inputClsSm} resize-none`} />
+                  <textarea rows={2} value={book.summary} onChange={(e) => setReadingBookField(idx, 'summary', e.target.value)} placeholder="Ringkasan singkat" className={`${inputClsSm} resize-none`} />
+                  <textarea rows={3} value={book.fullDescription} onChange={(e) => setReadingBookField(idx, 'fullDescription', e.target.value)} placeholder="Deskripsi lengkap" className={`${inputClsSm} resize-none`} />
+                  <textarea rows={3} value={book.whyWritten || ''} onChange={(e) => setReadingBookField(idx, 'whyWritten', e.target.value)} placeholder="Why I wrote this — alasan personal/kreatif menulis karya ini" className={`${inputClsSm} resize-none`} />
+  
+                  <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-900 dark:bg-blue-950/20">
+                    <div className="mb-2">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-700 dark:text-blue-300">Book Autopsy</p>
+                      <p className="mt-1 text-[10px] leading-relaxed text-gray-500 dark:text-gray-400">Empat catatan pendek yang mengelilingi cover di halaman Book. Kosongkan field yang tidak ingin ditampilkan.</p>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <textarea rows={2} value={book.origin || ''} onChange={(e) => setReadingBookField(idx, 'origin', e.target.value)} placeholder="Origin — dari mana gagasan buku ini lahir?" className={`${inputClsSm} resize-none`} />
+                      <textarea rows={2} value={book.coreQuestion || ''} onChange={(e) => setReadingBookField(idx, 'coreQuestion', e.target.value)} placeholder="Core Question — pertanyaan utama buku" className={`${inputClsSm} resize-none`} />
+                      <textarea rows={2} value={book.writtenDuring || ''} onChange={(e) => setReadingBookField(idx, 'writtenDuring', e.target.value)} placeholder="Written During — periode atau keadaan saat ditulis" className={`${inputClsSm} resize-none`} />
+                      <textarea rows={2} value={book.almostDeleted || ''} onChange={(e) => setReadingBookField(idx, 'almostDeleted', e.target.value)} placeholder="Almost Deleted — bagian yang nyaris dibuang" className={`${inputClsSm} resize-none`} />
+                    </div>
+                  </div>
+  
+                  <div className="flex items-center gap-2">
+                    {book.coverImage && (
+                      <img src={book.coverImage} alt={book.title} className="w-10 h-14 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={uploadingBookCover === idx}
+                      onChange={async (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        setUploadingBookCover(idx);
+                        const url = await uploadImageToStorage(file);
+                        setUploadingBookCover(null);
+                        if (url) setReadingBookField(idx, 'coverImage', url);
+                        e.target.value = '';
+                      }}
+                      className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
+                    />
+                  </div>
+                  <input type="text" value={book.coverImage} onChange={(e) => setReadingBookField(idx, 'coverImage', e.target.value)} placeholder="Atau tempel URL Cover Buku" className={inputClsSm} />
+  
+                  <div className="pt-1 border-t border-gray-200 dark:border-gray-700">
+                    <p className="text-[10px] text-gray-400 mb-1.5 mt-2">
+                      Foto overview — muncul di halaman kiri pas sampul buku diklik/dibuka di halaman publik (opsional)
+                    </p>
+                    <div className="flex items-center gap-2">
+                      {book.overviewImage && (
+                        <img src={book.overviewImage} alt="" className="w-14 h-10 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingBookOverview === idx}
+                        onChange={async (e) => {
+                          const file = e.target.files[0];
+                          if (!file) return;
+                          setUploadingBookOverview(idx);
+                          const url = await uploadImageToStorage(file);
+                          setUploadingBookOverview(null);
+                          if (url) setReadingBookField(idx, 'overviewImage', url);
+                          e.target.value = '';
+                        }}
+                        className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
+                      />
+                    </div>
+                    <input type="text" value={book.overviewImage || ''} onChange={(e) => setReadingBookField(idx, 'overviewImage', e.target.value)} placeholder="Atau tempel URL Foto Overview" className={`${inputClsSm} mt-2`} />
+                  </div>
+  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <input type="text" value={book.pageCount || ''} onChange={(e) => setReadingBookField(idx, 'pageCount', e.target.value)} placeholder="Jumlah Halaman (mis. 184)" className={inputClsSm} />
+                  </div>
+  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <input type="text" value={book.actionText} onChange={(e) => setReadingBookField(idx, 'actionText', e.target.value)} placeholder="Teks Tombol (mis. Beli Buku Ini)" className={inputClsSm} />
+                    <input type="text" value={book.actionUrl} onChange={(e) => setReadingBookField(idx, 'actionUrl', e.target.value)} placeholder="Link Tombol" className={inputClsSm} />
+                    <input type="text" value={book.secondaryText || ''} onChange={(e) => setReadingBookField(idx, 'secondaryText', e.target.value)} placeholder="Teks tombol kedua (opsional)" className={inputClsSm} />
+                    <input type="text" value={book.secondaryUrl || ''} onChange={(e) => setReadingBookField(idx, 'secondaryUrl', e.target.value)} placeholder="Link tombol kedua" className={inputClsSm} />
+                  </div>
+                </ContentCard>
+              ))}
+  
+              </section>
+            </CollapsibleSection>
           </div>
         )}
 
@@ -2636,254 +5222,283 @@ export default function CmsDashboard({ data, onSave }) {
           <div className="space-y-6">
             <h2 className="text-sm font-bold border-b pb-2 border-gray-100 dark:border-gray-800 text-blue-600 dark:text-blue-400">Tab Projects</h2>
 
+
             <Field label="Heading Halaman">
               <input type="text" value={formData.projects.heading} onChange={(e) => setProjectsField('heading', e.target.value)} className={inputCls} />
             </Field>
             <Field label="Subheading Halaman">
               <textarea rows={2} value={formData.projects.subheading} onChange={(e) => setProjectsField('subheading', e.target.value)} className={`${inputCls} resize-none`} />
             </Field>
-
-            {/* Sub-tab: Articles / Poster / tiap Tab Tambahan dapet pill nama sendiri —
-                sama kayak Articles & Poster, mirroring nav di halaman publiknya sendiri.
-                "+ Tambah Tab" nempel di ujung, klik langsung bikin tab baru & pindah ke situ. */}
-            <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-3 flex-wrap items-center">
-              {[
-                { key: 'articles', label: `Articles (${formData.projects.articles.length})` },
-                { key: 'directing', label: `Directing (${formData.projects.directing.items.length})` },
-                { key: 'poster', label: `Poster (${formData.projects.poster.items.length})` },
-                ...formData.projects.customSections.map((cs, idx) => ({
-                  key: `custom:${cs.id}`,
-                  label: cs.label || `Tab Baru #${idx + 1}`,
-                })),
-              ].map((t) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => setActiveProjectsSubTab(t.key)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${
-                    activeProjectsSubTab === t.key
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-gray-100 dark:bg-[#2d2d2d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#383838]'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={addCustomSection}
-                title="Tambah tab baru di luar Articles & Poster"
-                className="px-3 py-1.5 text-xs font-semibold rounded border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-              >
-                + Tambah Tab
-              </button>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <Field label="Judul Project Index"><input value={formData.projects.indexHeading || ''} onChange={(e) => setProjectsField('indexHeading', e.target.value)} className={inputCls} /></Field>
+              <Field label="Keterangan Project Index"><input value={formData.projects.indexDescription || ''} onChange={(e) => setProjectsField('indexDescription', e.target.value)} className={inputCls} /></Field>
+              <Field label="Label pencarian"><input value={formData.projects.searchLabel || ''} onChange={(e) => setProjectsField('searchLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Tulisan kembali ke index"><input value={formData.projects.backLabel || ''} onChange={(e) => setProjectsField('backLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Tulisan buka drawer"><input value={formData.projects.openDrawerLabel || ''} onChange={(e) => setProjectsField('openDrawerLabel', e.target.value)} className={inputCls} /></Field>
             </div>
 
-            {/* ARTICLES — gaya portal berita, artikel pertama otomatis jadi unggulan */}
-            {activeProjectsSubTab === 'articles' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Articles</h3>
-                <AddBtn onClick={addArticle} label="Tambah Artikel" />
+            <CollapsibleSection sectionKey="projects-card-descriptions" title="Keterangan kartu setiap tab">
+
+              <div>
+                <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100">Keterangan kartu setiap tab</h3>
+                <p className="mt-1 text-xs text-gray-500">Kosongkan kolom untuk menghapus tulisan di bawah nama tab. Tab baru otomatis muncul di bagian ini.</p>
               </div>
-              <Field label='Nama Tab (tampil di navigasi, kosongkan buat pakai "Articles")'>
-                <input
-                  type="text"
-                  value={formData.projects.articlesLabel}
-                  onChange={(e) => setProjectsField('articlesLabel', e.target.value)}
-                  placeholder="Articles"
-                  className={inputClsSm}
-                />
-              </Field>
-              <p className="text-[10px] text-gray-400 -mt-1">
-                Artikel #1 di daftar bakal tampil besar sebagai artikel unggulan di halaman publik, sisanya jadi daftar kecil di sampingnya. Urutan bisa diatur dengan menyusun ulang artikel di sini.
-              </p>
-              {formData.projects.articles.map((art, idx) => {
-                const isOpen = expandedArticleIdx === idx;
-                if (!isOpen) {
-                  // ---------- BARIS COLLAPSED: judul + tanggal + tombol Edit doang ----------
-                  return (
-                    <div
-                      key={art.id || idx}
-                      onDragOver={handleDragOver}
-                      onDrop={handleDrop('articles', idx)}
-                      className={`flex items-center gap-2 p-3 bg-gray-50 dark:bg-[#2d2d2d] rounded border border-gray-200 dark:border-gray-700 transition-opacity ${
-                        draggingKey === `articles-${idx}` ? 'opacity-40' : ''
-                      }`}
-                    >
-                      <ReorderHandle listKey="articles" idx={idx} count={formData.projects.articles.length} />
-                      <button
-                        type="button"
-                        onClick={() => setExpandedArticleIdx(idx)}
-                        className="flex-1 min-w-0 text-left"
-                      >
-                        <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                          {idx === 0 && <span className="text-blue-500 mr-1">(Unggulan)</span>}
-                          {art.title || <span className="italic text-gray-400 font-normal">Artikel #{idx + 1} — belum ada judul</span>}
-                        </span>
-                        {art.date && (
-                          <span className="block text-[10px] font-mono text-gray-400 mt-0.5">{art.date}</span>
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setExpandedArticleIdx(idx)}
-                        className="text-[10px] px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 rounded font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/40 shrink-0"
-                      >
-                        Edit
-                      </button>
-                      <RemoveBtn onClick={() => removeArticle(idx)} />
-                    </div>
-                  );
-                }
-
-                // ---------- BARIS EXPANDED: form lengkap 1 artikel ----------
-                return (
-                <div
-                  key={art.id || idx}
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop('articles', idx)}
-                  className={`p-4 bg-gray-50 dark:bg-[#2d2d2d] rounded border border-blue-300 dark:border-blue-700 space-y-2 transition-opacity ${
-                    draggingKey === `articles-${idx}` ? 'opacity-40' : ''
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <ReorderHandle listKey="articles" idx={idx} count={formData.projects.articles.length} />
-                      <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                        Artikel #{idx + 1} {idx === 0 && <span className="text-blue-500">(Unggulan)</span>}
-                      </h4>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={art.hintEnabled !== false}
-                          onChange={(e) => setArticleField(idx, 'hintEnabled', e.target.checked)}
-                          className="accent-blue-600"
-                        />
-                        Blink pas mode Hint
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setExpandedArticleIdx(null)}
-                        className="text-[10px] px-2.5 py-1 bg-gray-200 dark:bg-[#3a3a3a] text-gray-600 dark:text-gray-300 rounded font-semibold hover:bg-gray-300 dark:hover:bg-[#454545]"
-                      >
-                        Tutup
-                      </button>
-                      <RemoveBtn onClick={() => removeArticle(idx)} />
-                    </div>
-                  </div>
-                  <input type="text" value={art.title} onChange={(e) => setArticleField(idx, 'title', e.target.value)} placeholder="Judul Artikel" className={inputClsSm} />
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <input type="text" value={art.date} onChange={(e) => setArticleField(idx, 'date', e.target.value)} placeholder="Tanggal (mis. 12 Mei 2026)" className={inputClsSm} />
-                    <input type="text" value={art.category} onChange={(e) => setArticleField(idx, 'category', e.target.value)} placeholder="Kategori (mis. ESAI)" className={inputClsSm} />
-                    <input type="text" value={art.author} onChange={(e) => setArticleField(idx, 'author', e.target.value)} placeholder="Penulis (opsional)" className={inputClsSm} />
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {art.image && (
-                      <img src={art.image} alt={art.title} className="w-16 h-12 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
-                    )}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      disabled={uploadingArticleImage === idx}
-                      onChange={async (e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
-                        if (!validateProjectCover(file, 'writing')) { e.target.value = ''; return; }
-                        setUploadingArticleImage(idx);
-                        const url = await uploadImageToStorage(file);
-                        setUploadingArticleImage(null);
-                        if (url) setArticleField(idx, 'image', url);
-                        e.target.value = '';
-                      }}
-                      className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
-                    />
-                  </div>
-                  <ProjectCoverHint contentType="writing" />
-                  <input type="text" value={art.image} onChange={(e) => setArticleField(idx, 'image', e.target.value)} placeholder="Atau tempel URL Gambar Artikel (dari galeri/hosting lain)" className={inputClsSm} />
-
-                  <textarea rows={2} value={art.snippet} onChange={(e) => setArticleField(idx, 'snippet', e.target.value)} placeholder="Cuplikan singkat" className={`${inputClsSm} resize-none`} />
-
-                  <div>
-                    <label className="block text-[10px] font-medium mb-1 text-gray-500">Isi Lengkap Artikel (bisa Bold/Italic/Underline/List/Link)</label>
-                    <RichTextEditor
-                      key={art.id || idx}
-                      initialValue={art.content}
-                      onChange={(html) => setArticleField(idx, 'content', html)}
-                      placeholder="Tulis isi artikel lengkap di sini..."
-                    />
-                  </div>
-                </div>
-                );
-              })}
-            </div>
-            )}
-
-            {activeProjectsSubTab === 'directing' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Directing / Film Works</h3><AddBtn onClick={addDirectingItem} label="Tambah Video Work" /></div>
-                <Field label='Nama Tab'><input type="text" value={formData.projects.directingLabel || ''} onChange={(e) => setProjectsField('directingLabel', e.target.value)} placeholder="Directing" className={inputClsSm} /></Field>
-                <p className="text-[10px] text-gray-400">YouTube/Vimeo akan diputar di dalam portfolio. Google Drive dan external link memakai tombol fallback jika pemilik file melarang embed.</p>
-                {formData.projects.directing.items.map((item, idx) => (
-                  <ContentCard key={item.id || idx} cardKey={`directing-${item.id || idx}`} listKey="directing" idx={idx} count={formData.projects.directing.items.length} title={item.title || `Video Work #${idx + 1}`} subtitle={[item.role, item.year, item.runtime].filter(Boolean).join(' · ')} onRemove={() => removeDirectingItem(idx)}>
-                    <div className="flex justify-end"><label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500"><input type="checkbox" checked={item.hintEnabled !== false} onChange={(e) => setDirectingItemField(idx, 'hintEnabled', e.target.checked)} className="accent-blue-600" /> Blink pas mode Help</label></div>
-                    <input value={item.title || ''} onChange={(e) => setDirectingItemField(idx, 'title', e.target.value)} placeholder="Judul karya" className={inputClsSm} />
-                    <textarea rows={2} value={item.premise || ''} onChange={(e) => setDirectingItemField(idx, 'premise', e.target.value)} placeholder="One-line premise / ringkasan singkat" className={`${inputClsSm} resize-y`} />
-                    <div className="grid grid-cols-1 gap-2 md:grid-cols-3"><input value={item.role || ''} onChange={(e) => setDirectingItemField(idx, 'role', e.target.value)} placeholder="Role: Director & Writer" className={inputClsSm} /><input value={item.year || ''} onChange={(e) => setDirectingItemField(idx, 'year', e.target.value)} placeholder="Tahun" className={inputClsSm} /><input value={item.runtime || ''} onChange={(e) => setDirectingItemField(idx, 'runtime', e.target.value)} placeholder="Durasi: 08:42" className={inputClsSm} /></div>
-                    <div className="grid grid-cols-1 gap-2 md:grid-cols-[0.35fr_1fr]"><select value={item.mediaType || 'youtube'} onChange={(e) => setDirectingItemField(idx, 'mediaType', e.target.value)} className={inputClsSm}><option value="youtube">YouTube</option><option value="vimeo">Vimeo</option><option value="drive">Google Drive</option><option value="video">Direct MP4/WebM</option><option value="external">External Link</option></select><input value={item.mediaUrl || ''} onChange={(e) => setDirectingItemField(idx, 'mediaUrl', e.target.value)} placeholder="URL video/media" className={inputClsSm} /></div>
-                    <div className="flex items-center gap-2">{item.posterImage && <img src={item.posterImage} alt="" className="h-12 w-20 rounded object-cover" />}<input type="file" accept="image/*" onChange={async (e) => { const file = e.target.files[0]; if (!file) return; if (!validateProjectCover(file, 'video')) { e.target.value = ''; return; } const key = `directing-${idx}`; setUploadingGalleryImage(key); const url = await uploadImageToStorage(file); setUploadingGalleryImage(null); if (url) setDirectingItemField(idx, 'posterImage', url); e.target.value = ''; }} className="flex-1 text-[10px]" /></div>
-                    <ProjectCoverHint contentType="video" />
-                    <input value={item.posterImage || ''} onChange={(e) => setDirectingItemField(idx, 'posterImage', e.target.value)} placeholder="Atau tempel URL poster/thumbnail" className={inputClsSm} />
-                    <Field label="Kontribusi / What I did"><RichTextEditor key={`contribution-${item.id || idx}`} initialValue={item.contribution || ''} onChange={(html) => setDirectingItemField(idx, 'contribution', html)} placeholder="Jelaskan keputusan kreatif dan kontribusi konkret..." /></Field>
-                    <Field label="Credits"><RichTextEditor key={`credits-${item.id || idx}`} initialValue={item.credits || ''} onChange={(html) => setDirectingItemField(idx, 'credits', html)} placeholder="Cast, crew, collaborator..." /></Field>
-                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2"><input value={item.externalLabel || ''} onChange={(e) => setDirectingItemField(idx, 'externalLabel', e.target.value)} placeholder="Label tombol tambahan" className={inputClsSm} /><input value={item.externalUrl || ''} onChange={(e) => setDirectingItemField(idx, 'externalUrl', e.target.value)} placeholder="URL tombol tambahan" className={inputClsSm} /></div>
-                  </ContentCard>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <Field label={formData.projects.articlesLabel || 'Articles'}><input value={formData.projects.articlesDescription || ''} onChange={(e) => setProjectsField('articlesDescription', e.target.value)} className={inputCls} /></Field>
+                <Field label={formData.projects.directingLabel || 'Directing'}><input value={formData.projects.directingDescription || ''} onChange={(e) => setProjectsField('directingDescription', e.target.value)} className={inputCls} /></Field>
+                <Field label={formData.projects.posterLabel || 'Poster'}><input value={formData.projects.posterDescription || ''} onChange={(e) => setProjectsField('posterDescription', e.target.value)} className={inputCls} /></Field>
+                {formData.projects.customSections.map((section, sectionIdx) => (
+                  <Field key={section.id || sectionIdx} label={section.label || `Tab Baru #${sectionIdx + 1}`}>
+                    <input value={section.description || ''} onChange={(e) => setCustomSectionDescription(sectionIdx, e.target.value)} className={inputCls} />
+                  </Field>
                 ))}
               </div>
-            )}
+            
+            </CollapsibleSection>
 
-            {/* POSTER — daftar file langsung, klik "Tambah Poster" langsung nambah item baru */}
-            {activeProjectsSubTab === 'poster' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Poster</h3>
-                <AddBtn onClick={addPosterItem} label="Tambah Poster" />
+            <CollapsibleSection sectionKey="projects-content-manager" title={cmsCopy("Konten Projects", "Projects Content")} subtitle={cmsCopy("Articles, Directing, Poster, dan tab tambahan", "Articles, Directing, Posters, and additional tabs")}>
+              {/* Sub-tab: Articles / Poster / tiap Tab Tambahan dapet pill nama sendiri —
+                  sama kayak Articles & Poster, mirroring nav di halaman publiknya sendiri.
+                  "+ Tambah Tab" nempel di ujung, klik langsung bikin tab baru & pindah ke situ. */}
+              <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-3 flex-wrap items-center">
+                {[
+                  { key: 'articles', label: `Articles (${formData.projects.articles.length})` },
+                  { key: 'directing', label: `Directing (${formData.projects.directing.items.length})` },
+                  { key: 'poster', label: `Poster (${formData.projects.poster.items.length})` },
+                  ...formData.projects.customSections.map((cs, idx) => ({
+                    key: `custom:${cs.id}`,
+                    label: `${cs.label || `Tab Baru #${idx + 1}`} (${Array.isArray(cs.items) ? cs.items.length : 0})`,
+                  })),
+                ].map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    onClick={() => { setActiveProjectsSubTab(t.key); bumpCmsDomRevision(); }}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${
+                      activeProjectsSubTab === t.key
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'bg-gray-100 dark:bg-[#2d2d2d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#383838]'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={addCustomSection}
+                  title="Tambah tab baru di luar Articles & Poster"
+                  className="px-3 py-1.5 text-xs font-semibold rounded border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                >
+                  {cmsCopy("+ Tambah Tab", "+ Add Tab")}
+                </button>
               </div>
-              <Field label='Nama Tab (tampil di navigasi, kosongkan buat pakai "Poster")'>
-                <input
-                  type="text"
-                  value={formData.projects.posterLabel}
-                  onChange={(e) => setProjectsField('posterLabel', e.target.value)}
-                  placeholder="Poster"
-                  className={inputClsSm}
-                />
-              </Field>
-              {formData.projects.poster.items.length === 0 && (
-                <p className="text-[10px] text-gray-400 italic">Belum ada poster. Klik "+ Tambah Poster" buat mulai.</p>
-              )}
-              {formData.projects.poster.items.map((it, idx) =>
-                renderPosterItem(it, idx, formData.projects.poster.items)
-              )}
-            </div>
-            )}
-
-            {/* TAB TAMBAHAN — tiap custom section udah dapet pill nav sendiri di atas
-                (sejajar Articles/Poster), jadi di sini cuma render section yang lagi
-                aktif aja (dicari lewat activeProjectsSubTab = "custom:<id>"). */}
-            {activeProjectsSubTab.startsWith('custom:') && (() => {
-              const sectionIdx = formData.projects.customSections.findIndex(
-                (cs) => `custom:${cs.id}` === activeProjectsSubTab
-              );
-              if (sectionIdx === -1) return null;
-              return (
-                <div className="space-y-3">
-                  {renderCustomSectionBlock(formData.projects.customSections[sectionIdx], sectionIdx)}
+  
+              {/* ARTICLES — gaya portal berita, artikel pertama otomatis jadi unggulan */}
+              {activeProjectsSubTab === 'articles' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">{cmsCopy("Articles", "Articles")}</h3>
+                  <AddBtn onClick={addArticle} label={cmsCopy("Tambah Artikel", "Add Article")} />
                 </div>
-              );
-            })()}
+                <Field label={cmsCopy('Nama Tab (tampil di navigasi, kosongkan buat pakai "Articles")', 'Tab Name (shown in navigation, leave blank to use "Articles")')}>
+                  <input
+                    type="text"
+                    value={formData.projects.articlesLabel}
+                    onChange={(e) => setProjectsField('articlesLabel', e.target.value)}
+                    placeholder="Articles"
+                    className={inputClsSm}
+                  />
+                </Field>
+                <p className="text-[10px] text-gray-400 -mt-1">
+                  Artikel #1 di daftar bakal tampil besar sebagai artikel unggulan di halaman publik, sisanya jadi daftar kecil di sampingnya. Urutan bisa diatur dengan menyusun ulang artikel di sini.
+                </p>
+                {formData.projects.articles.map((art, idx) => {
+                  const isOpen = expandedArticleIdx === idx;
+                  if (!isOpen) {
+                    // ---------- BARIS COLLAPSED: judul + tanggal + tombol Edit doang ----------
+                    return (
+                      <div
+                        key={art.id || idx}
+                        onDragOver={handleDragOver}
+                        onDrop={handleDrop('articles', idx)}
+                        className={`flex items-center gap-2 p-3 bg-gray-50 dark:bg-[#2d2d2d] rounded border border-gray-200 dark:border-gray-700 transition-opacity ${
+                          draggingKey === `articles-${idx}` ? 'opacity-40' : ''
+                        }`}
+                      >
+                        <ReorderHandle listKey="articles" idx={idx} count={formData.projects.articles.length} />
+                        <button
+                          type="button"
+                          onClick={() => setExpandedArticleIdx(idx)}
+                          className="flex-1 min-w-0 text-left"
+                        >
+                          <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                            {idx === 0 && <span className="text-blue-500 mr-1">(Unggulan)</span>}
+                            {art.title || <span className="italic text-gray-400 font-normal">Artikel #{idx + 1} — belum ada judul</span>}
+                          </span>
+                          {art.date && (
+                            <span className="block text-[10px] font-mono text-gray-400 mt-0.5">{art.date}</span>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedArticleIdx(idx)}
+                          className="text-[10px] px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 rounded font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/40 shrink-0"
+                        >
+                          Edit
+                        </button>
+                        <RemoveBtn onClick={() => removeArticle(idx)} />
+                      </div>
+                    );
+                  }
+  
+                  // ---------- BARIS EXPANDED: form lengkap 1 artikel ----------
+                  return (
+                  <div
+                    key={art.id || idx}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop('articles', idx)}
+                    className={`p-4 bg-gray-50 dark:bg-[#2d2d2d] rounded border border-blue-300 dark:border-blue-700 space-y-2 transition-opacity ${
+                      draggingKey === `articles-${idx}` ? 'opacity-40' : ''
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <ReorderHandle listKey="articles" idx={idx} count={formData.projects.articles.length} />
+                        <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                          Artikel #{idx + 1} {idx === 0 && <span className="text-blue-500">(Unggulan)</span>}
+                        </h4>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={art.hintEnabled !== false}
+                            onChange={(e) => setArticleField(idx, 'hintEnabled', e.target.checked)}
+                            className="accent-blue-600"
+                          />
+                          Blink pas mode Hint
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedArticleIdx(null)}
+                          className="text-[10px] px-2.5 py-1 bg-gray-200 dark:bg-[#3a3a3a] text-gray-600 dark:text-gray-300 rounded font-semibold hover:bg-gray-300 dark:hover:bg-[#454545]"
+                        >
+                          Tutup
+                        </button>
+                        <RemoveBtn onClick={() => removeArticle(idx)} />
+                      </div>
+                    </div>
+                    <input type="text" value={art.title} onChange={(e) => setArticleField(idx, 'title', e.target.value)} placeholder="Judul Artikel" className={inputClsSm} />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <input type="text" value={art.date} onChange={(e) => setArticleField(idx, 'date', e.target.value)} placeholder="Tanggal (mis. 12 Mei 2026)" className={inputClsSm} />
+                      <input type="text" value={art.category} onChange={(e) => setArticleField(idx, 'category', e.target.value)} placeholder="Kategori (mis. ESAI)" className={inputClsSm} />
+                      <input type="text" value={art.author} onChange={(e) => setArticleField(idx, 'author', e.target.value)} placeholder="Penulis (opsional)" className={inputClsSm} />
+                    </div>
+  
+          <div className="flex items-center gap-2">
+                      {art.image && (
+                        <img src={art.image} alt={art.title} className="w-16 h-12 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingArticleImage === idx}
+                        onChange={async (e) => {
+                          const file = e.target.files[0];
+                          if (!file) return;
+                          if (!(await validateProjectCover(file, 'writing'))) { e.target.value = ''; return; }
+                          setUploadingArticleImage(idx);
+                          const url = await uploadImageToStorage(file);
+                          setUploadingArticleImage(null);
+                          if (url) setArticleField(idx, 'image', url);
+                          e.target.value = '';
+                        }}
+                        className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
+                      />
+          </div>
+                    <ProjectCoverHint contentType="writing" />
+                    <input type="text" value={art.image} onChange={(e) => setArticleField(idx, 'image', e.target.value)} placeholder="Atau tempel URL Gambar Artikel (dari galeri/hosting lain)" className={inputClsSm} />
+  
+                    <textarea rows={2} value={art.snippet} onChange={(e) => setArticleField(idx, 'snippet', e.target.value)} placeholder="Cuplikan singkat" className={`${inputClsSm} resize-none`} />
+  
+                    <div>
+                      <label className="block text-[10px] font-medium mb-1 text-gray-500">Isi Lengkap Artikel (bisa Bold/Italic/Underline/List/Link)</label>
+                      <RichTextEditor
+                        key={art.id || idx}
+                        initialValue={art.content}
+                        onChange={(html) => setArticleField(idx, 'content', html)}
+                        placeholder="Tulis isi artikel lengkap di sini..."
+                      />
+                    </div>
+                  </div>
+                  );
+                })}
+              </div>
+              )}
+  
+              {activeProjectsSubTab === 'directing' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Directing / Film Works</h3><AddBtn onClick={addDirectingItem} label="Tambah Video Work" /></div>
+                  <Field label='Nama Tab'><input type="text" value={formData.projects.directingLabel || ''} onChange={(e) => setProjectsField('directingLabel', e.target.value)} placeholder="Directing" className={inputClsSm} /></Field>
+                  <p className="text-[10px] text-gray-400">YouTube/Vimeo akan diputar di dalam portfolio. Google Drive dan external link memakai tombol fallback jika pemilik file melarang embed.</p>
+                  {formData.projects.directing.items.map((item, idx) => (
+                    <ContentCard key={item.id || idx} cardKey={`directing-${item.id || idx}`} listKey="directing" idx={idx} count={formData.projects.directing.items.length} title={item.title || `Video Work #${idx + 1}`} subtitle={[item.role, item.year, item.runtime].filter(Boolean).join(' · ')} onRemove={() => removeDirectingItem(idx)}>
+                      <div className="flex justify-end"><label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500"><input type="checkbox" checked={item.hintEnabled !== false} onChange={(e) => setDirectingItemField(idx, 'hintEnabled', e.target.checked)} className="accent-blue-600" /> Blink pas mode Help</label></div>
+                      <input value={item.title || ''} onChange={(e) => setDirectingItemField(idx, 'title', e.target.value)} placeholder="Judul karya" className={inputClsSm} />
+                      <textarea rows={2} value={item.premise || ''} onChange={(e) => setDirectingItemField(idx, 'premise', e.target.value)} placeholder="One-line premise / ringkasan singkat" className={`${inputClsSm} resize-y`} />
+                      <div className="grid grid-cols-1 gap-2 md:grid-cols-3"><input value={item.role || ''} onChange={(e) => setDirectingItemField(idx, 'role', e.target.value)} placeholder="Role: Director & Writer" className={inputClsSm} /><input value={item.year || ''} onChange={(e) => setDirectingItemField(idx, 'year', e.target.value)} placeholder="Tahun" className={inputClsSm} /><input value={item.runtime || ''} onChange={(e) => setDirectingItemField(idx, 'runtime', e.target.value)} placeholder="Durasi: 08:42" className={inputClsSm} /></div>
+                      <div className="grid grid-cols-1 gap-2 md:grid-cols-[0.35fr_1fr]"><select value={item.mediaType || 'youtube'} onChange={(e) => setDirectingItemField(idx, 'mediaType', e.target.value)} className={inputClsSm}><option value="youtube">YouTube</option><option value="vimeo">Vimeo</option><option value="drive">Google Drive</option><option value="video">Direct MP4/WebM</option><option value="external">External Link</option></select><input value={item.mediaUrl || ''} onChange={(e) => setDirectingItemField(idx, 'mediaUrl', e.target.value)} placeholder="URL video/media" className={inputClsSm} /></div>
+                      <div className="flex items-center gap-2">{item.posterImage && <img src={item.posterImage} alt="" className="h-12 w-20 rounded object-cover" />}<input type="file" accept="image/*" onChange={async (e) => { const file = e.target.files[0]; if (!file) return; if (!(await validateProjectCover(file, 'video'))) { e.target.value = ''; return; } const key = `directing-${idx}`; setUploadingGalleryImage(key); const url = await uploadImageToStorage(file); setUploadingGalleryImage(null); if (url) setDirectingItemField(idx, 'posterImage', url); e.target.value = ''; }} className="flex-1 text-[10px]" /></div>
+                      <ProjectCoverHint contentType="video" />
+                      <input value={item.posterImage || ''} onChange={(e) => setDirectingItemField(idx, 'posterImage', e.target.value)} placeholder="Atau tempel URL poster/thumbnail" className={inputClsSm} />
+                      <Field label="Kontribusi / What I did"><RichTextEditor key={`contribution-${item.id || idx}`} initialValue={item.contribution || ''} onChange={(html) => setDirectingItemField(idx, 'contribution', html)} placeholder="Jelaskan keputusan kreatif dan kontribusi konkret..." /></Field>
+                      <Field label="Credits"><RichTextEditor key={`credits-${item.id || idx}`} initialValue={item.credits || ''} onChange={(html) => setDirectingItemField(idx, 'credits', html)} placeholder="Cast, crew, collaborator..." /></Field>
+                      <div className="grid grid-cols-1 gap-2 md:grid-cols-2"><input value={item.externalLabel || ''} onChange={(e) => setDirectingItemField(idx, 'externalLabel', e.target.value)} placeholder="Label tombol tambahan" className={inputClsSm} /><input value={item.externalUrl || ''} onChange={(e) => setDirectingItemField(idx, 'externalUrl', e.target.value)} placeholder="URL tombol tambahan" className={inputClsSm} /></div>
+                    </ContentCard>
+                  ))}
+                </div>
+              )}
+  
+              {/* POSTER — daftar file langsung, klik "Tambah Poster" langsung nambah item baru */}
+              {activeProjectsSubTab === 'poster' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Poster</h3>
+                  <AddBtn onClick={addPosterItem} label="Tambah Poster" />
+                </div>
+                <Field label='Nama Tab (tampil di navigasi, kosongkan buat pakai "Poster")'>
+                  <input
+                    type="text"
+                    value={formData.projects.posterLabel}
+                    onChange={(e) => setProjectsField('posterLabel', e.target.value)}
+                    placeholder="Poster"
+                    className={inputClsSm}
+                  />
+                </Field>
+                {formData.projects.poster.items.length === 0 && (
+                  <p className="text-[10px] text-gray-400 italic">Belum ada poster. Klik "+ Tambah Poster" buat mulai.</p>
+                )}
+                {formData.projects.poster.items.map((it, idx) =>
+                  renderPosterItem(it, idx, formData.projects.poster.items)
+                )}
+              </div>
+              )}
+  
+              {/* TAB TAMBAHAN — tiap custom section udah dapet pill nav sendiri di atas
+                  (sejajar Articles/Poster), jadi di sini cuma render section yang lagi
+                  aktif aja (dicari lewat activeProjectsSubTab = "custom:<id>"). */}
+              {activeProjectsSubTab.startsWith('custom:') && (() => {
+                const sectionIdx = formData.projects.customSections.findIndex(
+                  (cs) => `custom:${cs.id}` === activeProjectsSubTab
+                );
+                if (sectionIdx === -1) return null;
+                return (
+                  <div className="space-y-3">
+                    {renderCustomSectionBlock(formData.projects.customSections[sectionIdx], sectionIdx)}
+                  </div>
+                );
+              })()}
+            </CollapsibleSection>
           </div>
         )}
 
@@ -2891,9 +5506,12 @@ export default function CmsDashboard({ data, onSave }) {
         {activeTab === 'contact' && (
           <div className="space-y-5">
             <h2 className="text-sm font-bold border-b pb-2 border-gray-100 dark:border-gray-800 text-blue-600 dark:text-blue-400">Contact — New Collaboration Document</h2>
-            <Field label="Eyebrow"><input type="text" value={formData.contact.eyebrow} onChange={(e) => setContactField('eyebrow', e.target.value)} className={inputCls} /></Field>
             <Field label="Heading Utama"><textarea rows={2} value={formData.contact.heading} onChange={(e) => setContactField('heading', e.target.value)} className={`${inputCls} resize-none`} /></Field>
             <Field label="Subheading"><textarea rows={2} value={formData.contact.subheading} onChange={(e) => setContactField('subheading', e.target.value)} className={`${inputCls} resize-none`} /></Field>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <Field label="Judul formulir"><input value={formData.contact.formTitle || ''} onChange={(e) => setContactField('formTitle', e.target.value)} className={inputCls} /></Field>
+              <Field label="Judul properties"><input value={formData.contact.propertiesTitle || ''} onChange={(e) => setContactField('propertiesTitle', e.target.value)} className={inputCls} /></Field>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Field label="Email Tujuan"><input type="email" value={formData.contact.email} onChange={(e) => setContactField('email', e.target.value)} className={inputCls} /></Field>
               <Field label="Lokasi Fallback"><input type="text" value={formData.contact.location} onChange={(e) => setContactField('location', e.target.value)} className={inputCls} /></Field>
@@ -2901,76 +5519,78 @@ export default function CmsDashboard({ data, onSave }) {
               <Field label="Notifikasi Setelah Klik"><input type="text" value={formData.contact.responseNote} onChange={(e) => setContactField('responseNote', e.target.value)} className={inputCls} /></Field>
             </div>
 
-            <div><div className="mb-2 flex items-center justify-between"><label className="text-xs font-bold">Jalur Inquiry</label><AddBtn onClick={() => addContactListItem('inquiryPaths', { id: `path-${Date.now()}`, kind: 'hello', label: '', subject: '', enabled: true })} label="Tambah Jalur" /></div><div className="space-y-2">{formData.contact.inquiryPaths.map((item, idx) => <ContentCard key={item.id || idx} cardKey={`inquiry-${idx}`} listKey="inquiryPaths" idx={idx} count={formData.contact.inquiryPaths.length} title={item.label || `Jalur #${idx + 1}`} subtitle={item.subject || 'Subject belum diisi'} onRemove={() => removeContactListItem('inquiryPaths', idx)}><div className="grid grid-cols-1 gap-2 md:grid-cols-[0.8fr_1fr_1fr_auto]"><select value={item.kind || item.id} onChange={(e) => setContactListItem('inquiryPaths', idx, { kind: e.target.value })} className={inputClsSm}><option value="project">Proyek</option><option value="opportunity">Peluang Kerja</option><option value="hello">Pesan Bebas</option></select><input value={item.label} onChange={(e) => setContactListItem('inquiryPaths', idx, { label: e.target.value })} placeholder="Label" className={inputClsSm} /><input value={item.subject} onChange={(e) => setContactListItem('inquiryPaths', idx, { subject: e.target.value })} placeholder="Subject email" className={inputClsSm} /><label className="flex items-center gap-2 text-[10px]"><input type="checkbox" checked={item.enabled !== false} onChange={(e) => setContactListItem('inquiryPaths', idx, { enabled: e.target.checked })} /> Tampil</label></div></ContentCard>)}</div></div>
-
-            {[['serviceOptions', 'Pilihan Layanan'], ['stageOptions', 'Tahap Proyek'], ['timelineOptions', 'Pilihan Timeline']].map(([key, label]) => <div key={key}><div className="mb-2 flex items-center justify-between"><label className="text-xs font-bold">{label}</label><AddBtn onClick={() => addContactListItem(key, '')} label="Tambah Opsi" /></div><div className="space-y-2">{formData.contact[key].map((item, idx) => <ContentCard key={`${key}-${idx}`} cardKey={`${key}-${idx}`} listKey={key} idx={idx} count={formData.contact[key].length} title={item || `Opsi #${idx + 1}`} subtitle="Drag untuk mengubah urutan" onRemove={() => removeContactListItem(key, idx)}><input value={item} onChange={(e) => setStringListItem(key, idx, e.target.value)} className={inputClsSm} /></ContentCard>)}</div></div>)}
-
-            <div><div className="mb-2 flex items-center justify-between"><label className="text-xs font-bold">Document Properties</label><AddBtn onClick={() => addContactListItem('properties', { id: `property-${Date.now()}`, label: '', value: '', enabled: true })} label="Tambah Property" /></div><div className="space-y-2">{formData.contact.properties.map((item, idx) => <ContentCard key={item.id || idx} cardKey={`property-${idx}`} listKey="properties" idx={idx} count={formData.contact.properties.length} title={item.label || `Property #${idx + 1}`} subtitle={item.value || 'Belum diisi'} onRemove={() => removeContactListItem('properties', idx)}><div className="grid grid-cols-1 gap-2 md:grid-cols-[0.7fr_1.3fr_auto]"><input value={item.label} onChange={(e) => setContactListItem('properties', idx, { label: e.target.value })} placeholder="Label" className={inputClsSm} /><input value={item.value} onChange={(e) => setContactListItem('properties', idx, { value: e.target.value })} placeholder="Isi" className={inputClsSm} /><label className="flex items-center gap-2 text-[10px]"><input type="checkbox" checked={item.enabled !== false} onChange={(e) => setContactListItem('properties', idx, { enabled: e.target.checked })} /> Tampil</label></div></ContentCard>)}</div></div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-medium">Sosial Media</label>
-                <AddBtn onClick={addSocial} label="Tambah Sosmed" />
-              </div>
-              <div className="space-y-2">
-                {formData.contact.socials.map((s, idx) => (
-                  <ContentCard key={idx} cardKey={`social-${idx}`} listKey="socials" idx={idx} count={formData.contact.socials.length} title={s.name || `Sosial Media #${idx + 1}`} subtitle={s.label || s.url || 'Belum diisi'} onRemove={() => removeSocial(idx)}>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
-                    <input type="text" value={s.name} onChange={(e) => setSocialField(idx, 'name', e.target.value)} placeholder="Nama (mis. LinkedIn)" className={inputClsSm} />
-                    <input type="text" value={s.url} onChange={(e) => setSocialField(idx, 'url', e.target.value)} placeholder="URL" className={inputClsSm} />
-                    <input type="text" value={s.label} onChange={(e) => setSocialField(idx, 'label', e.target.value)} placeholder="Label (mis. Connect on LinkedIn)" className={inputClsSm} />
-                  </div>
-                  </ContentCard>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-medium">Link Tambahan (mis. Download Résumé)</label>
-                <AddBtn onClick={addActionButton} label="Tambah Tombol" />
-              </div>
-              <p className="text-[10px] text-gray-400 mb-2">
-                Buat tombol "Download Resume": isi Label-nya, terus di kolom Link tinggal upload file
-                PDF-nya langsung dari perangkat lo — link publiknya otomatis keisi sendiri.
-              </p>
-              <div className="space-y-2">
-                {formData.contact.actionButtons.map((btn, idx) => (
-                  <ContentCard key={idx} cardKey={`action-${idx}`} listKey="actionButtons" idx={idx} count={formData.contact.actionButtons.length} title={btn.label || `Tombol Aksi #${idx + 1}`} subtitle={btn.url || 'Belum ada link'} onRemove={() => removeActionButton(idx)}>
-                    <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-center">
-                      <input type="text" value={btn.label} onChange={(e) => setActionButtonField(idx, 'label', e.target.value)} placeholder="Label Tombol" className={inputClsSm} />
-                      <input type="text" value={btn.url} onChange={(e) => setActionButtonField(idx, 'url', e.target.value)} placeholder="Link (atau upload file di bawah)" className={inputClsSm} />
-                      <span className="text-[10px] text-gray-400">Footer link</span>
+            <CollapsibleSection sectionKey="contact-content-manager" title="Konten Contact" subtitle="Jalur inquiry, opsi, properties, sosial media, dan link tambahan">
+              <div><div className="mb-2 flex items-center justify-between"><label className="text-xs font-bold">Jalur Inquiry</label><AddBtn onClick={() => addContactListItem('inquiryPaths', { id: `path-${Date.now()}`, kind: 'hello', label: '', subject: '', enabled: true })} label="Tambah Jalur" /></div><div className="space-y-2">{formData.contact.inquiryPaths.map((item, idx) => <ContentCard key={item.id || idx} cardKey={`inquiry-${idx}`} listKey="inquiryPaths" idx={idx} count={formData.contact.inquiryPaths.length} title={item.label || `Jalur #${idx + 1}`} subtitle={item.subject || 'Subject belum diisi'} onRemove={() => removeContactListItem('inquiryPaths', idx)}><div className="grid grid-cols-1 gap-2 md:grid-cols-[0.8fr_1fr_1fr_auto]"><select value={item.kind || item.id} onChange={(e) => setContactListItem('inquiryPaths', idx, { kind: e.target.value })} className={inputClsSm}><option value="project">Proyek</option><option value="opportunity">Peluang Kerja</option><option value="hello">Pesan Bebas</option></select><input value={item.label} onChange={(e) => setContactListItem('inquiryPaths', idx, { label: e.target.value })} placeholder="Label" className={inputClsSm} /><input value={item.subject} onChange={(e) => setContactListItem('inquiryPaths', idx, { subject: e.target.value })} placeholder="Subject email" className={inputClsSm} /><label className="flex items-center gap-2 text-[10px]"><input type="checkbox" checked={item.enabled !== false} onChange={(e) => setContactListItem('inquiryPaths', idx, { enabled: e.target.checked })} /> Tampil</label></div></ContentCard>)}</div></div>
+  
+              {[['serviceOptions', 'Pilihan Layanan'], ['stageOptions', 'Tahap Proyek'], ['timelineOptions', 'Pilihan Timeline']].map(([key, label]) => <div key={key}><div className="mb-2 flex items-center justify-between"><label className="text-xs font-bold">{label}</label><AddBtn onClick={() => addContactListItem(key, '')} label="Tambah Opsi" /></div><div className="space-y-2">{formData.contact[key].map((item, idx) => <ContentCard key={`${key}-${idx}`} cardKey={`${key}-${idx}`} listKey={key} idx={idx} count={formData.contact[key].length} title={item || `Opsi #${idx + 1}`} subtitle="Drag untuk mengubah urutan" onRemove={() => removeContactListItem(key, idx)}><input value={item} onChange={(e) => setStringListItem(key, idx, e.target.value)} className={inputClsSm} /></ContentCard>)}</div></div>)}
+  
+              <div><div className="mb-2 flex items-center justify-between"><label className="text-xs font-bold">Document Properties</label><AddBtn onClick={() => addContactListItem('properties', { id: `property-${Date.now()}`, label: '', value: '', enabled: true })} label="Tambah Property" /></div><div className="space-y-2">{formData.contact.properties.map((item, idx) => <ContentCard key={item.id || idx} cardKey={`property-${idx}`} listKey="properties" idx={idx} count={formData.contact.properties.length} title={item.label || `Property #${idx + 1}`} subtitle={item.value || 'Belum diisi'} onRemove={() => removeContactListItem('properties', idx)}><div className="grid grid-cols-1 gap-2 md:grid-cols-[0.7fr_1.3fr_auto]"><input value={item.label} onChange={(e) => setContactListItem('properties', idx, { label: e.target.value })} placeholder="Label" className={inputClsSm} /><input value={item.value} onChange={(e) => setContactListItem('properties', idx, { value: e.target.value })} placeholder="Isi" className={inputClsSm} /><label className="flex items-center gap-2 text-[10px]"><input type="checkbox" checked={item.enabled !== false} onChange={(e) => setContactListItem('properties', idx, { enabled: e.target.checked })} /> Tampil</label></div></ContentCard>)}</div></div>
+  
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium">Sosial Media</label>
+                  <AddBtn onClick={addSocial} label="Tambah Sosmed" />
+                </div>
+                <div className="space-y-2">
+                  {formData.contact.socials.map((s, idx) => (
+                    <ContentCard key={idx} cardKey={`social-${idx}`} listKey="socials" idx={idx} count={formData.contact.socials.length} title={s.name || `Sosial Media #${idx + 1}`} subtitle={s.label || s.url || 'Belum diisi'} onRemove={() => removeSocial(idx)}>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
+                      <input type="text" value={s.name} onChange={(e) => setSocialField(idx, 'name', e.target.value)} placeholder="Nama (mis. LinkedIn)" className={inputClsSm} />
+                      <input type="text" value={s.url} onChange={(e) => setSocialField(idx, 'url', e.target.value)} placeholder="URL" className={inputClsSm} />
+                      <input type="text" value={s.label} onChange={(e) => setSocialField(idx, 'label', e.target.value)} placeholder="Label (mis. Connect on LinkedIn)" className={inputClsSm} />
                     </div>
-                    <div className="flex items-center gap-2 pl-0.5">
-                      <input
-                        type="file"
-                        accept=".pdf,application/pdf,image/*"
-                        disabled={uploadingActionButton === idx}
-                        onChange={async (e) => {
-                          const file = e.target.files[0];
-                          if (!file) return;
-                          setUploadingActionButton(idx);
-                          const url = await uploadImageToStorage(file);
-                          setUploadingActionButton(null);
-                          if (url) setActionButtonField(idx, 'url', url);
-                          e.target.value = '';
-                        }}
-                        className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
-                      />
-                      {uploadingActionButton === idx && (
-                        <span className="text-[10px] text-blue-500 animate-pulse shrink-0">Mengupload...</span>
-                      )}
-                      {btn.url && !uploadingActionButton && (
-                        <a href={btn.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-400 hover:text-blue-600 underline shrink-0">
-                          Lihat file saat ini
-                        </a>
-                      )}
-                    </div>
-                  </ContentCard>
-                ))}
+                    </ContentCard>
+                  ))}
+                </div>
               </div>
-            </div>
+  
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium">Link Tambahan (mis. Download Résumé)</label>
+                  <AddBtn onClick={addActionButton} label="Tambah Tombol" />
+                </div>
+                <p className="text-[10px] text-gray-400 mb-2">
+                  Buat tombol "Download Resume": isi Label-nya, terus di kolom Link tinggal upload file
+                  PDF-nya langsung dari perangkat lo — link publiknya otomatis keisi sendiri.
+                </p>
+                <div className="space-y-2">
+                  {formData.contact.actionButtons.map((btn, idx) => (
+                    <ContentCard key={idx} cardKey={`action-${idx}`} listKey="actionButtons" idx={idx} count={formData.contact.actionButtons.length} title={btn.label || `Tombol Aksi #${idx + 1}`} subtitle={btn.url || 'Belum ada link'} onRemove={() => removeActionButton(idx)}>
+                      <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                        <input type="text" value={btn.label} onChange={(e) => setActionButtonField(idx, 'label', e.target.value)} placeholder="Label Tombol" className={inputClsSm} />
+                        <input type="text" value={btn.url} onChange={(e) => setActionButtonField(idx, 'url', e.target.value)} placeholder="Link (atau upload file di bawah)" className={inputClsSm} />
+                        <span className="text-[10px] text-gray-400">Footer link</span>
+                      </div>
+                      <div className="flex items-center gap-2 pl-0.5">
+                        <input
+                          type="file"
+                          accept=".pdf,application/pdf,image/*"
+                          disabled={uploadingActionButton === idx}
+                          onChange={async (e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            setUploadingActionButton(idx);
+                            const url = await uploadImageToStorage(file);
+                            setUploadingActionButton(null);
+                            if (url) setActionButtonField(idx, 'url', url);
+                            e.target.value = '';
+                          }}
+                          className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
+                        />
+                        {uploadingActionButton === idx && (
+                          <span className="text-[10px] text-blue-500 animate-pulse shrink-0">Mengupload...</span>
+                        )}
+                        {btn.url && !uploadingActionButton && (
+                          <a href={btn.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-400 hover:text-blue-600 underline shrink-0">
+                            Lihat file saat ini
+                          </a>
+                        )}
+                      </div>
+                    </ContentCard>
+                  ))}
+                </div>
+              </div>
+            </CollapsibleSection>
           </div>
         )}
 
@@ -2992,6 +5612,13 @@ export default function CmsDashboard({ data, onSave }) {
                 <Field label="Ajakan sebelum dicetak"><input value={formData.home.visitorIntroduction.triggerAction || ''} onChange={(e) => setVisitorIntroduction('triggerAction', e.target.value)} className={inputCls} /></Field>
                 <Field label="Label setelah pernah dibuka"><input value={formData.home.visitorIntroduction.printedLabel || ''} onChange={(e) => setVisitorIntroduction('printedLabel', e.target.value)} className={inputCls} /></Field>
               </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <Field label="Judul Quick View"><input value={formData.home.visitorIntroduction.quickViewLabel || ''} onChange={(e) => setVisitorIntroduction('quickViewLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Judul Document Index"><input value={formData.home.visitorIntroduction.documentIndexLabel ?? 'Document index'} onChange={(e) => setVisitorIntroduction('documentIndexLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Tombol Projects"><input value={formData.home.visitorIntroduction.selectedWorksLabel || ''} onChange={(e) => setVisitorIntroduction('selectedWorksLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Tombol Careers"><input value={formData.home.visitorIntroduction.experienceLabel || ''} onChange={(e) => setVisitorIntroduction('experienceLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Tombol Contact"><input value={formData.home.visitorIntroduction.contactLabel || ''} onChange={(e) => setVisitorIntroduction('contactLabel', e.target.value)} className={inputCls} /></Field>
+              </div>
             </ContentCard>
 
             <ContentCard cardKey="visitor-sheet" listKey="visitor-introduction" idx={0} count={1} title="Isi lembar fullscreen" subtitle={formData.home.visitorIntroduction.documentCode || 'Visitor’s Copy'}>
@@ -3009,80 +5636,68 @@ export default function CmsDashboard({ data, onSave }) {
         )}
 
         {/* ================= ZINE ================= */}
-        {activeTab === 'zine' && (
-          <div className="space-y-5">
-            <h2 className="border-b border-gray-100 pb-2 text-sm font-bold text-blue-600 dark:border-gray-800 dark:text-blue-400">Wassup? / Writing Exchange</h2>
-            <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={formData.zine.enabled !== false} onChange={(e) => setZine('enabled', e.target.checked)} className="h-4 w-4 accent-[#2B579A]" />Tampilkan pilihan Wassup?</label>
-            <div className="grid gap-3 md:grid-cols-3"><Field label="Nama pada tombol pilihan"><input value={formData.zine.menuLabel || ''} onChange={(e) => setZine('menuLabel', e.target.value)} className={inputCls} placeholder="Wassup?" /></Field><Field label="Judul pengalaman"><input value={formData.zine.title || ''} onChange={(e) => setZine('title', e.target.value)} className={inputCls} /></Field><Field label="Batas karakter"><input type="number" min="100" max="5000" value={formData.zine.maxLength || 1200} onChange={(e) => setZine('maxLength', Number(e.target.value))} className={inputCls} /></Field></div>
-            <Field label="Prompt menulis"><input value={formData.zine.writePrompt || ''} onChange={(e) => setZine('writePrompt', e.target.value)} className={inputCls} /></Field>
-            <Field label="Pesan setelah Send"><input value={formData.zine.submitSuccess || ''} onChange={(e) => setZine('submitSuccess', e.target.value)} className={inputCls} /></Field>
-            <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-900 dark:bg-blue-950/20">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-xs font-bold uppercase tracking-wide text-blue-700 dark:text-blue-300">Inbox kiriman pembaca</h3>
-                  <p className="mt-1 text-[11px] text-gray-500">Edit bila perlu, lalu Approve agar bisa diterima pengunjung lain atau Reject untuk menyembunyikannya.</p>
-                </div>
-                <button type="button" onClick={loadZineInbox} disabled={zineInboxLoading} className="rounded border border-blue-300 bg-white px-3 py-2 text-xs font-semibold text-blue-700 disabled:opacity-50 dark:border-blue-800 dark:bg-[#252525] dark:text-blue-300">{zineInboxLoading ? 'Memuat…' : 'Refresh Inbox'}</button>
-              </div>
-              {zineInboxError && <p className="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/20 dark:text-red-300">{zineInboxError}</p>}
-              {!zineInboxLoading && !zineInbox.length && !zineInboxError && <p className="text-xs text-gray-500">Belum ada kiriman pembaca.</p>}
-              <div className="space-y-3">
-                {zineInbox.map((entry) => (
-                  <ContentCard key={`inbox-${entry.id}`} cardKey={`zine-inbox-${entry.id}`} listKey="zine-inbox" idx={0} count={1} title={`Submission #${entry.id}`} subtitle={`${entry.status.toUpperCase()} · ${new Date(entry.created_at).toLocaleString('id-ID')}`}>
-                    <Field label="Isi kiriman"><textarea rows={7} maxLength={5000} value={entry.body || ''} onChange={(event) => editInboxZine(entry.id, event.target.value)} className={`${inputCls} resize-y font-serif`} /></Field>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`mr-auto rounded-full px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide ${entry.status === 'approved' ? 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300' : entry.status === 'rejected' ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'}`}>{entry.status}</span>
-                      <button type="button" disabled={moderatingZineId === entry.id} onClick={() => moderateInboxZine(entry, 'pending')} className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold disabled:opacity-50 dark:border-gray-600">Pending</button>
-                      <button type="button" disabled={moderatingZineId === entry.id} onClick={() => moderateInboxZine(entry, 'rejected')} className="rounded border border-red-300 px-3 py-2 text-xs font-semibold text-red-600 disabled:opacity-50 dark:border-red-800 dark:text-red-300">Reject</button>
-                      <button type="button" disabled={moderatingZineId === entry.id} onClick={() => moderateInboxZine(entry, 'approved')} className="rounded bg-green-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">{moderatingZineId === entry.id ? 'Menyimpan…' : 'Approve'}</button>
-                    </div>
-                  </ContentCard>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Zine yang dapat diterima pengunjung</h3><button type="button" onClick={addZineEntry} className="rounded border border-dashed border-blue-400 px-3 py-2 text-xs font-semibold text-blue-600">+ Tambah Zine</button></div>
-            <div className="space-y-3">{formData.zine.entries.map((entry, index) => <ContentCard key={entry.id || index} cardKey={`zine-${index}`} listKey="zines" idx={index} count={formData.zine.entries.length} title={entry.title || `Zine #${index + 1}`} subtitle={entry.author || 'Anonymous'} onRemove={() => removeZineEntry(index)}>
-              <div className="grid gap-3 md:grid-cols-2"><Field label="Judul"><input value={entry.title || ''} onChange={(e) => updateZineEntry(index, { title: e.target.value })} className={inputCls} /></Field><Field label="Penulis"><input value={entry.author || ''} onChange={(e) => updateZineEntry(index, { author: e.target.value })} className={inputCls} /></Field></div>
-              <Field label="Label kecil"><input value={entry.label || ''} onChange={(e) => updateZineEntry(index, { label: e.target.value })} className={inputCls} /></Field>
-              <Field label="Isi zine"><textarea rows={8} value={entry.body || ''} onChange={(e) => updateZineEntry(index, { body: e.target.value })} className={`${inputCls} resize-y font-serif`} /></Field>
-              <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={entry.published !== false} onChange={(e) => updateZineEntry(index, { published: e.target.checked })} className="h-4 w-4 accent-[#2B579A]" />Boleh diterima pengunjung</label>
-            </ContentCard>)}</div>
-          </div>
-        )}
-
+        {activeTab === 'zine' && <WassupEditor ctx={{ formData, setZine, inputCls, Field, CollapsibleSection, zineInbox, zineInboxLoading, zineInboxError, loadZineInbox, editInboxZine, moderateInboxZine, archiveInboxZine, moderatingZineId, ContentCard, addZineEntry, removeZineEntry, updateZineEntry }} />}
         {/* ================= MINI GAME ================= */}
-        {activeTab === 'miniGame' && (
-          <div className="space-y-5">
-            {activeMiniGameEditor === null ? <><div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-3 dark:border-gray-800"><h2 className="text-sm font-bold text-blue-600 dark:text-blue-400">Mini Game Archive</h2><button type="button" onClick={addMiniGameSlot} className="rounded border border-dashed border-blue-400 px-3 py-2 text-xs font-semibold text-blue-600">+ Tambah Slot Game</button></div><p className="text-xs leading-relaxed text-gray-500">Setiap slot punya formulir lengkap seperti The Red Pen. Klik slot untuk mengisi aturan, skor, gelar, hasil, dan draft-nya.</p><div className="flex flex-wrap gap-2"><button type="button" onClick={() => setActiveMiniGameEditor('redPen')} className="rounded-md border border-blue-500 bg-blue-50 px-4 py-3 text-left transition-all hover:shadow-md dark:bg-blue-950/30"><span className="block font-mono text-[10px] font-bold uppercase tracking-wider text-blue-600">01 / Aktif</span><strong className="mt-1 block text-sm">{formData.miniGame.gameName || 'The Red Pen'}</strong></button>{(formData.miniGame.gameSlots || []).map((slot, index) => <div key={slot.id || index} className="flex min-w-52 items-stretch rounded-md border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-[#2d2d2d]"><button type="button" onClick={() => setActiveMiniGameEditor(`slot-${index}`)} className="min-w-0 flex-1 px-4 py-3 text-left transition-colors hover:bg-blue-50 dark:hover:bg-blue-950/20"><span className="block font-mono text-[9px] font-bold uppercase tracking-wider text-gray-400">{String(index + 2).padStart(2, '0')} / {slot.gameName?.trim() ? 'Aktif' : 'Kosong'}</span><strong className="mt-1 block truncate text-sm">{slot.gameName || `Game ${index + 2}`}</strong></button><button type="button" onClick={() => removeMiniGameSlot(index)} className="px-3 text-xs font-semibold text-red-500" aria-label={`Hapus slot ${slot.gameName || index + 2}`}>×</button></div>)}</div></> : <><button type="button" onClick={() => setActiveMiniGameEditor(null)} className="font-mono text-xs text-gray-500 hover:text-blue-600">← Daftar Mini Game</button><h2 className="border-b border-gray-100 pb-2 text-sm font-bold text-blue-600 dark:border-gray-800 dark:text-blue-400">Mini Game Archive / {editingMiniGame.gameName || 'Game baru'}</h2>
-            {activeMiniGameEditor === 'redPen' && <><label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={editingMiniGame.enabled !== false} onChange={(e) => setMiniGame('enabled', e.target.checked)} className="h-4 w-4 accent-[#2B579A]" />Tampilkan tombol Mini Game di Home</label><div className="grid gap-3 md:grid-cols-2"><Field label="Label menu di Home"><input value={editingMiniGame.menuLabel || ''} onChange={(e) => setMiniGame('menuLabel', e.target.value)} className={inputCls} /></Field><Field label="Judul halaman pilihan game"><input value={editingMiniGame.libraryTitle || ''} onChange={(e) => setMiniGame('libraryTitle', e.target.value)} className={inputCls} /></Field></div><Field label="Deskripsi halaman pilihan game"><textarea rows={2} value={editingMiniGame.libraryDescription || ''} onChange={(e) => setMiniGame('libraryDescription', e.target.value)} className={`${inputCls} resize-y`} /></Field></>}
-            <label className="flex items-center gap-2 rounded border border-blue-200 bg-blue-50 p-3 text-xs dark:border-blue-900 dark:bg-blue-950/20"><input type="checkbox" checked={editingMiniGame.showInLibrary === true} onChange={(e) => setMiniGame('showInLibrary', e.target.checked)} className="h-4 w-4 accent-[#2B579A]" />Tampilkan game ini di halaman Mini Game</label>
-            <div className="grid gap-3 md:grid-cols-2"><Field label="Nama mini game"><input value={editingMiniGame.gameName || ''} onChange={(e) => setMiniGame('gameName', e.target.value)} className={inputCls} /></Field><Field label="Kategori mini game"><input value={editingMiniGame.gameCategory || ''} onChange={(e) => setMiniGame('gameCategory', e.target.value)} className={inputCls} /></Field></div>
-            <Field label="Deskripsi kartu mini game"><textarea rows={2} value={editingMiniGame.gameCardDescription || ''} onChange={(e) => setMiniGame('gameCardDescription', e.target.value)} className={`${inputCls} resize-y`} /></Field>
-            <section className="space-y-3 rounded-lg border border-gray-200 p-4 dark:border-gray-700"><h3 className="font-mono text-xs font-bold uppercase tracking-wide text-blue-600">Ilustrasi kartu game</h3>{editingMiniGame.illustration && <img src={editingMiniGame.illustration} alt="Preview ilustrasi game" className="h-36 w-full rounded border border-gray-200 object-cover dark:border-gray-700" />}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; if (file.size > 2 * 1024 * 1024) { dispatchCmsNotice('Ilustrasi game maksimal 2 MB. Pakai JPG/WebP sekitar 1200 × 900 px.'); e.target.value = ''; return; } const url = await uploadImageToStorage(file); if (url) setMiniGame('illustration', url); e.target.value = ''; }} className="block w-full text-xs" /><Field label="Atau tempel URL ilustrasi"><input value={editingMiniGame.illustration || ''} onChange={(e) => setMiniGame('illustration', e.target.value)} placeholder="https://..." className={inputCls} /></Field><p className="text-[11px] text-gray-500">Rekomendasi: WebP/JPG 1200 × 900 px (rasio 4:3), maksimal 500 KB agar rak game tetap ringan.</p></section>
-            <Field label="Judul halaman permainan"><input value={editingMiniGame.title || ''} onChange={(e) => setMiniGame('title', e.target.value)} className={inputCls} /></Field>
-            <section className="space-y-3 rounded-lg border border-gray-200 p-4 dark:border-gray-700"><h3 className="font-mono text-xs font-bold uppercase tracking-wide text-blue-600">Tampilan peraturan</h3><Field label="Tujuan permainan"><textarea rows={3} value={editingMiniGame.objective || ''} onChange={(e) => setMiniGame('objective', e.target.value)} className={`${inputCls} resize-y`} /></Field><div className="grid gap-3 md:grid-cols-2"><Field label="Aturan 01 — tindakan pemain"><textarea rows={2} value={editingMiniGame.rules.click || ''} onChange={(e) => setMiniGameRule('click', e.target.value)} className={`${inputCls} resize-y`} /></Field><Field label="Aturan 02 — waktu"><textarea rows={2} value={editingMiniGame.rules.timer || ''} onChange={(e) => setMiniGameRule('timer', e.target.value)} className={`${inputCls} resize-y`} /></Field><Field label="Aturan 03 — jawaban salah"><textarea rows={2} value={editingMiniGame.rules.wrong || ''} onChange={(e) => setMiniGameRule('wrong', e.target.value)} className={`${inputCls} resize-y`} /></Field><Field label="Aturan 04 — bantuan"><textarea rows={2} value={editingMiniGame.rules.hint || ''} onChange={(e) => setMiniGameRule('hint', e.target.value)} className={`${inputCls} resize-y`} /></Field></div><Field label="Aturan 05 — review editorial"><textarea rows={2} value={editingMiniGame.rules.review || ''} onChange={(e) => setMiniGameRule('review', e.target.value)} className={`${inputCls} resize-y`} /></Field><Field label="Teks tombol mulai"><input value={editingMiniGame.startButtonLabel || ''} onChange={(e) => setMiniGame('startButtonLabel', e.target.value)} className={inputCls} /></Field></section>
-            <div className="grid gap-3 md:grid-cols-2"><Field label="Waktu per draft (detik)"><input type="number" min="15" max="120" value={editingMiniGame.secondsPerDraft || 60} onChange={(e) => setMiniGame('secondsPerDraft', Math.min(120, Math.max(15, Number(e.target.value) || 60)))} className={inputCls} /></Field><Field label="Jumlah draft per permainan (maks. 5)"><input type="number" min="1" max="5" value={editingMiniGame.draftsPerSession || 5} onChange={(e) => setMiniGame('draftsPerSession', Math.min(5, Math.max(1, Number(e.target.value) || 5)))} className={inputCls} /></Field></div>
-            <section className="space-y-3 rounded-lg border border-gray-200 p-4 dark:border-gray-700"><h3 className="font-mono text-xs font-bold uppercase tracking-wide text-blue-600">Sistem skor dan gelar</h3><div className="grid gap-3 md:grid-cols-3"><Field label="Temuan benar (+)"><input type="number" min="0" value={editingMiniGame.scoreSettings.correctPoints} onChange={(e) => setMiniGameScore('correctPoints', e.target.value)} className={inputCls} /></Field><Field label="Klik salah (−)"><input type="number" min="0" value={editingMiniGame.scoreSettings.wrongPenalty} onChange={(e) => setMiniGameScore('wrongPenalty', e.target.value)} className={inputCls} /></Field><Field label="Draft selesai (+)"><input type="number" min="0" value={editingMiniGame.scoreSettings.completionBonus} onChange={(e) => setMiniGameScore('completionBonus', e.target.value)} className={inputCls} /></Field><Field label="Maks. bonus waktu (+)"><input type="number" min="0" value={editingMiniGame.scoreSettings.maxTimeBonus} onChange={(e) => setMiniGameScore('maxTimeBonus', e.target.value)} className={inputCls} /></Field><Field label="Pakai hint (−)"><input type="number" min="0" value={editingMiniGame.scoreSettings.hintPenalty} onChange={(e) => setMiniGameScore('hintPenalty', e.target.value)} className={inputCls} /></Field></div><div className="grid gap-3 md:grid-cols-2">{editingMiniGame.gradeTitles.map((item, index) => <div key={index} className="grid grid-cols-[5rem_1fr] gap-2"><Field label="Nilai min."><input type="number" min="0" max="100" value={item.min} onChange={(e) => updateGradeTitle(index, { min: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })} className={inputCls} /></Field><Field label={`Nama gelar ${index + 1}`}><input value={item.label || ''} onChange={(e) => updateGradeTitle(index, { label: e.target.value })} className={inputCls} /></Field></div>)}</div></section>
-            <section className="space-y-3 rounded-lg border border-gray-200 p-4 dark:border-gray-700"><h3 className="font-mono text-xs font-bold uppercase tracking-wide text-blue-600">Tampilan hasil</h3><div className="grid gap-3 md:grid-cols-2"><Field label="Label laporan hasil"><input value={editingMiniGame.resultEyebrow || ''} onChange={(e) => setMiniGame('resultEyebrow', e.target.value)} className={inputCls} /></Field><Field label="Tombol main ulang"><input value={editingMiniGame.replayLabel || ''} onChange={(e) => setMiniGame('replayLabel', e.target.value)} className={inputCls} /></Field><Field label="Tombol menuju Projects"><input value={editingMiniGame.projectsCtaLabel || ''} onChange={(e) => setMiniGame('projectsCtaLabel', e.target.value)} className={inputCls} /></Field><Field label="Tombol menuju Contact"><input value={editingMiniGame.contactCtaLabel || ''} onChange={(e) => setMiniGame('contactCtaLabel', e.target.value)} className={inputCls} /></Field></div></section>
-            <div className="rounded border border-blue-200 bg-blue-50 p-4 text-xs leading-relaxed text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200"><strong>Aturan isi:</strong> frasa bermasalah harus disalin persis dari paragraf dan hanya boleh muncul satu kali. CMS akan menolak Save kalau frasa kosong, tidak ditemukan, atau muncul berulang.</div>
-            <div className="flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-wide text-gray-600 dark:text-gray-300">Draft {editingMiniGame.gameName || 'Game baru'}</h3><button type="button" onClick={addGameDraft} className="rounded border border-dashed border-blue-400 px-3 py-2 text-xs font-semibold text-blue-600">+ Tambah Draft</button></div>
-            <div className="space-y-3">{editingMiniGame.drafts.map((draft, index) => {
-              const errors = redPenDraftErrors(draft);
-              return <ContentCard key={draft.id || index} cardKey={`game-${index}`} listKey="gameDrafts" idx={index} count={editingMiniGame.drafts.length} title={`${String(index + 1).padStart(2, '0')} / ${draft.label || 'Tanpa label'}`} subtitle={`${(draft.issues || []).length} koreksi${errors.length ? ` · ${errors.length} perlu diperbaiki` : ' · siap dimainkan'}`} onRemove={() => removeGameDraft(index)}>
-                <div className="grid gap-3 md:grid-cols-[1fr_auto]"><Field label="Label tingkat/draft"><input value={draft.label || ''} onChange={(e) => updateGameDraft(index, { label: e.target.value })} className={inputCls} /></Field><label className="flex items-end gap-2 pb-3 text-xs"><input type="checkbox" checked={draft.enabled !== false} onChange={(e) => updateGameDraft(index, { enabled: e.target.checked })} className="h-4 w-4 accent-[#2B579A]" />Aktif</label></div>
-                <Field label="Paragraf yang harus diedit"><textarea rows={7} value={draft.passage || ''} onChange={(e) => updateGameDraft(index, { passage: e.target.value })} className={`${inputCls} resize-y font-serif`} /></Field>
-                <div className="flex items-center justify-between border-t border-gray-200 pt-3 dark:border-gray-700"><h4 className="text-xs font-bold uppercase tracking-wide">Koreksi editorial</h4><button type="button" onClick={() => addGameIssue(index)} className="rounded bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-600 dark:bg-blue-950/40 dark:text-blue-300">+ Tambah Koreksi</button></div>
-                <div className="space-y-3">{(draft.issues || []).map((issue, issueIndex) => {
-                  const phrase = String(issue.phrase || '').trim();
-                  const occurrenceCount = phraseOccurrences(draft.passage || '', phrase);
-                  const invalid = !phrase || occurrenceCount !== 1 || !String(issue.replacement || '').trim();
-                  return <div key={issue.id || issueIndex} className={`rounded border p-3 ${invalid ? 'border-red-300 bg-red-50/60 dark:border-red-900 dark:bg-red-950/20' : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-[#282828]'}`}><div className="mb-2 flex items-center justify-between"><strong className="text-xs">Koreksi #{issueIndex + 1}</strong><button type="button" onClick={() => removeGameIssue(index, issueIndex)} className="text-[10px] font-semibold text-red-500">Hapus</button></div><div className="grid gap-3 md:grid-cols-2"><Field label="Frasa bermasalah (salin persis)"><input value={issue.phrase || ''} onChange={(e) => updateGameIssue(index, issueIndex, { phrase: e.target.value })} className={inputCls} /></Field><Field label="Pengganti (atau tulis: hapus)"><input value={issue.replacement || ''} onChange={(e) => updateGameIssue(index, issueIndex, { replacement: e.target.value })} className={inputCls} /></Field></div><Field label="Alasan editorial"><textarea rows={2} value={issue.explanation || ''} onChange={(e) => updateGameIssue(index, issueIndex, { explanation: e.target.value })} className={`${inputCls} resize-y`} /></Field>{phrase && occurrenceCount !== 1 && <p className="mt-2 text-[11px] font-semibold text-red-600">{occurrenceCount === 0 ? 'Frasa ini belum ditemukan persis di paragraf.' : `Frasa ini muncul ${occurrenceCount} kali; buat lebih spesifik.`}</p>}</div>;
-                })}</div>
-                {errors.length > 0 && <div className="rounded border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/20 dark:text-red-300"><strong>Belum bisa disimpan:</strong><ul className="mt-1 list-disc space-y-1 pl-5">{errors.map((error) => <li key={error}>{error}</li>)}</ul></div>}
-              </ContentCard>;
-            })}</div></>}
-          </div>
-        )}
+        {activeTab === 'miniGame' && <MiniGameEditor ctx={{ activeMiniGameEditor, setActiveMiniGameEditor, bumpCmsDomRevision, addMiniGameSlot, removeMiniGameSlot, formData, editingMiniGame, setMiniGame, inputCls, Field, CollapsibleSection, cmsCopy, miniGameAutofillText, setMiniGameAutofillText, miniGameAutofillNotice, setMiniGameAutofillNotice, applyMiniGameAutofill, dispatchCmsNotice, uploadImageToStorage, setMiniGameRule, updateGradeTitle, setMiniGameScore, addGameDraft, miniGameContentErrors, ContentCard, removeGameDraft, updateGameDraft, addGameIssue, phraseOccurrences, removeGameIssue, updateGameIssue }} />}
+
+        {/* ================= LEADERBOARD SYSTEMS ================= */}
+        {activeTab === 'leaderboardSystems' && (() => {
+          const gameIds = [...new Set(leaderboardRows.map((row) => row.gameId || 'red-pen'))];
+          const visibleRows = leaderboardRows.filter((row) => leaderboardGameFilter === 'all' || (row.gameId || 'red-pen') === leaderboardGameFilter);
+          const rankedRows = visibleRows.map((row, index) => ({ ...row, rank: index + 1 }));
+          return (
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 pb-3 dark:border-gray-800">
+                <div>
+                  <h2 className="text-sm font-bold text-blue-600 dark:text-blue-400">Leaderboard Systems</h2>
+                  <p className="mt-1 max-w-2xl text-xs leading-relaxed text-gray-500">Satu pusat klasemen untuk seluruh Mini Game. Setiap game tetap punya ranking sendiri; panel ini dipakai untuk melihat pemain, personal best, attempts, dan moderasi nama.</p>
+                </div>
+                <button type="button" onClick={loadLeaderboardSystems} disabled={leaderboardLoading} className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-600 hover:border-blue-500 hover:text-blue-600 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300">{leaderboardLoading ? 'Memuat…' : 'Refresh'}</button>
+              </div>
+
+              {leaderboardError && <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/20 dark:text-red-300">{leaderboardError}</div>}
+
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => setLeaderboardGameFilter('all')} className={`rounded-full border px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-wider ${leaderboardGameFilter === 'all' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 text-gray-500 dark:border-gray-600'}`}>Semua Game · {leaderboardRows.length}</button>
+                {gameIds.map((gameId) => <button key={gameId} type="button" onClick={() => setLeaderboardGameFilter(gameId)} className={`rounded-full border px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-wider ${leaderboardGameFilter === gameId ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 text-gray-500 dark:border-gray-600'}`}>{gameId.replace(/-/g, ' ')} · {leaderboardRows.filter((row) => (row.gameId || 'red-pen') === gameId).length}</button>)}
+              </div>
+
+              <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                <table className="w-full min-w-[780px] border-collapse text-left text-xs">
+                  <thead className="bg-gray-50 font-mono text-[10px] uppercase tracking-wider text-gray-500 dark:bg-[#282828]">
+                    <tr><th className="px-3 py-3">Rank</th><th className="px-3 py-3">Pemain</th><th className="px-3 py-3">Game</th><th className="px-3 py-3">Score</th><th className="px-3 py-3">Accuracy</th><th className="px-3 py-3">Attempts</th><th className="px-3 py-3">Active Time</th><th className="px-3 py-3 text-right">Moderasi</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {rankedRows.map((row) => <tr key={row.id} className="bg-white dark:bg-[#242424]">
+                      <td className="px-3 py-3 font-mono font-bold">#{row.rank}</td>
+                      <td className="px-3 py-3"><strong className="block max-w-48 truncate">{row.playerName || 'Anonymous'}</strong><span className="mt-0.5 block max-w-48 truncate font-mono text-[9px] text-gray-400">{row.playerId || 'legacy'}</span></td>
+                      <td className="px-3 py-3 font-mono uppercase">{(row.gameId || 'red-pen').replace(/-/g, ' ')}</td>
+                      <td className="px-3 py-3 font-mono font-bold">{row.score}</td>
+                      <td className="px-3 py-3">{row.accuracy}%</td>
+                      <td className="px-3 py-3">{row.attempts}</td>
+                      <td className="px-3 py-3 font-mono">{Math.floor((row.activeSeconds || 0) / 60)}:{String((row.activeSeconds || 0) % 60).padStart(2, '0')}</td>
+                      <td className="px-3 py-3 text-right"><button type="button" disabled={deletingLeaderboardId === row.id} onClick={() => requestRemoveLeaderboardEntry(row)} className="rounded border border-red-200 px-2.5 py-1.5 text-[10px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:hover:bg-red-950/20">{deletingLeaderboardId === row.id ? 'Menghapus…' : 'Hapus'}</button></td>
+                    </tr>)}
+                    {!leaderboardLoading && !rankedRows.length && <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500">Belum ada pemain di klasemen ini.</td></tr>}
+                    {leaderboardLoading && !rankedRows.length && <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500">Memuat klasemen…</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+              {leaderboardDeleteTarget && <div className="fixed inset-0 z-[9999] grid place-items-center bg-black/45 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !deletingLeaderboardId) setLeaderboardDeleteTarget(null); }}>
+                <div role="dialog" aria-modal="true" aria-labelledby="leaderboard-delete-title" className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-5 shadow-2xl dark:border-gray-700 dark:bg-[#242424]">
+                  <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-blue-600">Leaderboard Systems</p>
+                  <h3 id="leaderboard-delete-title" className="mt-2 text-base font-bold text-gray-900 dark:text-white">Hapus {leaderboardDeleteTarget.playerName || 'pemain ini'} dari klasemen {(leaderboardDeleteTarget.gameId || 'Mini Game').replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())}?</h3>
+                  <p className="mt-2 text-xs leading-relaxed text-gray-500">Entry pemain ini untuk game tersebut akan dihapus dari klasemen.</p>
+                  <div className="mt-5 flex justify-end gap-2">
+                    <button type="button" disabled={Boolean(deletingLeaderboardId)} onClick={() => setLeaderboardDeleteTarget(null)} className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-600 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300">Batal</button>
+                    <button type="button" disabled={Boolean(deletingLeaderboardId)} onClick={confirmRemoveLeaderboardEntry} className="rounded border border-red-600 bg-red-600 px-3 py-2 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50">{deletingLeaderboardId ? 'Menghapus…' : 'Hapus Pemain'}</button>
+                  </div>
+                </div>
+              </div>}
+              <p className="text-[10px] leading-relaxed text-gray-400">Ranking mengikuti urutan yang sama dengan game: score tertinggi, accuracy tertinggi, active time tercepat, lalu record lebih awal. Hapus hanya menghapus entry klasemen pemain tersebut untuk game terkait.</p>
+            </div>
+          );
+        })()}
 
         {activeTab === 'interactiveWords' && (
           <InteractiveLinksEditor
@@ -3101,14 +5716,17 @@ export default function CmsDashboard({ data, onSave }) {
               kepisah dari 6 tab konten di atas.
             </p>
 
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex items-center justify-between gap-4">
+            <CollapsibleSection sectionKey="general-mechanical-sound" title="Mechanical Interaction Sound">
+
               <div><h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">Mechanical Interaction Sound</h3><p className="text-[11px] text-gray-400 mt-0.5">Suara klik mekanis setelah pengunjung berinteraksi pertama kali. Pengunjung tetap bisa mematikannya dari Title Bar.</p></div>
               <button type="button" onClick={() => setFormData((previous) => ({ ...previous, general: { ...previous.general, soundEffects: !previous.general.soundEffects } }))} className={`shrink-0 w-11 h-6 rounded-full transition-colors relative ${formData.general.soundEffects ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
                 <span className={`absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${formData.general.soundEffects ? 'translate-x-5' : 'translate-x-0'}`} />
               </button>
-            </div>
+            
+            </CollapsibleSection>
 
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-4">
+            <CollapsibleSection sectionKey="general-update-patch" title="Info Update Patch">
+
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">Info Update Patch</h3>
@@ -3157,14 +5775,62 @@ export default function CmsDashboard({ data, onSave }) {
                 />
               </Field>
 
-              <Field label="Isi patch">
+              <Field label="Daftar update">
+                <div className="max-h-[360px] overflow-y-auto pr-1 space-y-2">
+                  {(formData.general.welcomeNotification.items || []).map((item, index) => (
+                    <div key={`patch-item-${index}`} className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-[#242424]">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                          Update {String(index + 1).padStart(2, '0')}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button type="button" onClick={() => moveWelcomePatchItem(index, -1)} disabled={index === 0} className="px-1 text-[10px] text-gray-400 hover:text-gray-700 disabled:opacity-20 dark:hover:text-gray-200">▲</button>
+                          <button type="button" onClick={() => moveWelcomePatchItem(index, 1)} disabled={index === (formData.general.welcomeNotification.items || []).length - 1} className="px-1 text-[10px] text-gray-400 hover:text-gray-700 disabled:opacity-20 dark:hover:text-gray-200">▼</button>
+                          <button type="button" onClick={() => removeWelcomePatchItem(index)} className="ml-1 text-[10px] font-semibold text-red-500 hover:text-red-600">Hapus</button>
+                        </div>
+                      </div>
+                      <input
+                        type="text"
+                        value={item?.title || ''}
+                        onChange={(e) => setWelcomePatchItem(index, 'title', e.target.value)}
+                        placeholder="Judul update"
+                        className={inputCls}
+                      />
+                      <textarea
+                        rows={2}
+                        value={item?.description || ''}
+                        onChange={(e) => setWelcomePatchItem(index, 'description', e.target.value)}
+                        placeholder="Apa yang berubah?"
+                        className={`${inputCls} mt-2 resize-y`}
+                      />
+                    </div>
+                  ))}
+                </div>
+                {(formData.general.welcomeNotification.items || []).length === 0 && (
+                  <p className="mb-2 text-[10px] text-gray-400">
+                    Belum ada daftar update. Selama kosong, notifikasi publik tetap memakai Isi Patch lama agar data lama tidak hilang.
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={addWelcomePatchItem}
+                  className="mt-2 text-xs px-3 py-1.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 rounded font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/40"
+                >
+                  + Tambah Update
+                </button>
+              </Field>
+
+              <Field label="Isi patch lama (fallback)">
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={formData.general.welcomeNotification.message}
                   onChange={(e) => setWelcomeNotification('message', e.target.value)}
-                  placeholder="Contoh: Mini Game baru tersedia dan tampilan Projects sudah diperbarui."
+                  placeholder="Dipakai hanya kalau Daftar Update masih kosong."
                   className={`${inputCls} resize-y`}
                 />
+                <p className="mt-1 text-[10px] text-gray-400">
+                  Disimpan untuk kompatibilitas data lama. Kalau Daftar Update sudah berisi item, tampilan publik memakai daftar di atas.
+                </p>
               </Field>
 
               <Field label="Muncul setelah (detik)">
@@ -3177,7 +5843,8 @@ export default function CmsDashboard({ data, onSave }) {
                   className={`${inputCls} max-w-[120px]`}
                 />
               </Field>
-            </div>
+            
+            </CollapsibleSection>
 
           </div>
         )}

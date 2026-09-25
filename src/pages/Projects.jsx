@@ -27,6 +27,26 @@ function projectThumbnail(url, width = 720) {
   return `${resized}${separator}width=${width}&quality=72&resize=cover`;
 }
 
+// Satu pintu untuk seluruh cover Projects. Data lama dan data dari beberapa
+// editor CMS pernah menyimpan cover dengan nama field yang berbeda.
+function getProjectCover(item = {}) {
+  const explicitCover = item.posterImage || item.imageUrl || item.image || item.coverImage || item.thumbnail || '';
+  if (explicitCover) return explicitCover;
+
+  const mediaUrl = String(item.mediaUrl || item.url || '').trim();
+  const youtubeMatch = mediaUrl.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/))([^?&#/]+)/i);
+  if (youtubeMatch?.[1]) return `https://i.ytimg.com/vi/${youtubeMatch[1]}/hqdefault.jpg`;
+
+  return '';
+}
+
+// Admin boleh menentukan titik fokus lewat coverPosition/imagePosition
+// (contoh: "center 25%"). Tanpa nilai khusus, fokus sedikit dinaikkan supaya
+// wajah, judul poster, dan landmark tidak mudah terpotong.
+function getCoverPosition(item = {}) {
+  return item.coverPosition || item.imagePosition || item.objectPosition || 'center center';
+}
+
 // TEMPLATE BAKU buat tampilan MENU/listing gaya portal berita (kartu unggulan besar +
 // daftar kecil di sampingnya) — dipakai bareng oleh tab Articles bawaan DAN tab tambahan
 // mana pun yang di-set admin ke layout "Tulisan (seperti Articles)" lewat CMS. SATU
@@ -41,7 +61,7 @@ function ArticleStyleListing({
   items,
   onOpen,
   hintPrefix,
-  getImage = (item) => item.image,
+  getImage = (item) => getProjectCover(item),
   getSnippet = (item) => item.snippet,
   getMeta = (item) => item.date,
 }) {
@@ -77,7 +97,9 @@ function ArticleStyleListing({
               alt={featured.title}
               loading="lazy"
               decoding="async"
+              fetchPriority="low"
               className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+              style={{ objectPosition: getCoverPosition(featured) }}
             />
           </div>
         )}
@@ -143,6 +165,7 @@ function ArticleStyleListing({
                     loading="lazy"
                     decoding="async"
                     className="w-full h-full object-cover"
+                    style={{ objectPosition: getCoverPosition(item) }}
                   />
                 </div>
               )}
@@ -187,10 +210,8 @@ function getMediaEmbed(mediaType, rawUrl) {
 
 export default function Projects({ data, initialArticleId, initialWorkTarget, navigationRequestKey, interactiveWords = [], onNavigate }) {
   const projectsData = data || {};
-  const heading = projectsData.heading || 'Projects, Articles & Visuals';
-  const subheading =
-    projectsData.subheading ||
-    'Kumpulan karya tulis artikel bergaya portal berita dan galeri poster pilihan.';
+  const heading = projectsData.heading ?? '';
+  const subheading = projectsData.subheading ?? '';
   const articles = useMemo(() => projectsData.articles || [], [projectsData.articles]);
   const directingItems = useMemo(() => projectsData.directing?.items || [], [projectsData.directing?.items]);
   const posterItems = useMemo(() => projectsData.poster?.items || [], [projectsData.poster?.items]);
@@ -200,18 +221,18 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
   const customSections = useMemo(() => projectsData.customSections || [], [projectsData.customSections]);
   // Label tab navigasi buat Articles & Poster — bisa diganti bebas lewat CMS, kosong
   // berarti pakai nama bawaan.
-  const articlesLabel = projectsData.articlesLabel || 'Articles';
-  const directingLabel = projectsData.directingLabel || 'Directing';
-  const posterLabel = projectsData.posterLabel || 'Poster';
+  const articlesLabel = projectsData.articlesLabel ?? '';
+  const directingLabel = projectsData.directingLabel?.trim() || 'Directing';
+  const posterLabel = projectsData.posterLabel ?? '';
 
   // Semua tab navigasi jadi 1 daftar: Articles & Poster bawaan, diikuti tab tambahan
   // apa pun yang ditambah lewat CMS (jumlahnya bebas, gak dibatasin cuma 2).
-  const navTabs = [
+  const navTabs = useMemo(() => [
     { key: 'articles', label: articlesLabel },
     { key: 'directing', label: directingLabel },
     { key: 'poster', label: posterLabel },
     ...customSections.filter((cs) => cs.label?.trim()).map((cs) => ({ key: `custom:${cs.id}`, label: cs.label.trim() })),
-  ];
+  ], [articlesLabel, directingLabel, posterLabel, customSections]);
 
   // Halaman selalu masuk lewat Project Index dulu. Visitor memilih rak/kategori,
   // baru melihat karya di dalamnya—supaya halaman tidak terasa seperti CMS penuh tab.
@@ -251,28 +272,29 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
   const selectedDirectingItem = selectedDirectingIndex !== null ? directingItems[selectedDirectingIndex] : null;
 
   const projectSections = useMemo(() => [
-    { key: 'articles', label: articlesLabel, type: 'writing', count: articles.length, image: articles[0]?.image, description: 'Articles, essays, dan tulisan panjang.' },
-    { key: 'directing', label: directingLabel, type: 'video', count: directingItems.length, image: directingItems[0]?.posterImage, description: 'Film, directing work, dan moving images.' },
-    { key: 'poster', label: posterLabel, type: 'image', count: posterItems.length, image: posterItems[0]?.imageUrl, description: 'Poster dan eksperimen visual.' },
+    { key: 'articles', label: articlesLabel, type: 'writing', count: articles.length, image: getProjectCover(articles[0]), imagePosition: getCoverPosition(articles[0]), description: projectsData.articlesDescription ?? '' },
+    { key: 'directing', label: directingLabel, type: 'video', count: directingItems.length, image: getProjectCover(directingItems[0]), imagePosition: getCoverPosition(directingItems[0]), description: projectsData.directingDescription ?? '' },
+    { key: 'poster', label: posterLabel, type: 'image', count: posterItems.length, image: getProjectCover(posterItems[0]), imagePosition: getCoverPosition(posterItems[0]), description: projectsData.posterDescription ?? '' },
     ...customSections.filter((section) => section.label?.trim()).map((section) => ({
       key: `custom:${section.id}`,
       label: section.label.trim(),
       type: section.contentType || (section.layout === 'articles' ? 'writing' : 'image'),
       count: section.items?.length || 0,
-      image: section.items?.[0]?.imageUrl,
-      description: section.contentType === 'video' ? 'Video collection.' : section.contentType === 'document' ? 'Documents and downloadable files.' : section.contentType === 'link' ? 'External work and selected links.' : section.contentType === 'image' ? 'Visual collection.' : 'Long-form writing collection.',
+      image: getProjectCover(section.items?.[0]),
+      imagePosition: getCoverPosition(section.items?.[0]),
+      description: section.description ?? '',
     })),
-  ], [articles, articlesLabel, directingItems, directingLabel, posterItems, posterLabel, customSections]);
+  ], [articles, articlesLabel, directingItems, directingLabel, posterItems, posterLabel, customSections, projectsData.articlesDescription, projectsData.directingDescription, projectsData.posterDescription]);
   const visibleProjectSections = useMemo(
     () => projectSections.filter((section) => section.count > 0),
     [projectSections]
   );
 
   const searchableWorks = useMemo(() => [
-    ...articles.map((item, index) => ({ item, index, sectionKey: 'articles', sectionLabel: articlesLabel, type: 'writing', image: item.image })),
-    ...directingItems.map((item, index) => ({ item, index, sectionKey: 'directing', sectionLabel: directingLabel, type: 'video', image: item.posterImage })),
-    ...posterItems.map((item, index) => ({ item, index, sectionKey: 'poster', sectionLabel: posterLabel, type: 'image', image: item.imageUrl })),
-    ...customSections.filter((section) => section.label?.trim()).flatMap((section) => (section.items || []).map((item, index) => ({ item, index, sectionKey: `custom:${section.id}`, sectionLabel: section.label.trim(), type: section.contentType || (section.layout === 'articles' ? 'writing' : 'image'), image: item.imageUrl }))),
+    ...articles.map((item, index) => ({ item, index, sectionKey: 'articles', sectionLabel: articlesLabel, type: 'writing', image: getProjectCover(item) })),
+    ...directingItems.map((item, index) => ({ item, index, sectionKey: 'directing', sectionLabel: directingLabel, type: 'video', image: getProjectCover(item) })),
+    ...posterItems.map((item, index) => ({ item, index, sectionKey: 'poster', sectionLabel: posterLabel, type: 'image', image: getProjectCover(item) })),
+    ...customSections.filter((section) => section.label?.trim()).flatMap((section) => (section.items || []).map((item, index) => ({ item, index, sectionKey: `custom:${section.id}`, sectionLabel: section.label.trim(), type: section.contentType || (section.layout === 'articles' ? 'writing' : 'image'), image: getProjectCover(item) }))),
   ], [articles, articlesLabel, directingItems, directingLabel, posterItems, posterLabel, customSections]);
   const normalizedQuery = projectQuery.trim().toLocaleLowerCase('id');
   const searchResults = normalizedQuery ? searchableWorks.filter(({ item, sectionLabel }) => `${item.title || ''} ${item.category || ''} ${item.description || ''} ${item.snippet || ''} ${sectionLabel}`.toLocaleLowerCase('id').includes(normalizedQuery)).slice(0, 12) : [];
@@ -458,17 +480,14 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
   return (
     <div className="w-full text-gray-900 dark:text-gray-100 select-text py-4">
 
-      {/* Judul Halaman */}
-      <h1 className="text-[1.5em] font-bold tracking-tight mb-2 text-gray-900 dark:text-white border-b pb-2 border-gray-200 dark:border-gray-700">
-        <InteractiveText text={heading} rules={interactiveWords} page="Projects" onNavigate={onNavigate} />
-      </h1>
-      <p className="text-[0.875em] text-gray-500 dark:text-gray-400 mb-6">
-        <InteractiveText text={subheading} rules={interactiveWords} page="Projects" onNavigate={onNavigate} />
-      </p>
+      {(heading || subheading) && <header className="mb-6 border-b border-gray-200 pb-5 dark:border-gray-700">
+        {heading && <h1 className="text-[1.75em] font-semibold tracking-tight sm:text-[2.2em]"><InteractiveText text={heading} rules={interactiveWords} page="Projects" onNavigate={onNavigate} /></h1>}
+        {subheading && <p className="mt-2 max-w-2xl text-[0.8125em] leading-relaxed text-gray-500 dark:text-gray-400"><InteractiveText text={subheading} rules={interactiveWords} page="Projects" onNavigate={onNavigate} /></p>}
+      </header>}
 
       {/* Navigasi kategori hanya muncul setelah masuk rak. Halaman awal memakai Project Index. */}
       {activeCategory !== 'overview' && <div className="mb-6 flex flex-wrap items-center gap-2 border-b border-gray-200 pb-3 dark:border-gray-700">
-        <button type="button" onClick={() => { setActiveCategory('overview'); setSelectedArticle(null); setSelectedDirectingIndex(null); setSelectedGalleryIndex(null); setSelectedCustomIndex(null); }} className="mr-1 px-3 py-2 font-mono text-[0.6875em] font-bold uppercase tracking-wide text-[#2B579A] hover:bg-[#2B579A]/10 dark:text-[#6FA8DC]">← Project Index</button>
+        {(projectsData.backLabel ?? '') && <button type="button" onClick={() => { setActiveCategory('overview'); setSelectedArticle(null); setSelectedDirectingIndex(null); setSelectedGalleryIndex(null); setSelectedCustomIndex(null); }} className="mr-1 px-3 py-2 font-mono text-[0.6875em] font-bold uppercase tracking-wide text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800">← {projectsData.backLabel}</button>}
         {navTabs.map((tab) => (
           <button
             key={tab.key}
@@ -495,12 +514,11 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
         <section className="view-reveal">
           <div className="mb-6 grid grid-cols-1 gap-5 border-b border-gray-200 pb-6 md:grid-cols-[minmax(0,1fr)_17rem] md:items-end dark:border-gray-700">
             <div>
-              <p className="font-mono text-[0.625em] uppercase tracking-[0.22em] text-[#2B579A] dark:text-[#6FA8DC]">Project Index / {String(searchableWorks.length).padStart(2, '0')} files</p>
-              <h2 className="mt-2 max-w-2xl text-[1.5em] font-bold leading-tight sm:text-[1.875em]">Choose a drawer. Open a work.</h2>
-              <p className="mt-2 max-w-xl text-[0.8125em] leading-relaxed text-gray-500 dark:text-gray-400">Tulisan, film, visual, dan dokumen disimpan sebagai arsip yang berbeda—bukan dipaksa terlihat sama.</p>
+              {(projectsData.indexHeading ?? '') && <h2 className="max-w-2xl text-[1.5em] font-bold leading-tight sm:text-[1.875em]">{projectsData.indexHeading}</h2>}
+              {(projectsData.indexDescription ?? '') && <p className="mt-2 max-w-xl text-[0.8125em] leading-relaxed text-gray-500 dark:text-gray-400">{projectsData.indexDescription}</p>}
             </div>
             <label className="block">
-              <span className="mb-1 block font-mono text-[0.5625em] uppercase tracking-widest text-gray-400">Quick find</span>
+              {(projectsData.searchLabel ?? '') && <span className="mb-1 block font-mono text-[0.5625em] uppercase tracking-widest text-gray-400">{projectsData.searchLabel}</span>}
               <div className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 focus-within:border-[#2B579A] dark:border-gray-600 dark:bg-[#202020]">
                 <span className="text-gray-400">⌕</span><input value={projectQuery} onChange={(e) => setProjectQuery(e.target.value)} placeholder="Cari judul, kategori..." className="min-w-0 flex-1 bg-transparent text-[0.75em] outline-none" />
               </div>
@@ -521,11 +539,11 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
               )}
               {visibleProjectSections.map((section, index) => (
                 <button key={section.key} type="button" onClick={() => setActiveCategory(section.key)} className="group relative min-h-[12rem] overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-6 text-left transition duration-300 hover:-translate-y-0.5 hover:border-[#2B579A] hover:shadow-lg focus:outline-none focus-visible:-translate-y-0.5 focus-visible:border-[#2B579A] focus-visible:ring-2 focus-visible:ring-[#2B579A] focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-[#222] dark:hover:border-[#6FA8DC] dark:focus-visible:border-[#6FA8DC] dark:focus-visible:ring-[#6FA8DC] dark:focus-visible:ring-offset-[#161616]">
-                  {section.image && <img src={projectThumbnail(section.image)} alt="" aria-hidden="true" loading="lazy" decoding="async" fetchPriority="low" className="absolute inset-0 h-full w-full object-cover opacity-[0.12] grayscale transition duration-500 group-hover:scale-105 group-hover:opacity-50 group-hover:grayscale-0 group-focus-visible:scale-105 group-focus-visible:opacity-50 group-focus-visible:grayscale-0 dark:opacity-[0.14]" />}
+                  {section.image && <img src={projectThumbnail(section.image)} alt="" aria-hidden="true" loading="lazy" decoding="async" fetchPriority="low" className="absolute inset-0 h-full w-full object-cover opacity-[0.16] grayscale transition duration-500 group-hover:scale-105 group-hover:opacity-60 group-hover:grayscale-0 group-focus-visible:scale-105 group-focus-visible:opacity-60 group-focus-visible:grayscale-0 dark:opacity-[0.18]" style={{ objectPosition: section.imagePosition }} />}
                   <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/90 to-white/65 transition-opacity duration-300 group-hover:opacity-55 group-focus-visible:opacity-55 dark:from-[#222]/95 dark:via-[#222]/90 dark:to-[#222]/70" />
                   <div className="relative flex h-full flex-col justify-between">
-                    <div className="flex items-start justify-between gap-4"><span className="font-mono text-[0.75em] font-semibold uppercase tracking-[0.16em] text-[#2B579A] dark:text-[#6FA8DC]">{String(index + 1).padStart(2, '0')} / {section.type}</span><span className="shrink-0 rounded-full border border-gray-300 bg-white/90 px-2.5 py-1 font-mono text-[0.6875em] font-medium text-gray-600 shadow-sm dark:border-gray-600 dark:bg-[#181818]/90 dark:text-gray-300">{section.count} {section.count === 1 ? 'file' : 'files'}</span></div>
-                    <div className="max-w-[24rem]"><h3 className="text-[1.5em] font-bold leading-tight text-gray-950 group-hover:text-[#2B579A] dark:text-white dark:group-hover:text-[#6FA8DC]">{section.label}</h3><p className="mt-2 line-clamp-2 text-[0.875em] leading-relaxed text-gray-700 dark:text-gray-300">{section.description}</p><span className="mt-4 inline-flex items-center gap-2 font-mono text-[0.75em] font-bold uppercase tracking-wide text-gray-900 dark:text-gray-100">Open drawer <span className="transition-transform group-hover:translate-x-1 group-focus-visible:translate-x-1">→</span></span></div>
+                    <div className="flex items-start justify-end gap-4"><span className="shrink-0 rounded-full border border-gray-300 bg-white/90 px-2.5 py-1 font-mono text-[0.6875em] font-medium text-gray-600 shadow-sm dark:border-gray-600 dark:bg-[#181818]/90 dark:text-gray-300">{section.count} {section.count === 1 ? 'file' : 'files'}</span></div>
+                    <div className="max-w-[24rem]"><h3 className="text-[1.5em] font-bold leading-tight text-gray-950 group-hover:text-[#2B579A] dark:text-white dark:group-hover:text-[#6FA8DC]">{section.label}</h3><p className="mt-2 line-clamp-2 text-[0.875em] leading-relaxed text-gray-700 dark:text-gray-300">{section.description}</p>{(projectsData.openDrawerLabel ?? '') && <span className="mt-4 inline-flex items-center gap-2 font-mono text-[0.75em] font-bold uppercase tracking-wide text-gray-900 dark:text-gray-100">{projectsData.openDrawerLabel} <span className="transition-transform group-hover:translate-x-1 group-focus-visible:translate-x-1">→</span></span>}</div>
                   </div>
                 </button>
               ))}
@@ -603,6 +621,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                       loading="lazy"
                       decoding="async"
                       className="w-full h-full object-cover"
+                      style={{ objectPosition: getCoverPosition(selectedArticle) }}
                     />
                   </div>
                 )}
@@ -646,7 +665,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                 {directingItems.map((item, index) => (
                   <button key={item.id || index} type="button" onClick={() => setSelectedDirectingIndex(index)} {...(item.hintEnabled !== false ? { 'data-hint-id': `projects-directing-${item.id || index}` } : {})} className="group text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] rounded-sm">
                     <div className="relative aspect-video overflow-hidden rounded-sm border border-gray-200 bg-gray-950 dark:border-gray-700">
-                      {item.posterImage ? <img src={projectThumbnail(item.posterImage, 720)} alt={`Poster ${item.title || 'video work'}`} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025] group-hover:opacity-75" loading="lazy" decoding="async" fetchPriority="low" /> : <div className="h-full w-full bg-gradient-to-br from-[#2B579A] to-[#101827]" />}
+                      {getProjectCover(item) ? <img src={projectThumbnail(getProjectCover(item), 720)} alt={`Poster ${item.title || 'video work'}`} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025] group-hover:opacity-75" style={{ objectPosition: getCoverPosition(item) }} loading="lazy" decoding="async" fetchPriority="low" /> : <div className="h-full w-full bg-gradient-to-br from-[#2B579A] to-[#101827]" />}
                       <span className="absolute inset-0 flex items-center justify-center"><span className="flex h-12 w-12 items-center justify-center rounded-full border border-white/60 bg-black/35 text-lg text-white backdrop-blur-sm transition group-hover:scale-110">▶</span></span>
                       {(item.runtime || item.year) && <span className="absolute bottom-2 right-2 rounded bg-black/70 px-2 py-1 font-mono text-[0.5625em] text-white">{[item.year, item.runtime].filter(Boolean).join(' · ')}</span>}
                     </div>
@@ -666,8 +685,8 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                   <>
                     <div className="aspect-video w-full overflow-hidden rounded-md border border-gray-200 bg-black dark:border-gray-700">
                       {media?.kind === 'iframe' && <iframe src={media.src} title={selectedDirectingItem.title} className="h-full w-full" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />}
-                      {media?.kind === 'video' && <video src={media.src} poster={selectedDirectingItem.posterImage || undefined} controls preload="metadata" className="h-full w-full" />}
-                      {(!media || media.kind === 'external') && (selectedDirectingItem.posterImage ? <img src={selectedDirectingItem.posterImage} alt={selectedDirectingItem.title} className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center font-mono text-xs text-gray-400">PREVIEW NOT AVAILABLE</div>)}
+                      {media?.kind === 'video' && <video src={media.src} poster={getProjectCover(selectedDirectingItem) || undefined} controls preload="metadata" className="h-full w-full" />}
+                      {(!media || media.kind === 'external') && (getProjectCover(selectedDirectingItem) ? <img src={getProjectCover(selectedDirectingItem)} alt={selectedDirectingItem.title} className="h-full w-full object-cover" style={{ objectPosition: getCoverPosition(selectedDirectingItem) }} /> : <div className="flex h-full items-center justify-center font-mono text-xs text-gray-400">PREVIEW NOT AVAILABLE</div>)}
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_13rem] gap-7 md:gap-10">
                       <div>
@@ -862,7 +881,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                 items={activeCustomItems}
                 onOpen={(item) => setSelectedCustomIndex(activeCustomItems.indexOf(item))}
                 hintPrefix="projects-custom"
-                getImage={(item) => item.imageUrl}
+                getImage={(item) => getProjectCover(item)}
                 getSnippet={(item) => item.description}
                 getMeta={() => null}
               />
@@ -893,14 +912,15 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                         📄
                       </span>
                     )}
-                    {item.imageUrl ? (
+                    {getProjectCover(item) ? (
                       <img
-                        src={projectThumbnail(item.imageUrl, 640)}
+                        src={projectThumbnail(getProjectCover(item), 640)}
                         alt={item.title}
                         loading="lazy"
                         decoding="async"
                         fetchPriority="low"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        style={{ objectPosition: getCoverPosition(item) }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
@@ -933,20 +953,63 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                 &larr; Kembali
               </button>
 
-              <div className="grid grid-cols-1 md:grid-cols-[1.1fr_1fr] gap-6 md:gap-10 items-start">
+              {activeCustomType === 'writing' ? (
+                <div className="flow-root">
+                  {getProjectCover(activeCustomItems[selectedCustomIndex]) && (
+                    <div className="mb-5 w-full overflow-hidden rounded-md border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-black/40 md:float-left md:mb-4 md:mr-8 md:w-[42%]">
+                      <img
+                        src={projectThumbnail(getProjectCover(activeCustomItems[selectedCustomIndex]), 960)}
+                        alt={activeCustomItems[selectedCustomIndex].title}
+                        loading="eager"
+                        decoding="async"
+                        fetchPriority="high"
+                        className="h-auto w-full object-cover"
+                        style={{ objectPosition: getCoverPosition(activeCustomItems[selectedCustomIndex]) }}
+                      />
+                    </div>
+                  )}
+                  <div className="space-y-3">
+                    {activeCustomItems[selectedCustomIndex].category && (
+                      <span className="text-[0.625em] font-mono uppercase text-gray-400 tracking-widest block">
+                        {activeCustomItems[selectedCustomIndex].category}
+                      </span>
+                    )}
+                    <h2 className="text-[1.25em] sm:text-[1.5em] font-bold text-gray-900 dark:text-white">
+                      {activeCustomItems[selectedCustomIndex].title}
+                    </h2>
+                    {activeCustomItems[selectedCustomIndex].wordContent ? (
+                      <div
+                        className={`${ARTICLE_TEXT_CLASS} space-y-4 [&_p]:mb-3`}
+                        dangerouslySetInnerHTML={{ __html: activeCustomItems[selectedCustomIndex].wordContent }}
+                      />
+                    ) : (
+                      <p className="text-[0.875em] text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+                        {activeCustomItems[selectedCustomIndex].description}
+                      </p>
+                    )}
+                    {activeCustomItems[selectedCustomIndex].url && (
+                      <a href={activeCustomItems[selectedCustomIndex].url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 mt-2 text-[0.75em] font-bold uppercase tracking-wide text-white bg-[#2B579A] dark:bg-[#6FA8DC] dark:text-[#1a1a1a] px-4 py-2 rounded-sm hover:bg-[#1e3f73] dark:hover:bg-[#5a95c9] transition-colors">
+                        {activeCustomItems[selectedCustomIndex].buttonLabel || 'Lihat'} &rarr;
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ) : (
+              <div className="grid grid-cols-1 gap-6 md:gap-10 items-start md:grid-cols-[1.1fr_1fr]">
                 {activeCustomType === 'video' && (() => {
                   const item = activeCustomItems[selectedCustomIndex];
                   const media = getMediaEmbed(item.mediaType, item.mediaUrl);
-                  return <div className="aspect-video w-full overflow-hidden rounded-md border border-gray-200 bg-black dark:border-gray-700">{media?.kind === 'iframe' ? <iframe src={media.src} title={item.title} className="h-full w-full" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /> : media?.kind === 'video' ? <video src={media.src} poster={item.imageUrl || undefined} controls preload="metadata" className="h-full w-full" /> : item.imageUrl ? <img src={item.imageUrl} alt={item.title} className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center font-mono text-xs text-gray-400">VIDEO PREVIEW</div>}</div>;
+                  return <div className="aspect-video w-full overflow-hidden rounded-md border border-gray-200 bg-black dark:border-gray-700">{media?.kind === 'iframe' ? <iframe src={media.src} title={item.title} className="h-full w-full" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /> : media?.kind === 'video' ? <video src={media.src} poster={getProjectCover(item) || undefined} controls preload="metadata" className="h-full w-full" /> : getProjectCover(item) ? <img src={getProjectCover(item)} alt={item.title} className="h-full w-full object-cover" style={{ objectPosition: getCoverPosition(item) }} /> : <div className="flex h-full items-center justify-center font-mono text-xs text-gray-400">VIDEO PREVIEW</div>}</div>;
                 })()}
-                {activeCustomType !== 'video' && activeCustomItems[selectedCustomIndex].imageUrl && (
-                  <div className="w-full rounded-md overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-black/40 flex items-center justify-center">
+                {activeCustomType !== 'video' && getProjectCover(activeCustomItems[selectedCustomIndex]) && (
+                  <div className={`w-full overflow-hidden rounded-md border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-black/40 ${activeCustomType === 'writing' ? 'aspect-[4/5] max-h-[36rem]' : 'aspect-[4/3] max-h-[70vh]'}`}>
                     <img
-                      src={activeCustomItems[selectedCustomIndex].imageUrl}
+                      src={projectThumbnail(getProjectCover(activeCustomItems[selectedCustomIndex]), 960)}
                       alt={activeCustomItems[selectedCustomIndex].title}
                       loading="lazy"
                       decoding="async"
-                      className="w-full h-auto max-h-[70vh] object-contain"
+                      className="h-full w-full object-cover"
+                      style={{ objectPosition: getCoverPosition(activeCustomItems[selectedCustomIndex]) }}
                     />
                   </div>
                 )}
@@ -983,8 +1046,10 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                       {activeCustomItems[selectedCustomIndex].buttonLabel || (activeCustomType === 'document' ? 'Buka Dokumen' : activeCustomType === 'video' ? 'Buka Video' : 'Lihat')} &rarr;
                     </a>
                   )}
+
                 </div>
               </div>
+              )}
 
               {activeCustomType === 'video' && activeCustomItems[selectedCustomIndex].credits && <div className={`${ARTICLE_CONTAINER_CLASS} ${ARTICLE_TEXT_CLASS} border-t border-gray-100 pt-5 dark:border-gray-800`} dangerouslySetInnerHTML={{ __html: activeCustomItems[selectedCustomIndex].credits }} />}
 
@@ -994,12 +1059,6 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                   kolom sempit). Cuma admin (password-protected) yang bisa nulis ke field
                   ini lewat CMS, jadi aman dari XSS pihak luar — sama kayak pola
                   dangerouslySetInnerHTML buat isi artikel di atas. */}
-              {activeCustomType === 'writing' && activeCustomItems[selectedCustomIndex].wordContent && (
-                <div
-                  className={`${ARTICLE_CONTAINER_CLASS} ${ARTICLE_TEXT_CLASS} space-y-4 pt-2 border-t border-gray-100 dark:border-gray-800 [&_p]:mb-3`}
-                  dangerouslySetInnerHTML={{ __html: activeCustomItems[selectedCustomIndex].wordContent }}
-                />
-              )}
             </div>
           )}
         </div>
@@ -1024,7 +1083,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
             <div className="relative">
               {shareArticle.image ? (
                 <div className="w-full aspect-[16/9] bg-gray-100 dark:bg-black/40">
-                  <img src={shareArticle.image} alt={shareArticle.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                  <img src={shareArticle.image} alt={shareArticle.title} loading="lazy" decoding="async" className="w-full h-full object-cover" style={{ objectPosition: getCoverPosition(shareArticle) }} />
                 </div>
               ) : (
                 <div className="w-full aspect-[16/9] bg-gradient-to-br from-[#2B579A] to-[#6FA8DC] flex items-center justify-center">
@@ -1122,15 +1181,11 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
       )}
 
       <style>{`
-        @keyframes viewReveal {
-          from { opacity: 0; transform: translateY(14px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
+        /* Projects harus terasa seperti pindah tab dokumen, bukan halaman baru.
+           Tidak ada reveal animation: tab sekarang dan tab CMS yang akan datang
+           muncul langsung tanpa delay 400ms / transform repaint. */
         .view-reveal {
-          animation: viewReveal 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .view-reveal { animation: none; }
+          animation: none;
         }
       `}</style>
     </div>
