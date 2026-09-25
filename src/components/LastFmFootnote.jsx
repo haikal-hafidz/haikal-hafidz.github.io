@@ -30,6 +30,7 @@ export default function LastFmFootnote({ data = {}, style, darkMode = false }) {
   const enabled = data.enabled !== false;
   const [track, setTrack] = useState(null);
   const [status, setStatus] = useState('idle');
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const fallback = useMemo(() => ({
     title: data.fallbackTitle || '', artist: data.fallbackArtist || '', album: '',
@@ -93,5 +94,39 @@ export default function LastFmFootnote({ data = {}, style, darkMode = false }) {
 
   const rail = <aside className="portfolio-rail fixed z-30 hidden md:block" style={{ ...style, position: 'fixed', overflow: 'visible', overflowY: 'visible', overscrollBehavior: 'none' }} aria-label="Recently played on Last.fm">{shown.url ? <a href={shown.url} target="_blank" rel="noreferrer" className="block no-underline focus-visible:ring-2 focus-visible:ring-[#2B579A]">{card}</a> : card}</aside>;
 
-  return typeof document !== 'undefined' ? createPortal(rail, document.body) : rail;
+  const mobilePlayer = (
+    <div className="fixed bottom-14 right-3 z-[89] md:hidden" data-hint-id="lastfm-footnote-mobile">
+      {mobileOpen && (
+        <div className={`mb-2 w-[min(78vw,17rem)] rounded-xl border p-3 shadow-xl backdrop-blur ${darkMode ? 'border-slate-700 bg-[#202020]/95 text-slate-100' : 'border-slate-200 bg-white/95 text-slate-800'}`}>
+          <div className="flex items-center gap-3">
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-full border border-slate-300 bg-slate-900 shadow-inner dark:border-slate-600">
+              {shown.image ? <img src={shown.image} alt="" className="h-full w-full rounded-full object-cover" loading="lazy" /> : <div className="grid h-full w-full place-items-center text-lg text-white">♪</div>}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-serif text-sm font-semibold leading-tight">{shown.title}</p>
+              <p className="mt-1 truncate text-[11px] text-slate-500 dark:text-slate-400">{shown.artist}</p>
+              {(shown.album || time) && <p className="mt-1 truncate font-mono text-[9px] uppercase tracking-[0.08em] text-slate-400">{time || shown.album}</p>}
+            </div>
+          </div>
+          {shown.url && <a href={shown.url} target="_blank" rel="noreferrer" className="mt-2 block truncate font-mono text-[9px] uppercase tracking-[0.08em] text-[#2B579A] no-underline">Open on Last.fm →</a>}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={() => setMobileOpen((value) => !value)}
+        aria-expanded={mobileOpen}
+        aria-label={mobileOpen ? 'Close Last.fm player' : 'Open Last.fm player'}
+        className={`ml-auto grid h-14 w-14 place-items-center rounded-full border shadow-lg transition-transform active:scale-95 ${darkMode ? 'border-slate-600 bg-[#202020] text-white' : 'border-slate-300 bg-white text-slate-900'}`}
+      >
+        <span className="relative block h-10 w-10 overflow-hidden rounded-full bg-slate-900 shadow-inner" aria-hidden="true">
+          {shown.image && <img src={shown.image} alt="" className="absolute inset-[5px] h-[30px] w-[30px] rounded-full object-cover" loading="lazy" />}
+          <span className="absolute inset-[4px] rounded-full border border-white/20" />
+          <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-slate-500 bg-white" />
+        </span>
+      </button>
+    </div>
+  );
+
+  const content = <>{rail}{mobilePlayer}</>;
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 }

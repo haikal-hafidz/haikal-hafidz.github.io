@@ -12,16 +12,19 @@ export default function Ribbon({
   isItalic,
   setIsItalic,
   isUnderline,
-  setIsUnderline
+  setIsUnderline,
+  navigationLabels = {}
 }) {
   // Daftar tab navigasi murni sesuai kebutuhan website portofolio lo — TIDAK DIUBAH
+  // Labels arrive already localized from App; Ribbon owns routes/order only.
+  const topLabels = navigationLabels?.top || {};
   const portfolioTabs = [
-    { key: 'Home', label: 'Home' },
-    { key: 'About', label: 'About' },
-    { key: 'Projects', label: 'Projects' },
-    { key: 'Career', label: 'Careers' },
-    { key: 'Book', label: 'Books' },
-    { key: 'Contact', label: 'Contact' },
+    { key: 'Home', label: topLabels.home || 'Home' },
+    { key: 'About', label: topLabels.about || 'About' },
+    { key: 'Projects', label: topLabels.projects || 'Projects' },
+    { key: 'Career', label: topLabels.career || 'Careers' },
+    { key: 'Book', label: topLabels.book || 'Books' },
+    { key: 'Contact', label: topLabels.contact || 'Contact' },
   ];
 
   // State lokal buat tombol-tombol tambahan ala Word (gak ganggu prop dari parent)

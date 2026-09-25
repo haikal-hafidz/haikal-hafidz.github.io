@@ -363,6 +363,7 @@ export default function App() {
             website: {
               ...(data.data.website || {}),
               title: data.data.website?.title || 'Haikal A. Hafidz — Content Writer & Editor',
+              description: data.data.website?.description || 'Portfolio Haikal A. Hafidz — writing, editing, creative work, and selected projects.',
               favicon: data.data.website?.favicon || '',
               shareImage: data.data.website?.shareImage || '',
             },
@@ -594,11 +595,12 @@ export default function App() {
       name: portfolioData.home?.name,
       role: portfolioData.home?.role,
       title: portfolioData.website?.title,
+      description: portfolioData.website?.description,
       shareImage: portfolioData.website?.shareImage,
     });
     const tabMeta = {
       Home: {
-        description: portfolioData.home?.bio,
+        description: portfolioData.website?.description || portfolioData.home?.bio,
         image: portfolioData.website?.shareImage,
       },
       About: {
@@ -984,6 +986,7 @@ export default function App() {
                 setIsItalic={setIsItalic}
                 isUnderline={isUnderline}
                 setIsUnderline={setIsUnderline}
+                navigationLabels={publicPortfolioData.home?.navigationLabels}
               />
             </div>
 
@@ -1006,10 +1009,10 @@ export default function App() {
                 // Ini yang paling nentuin — versi lama maksa lebar/skala dokumen dekstop
                 // ke layar kecil, itu penyebab utama tampilannya berantakan pas dibuka di HP.
                 <div
-                  className="portfolio-public relative w-full px-4 py-4 text-gray-900 dark:text-gray-100 bg-white dark:bg-[#202020]"
+                  className="portfolio-public relative w-full px-5 py-5 text-gray-900 dark:text-gray-100 bg-white dark:bg-[#202020]"
                   style={{
                     fontFamily,
-                    fontSize: `${fontSize}pt`,
+                    fontSize: `${fontSize * 0.95}pt`,
                   }}
                 >
                   {documentBody}
@@ -1054,10 +1057,10 @@ export default function App() {
           />
         )}
 
-        {!isAdminMode && !isMobileLayout && activeTab === 'About' && desktopLeftRailStyle && (
+        {!isAdminMode && activeTab === 'About' && (isMobileLayout || desktopLeftRailStyle) && (
           <LastFmFootnote
             data={normalizeAbout(portfolioData.about).listeningFootnote}
-            style={{
+            style={isMobileLayout ? undefined : {
               ...desktopLeftRailStyle,
               fontFamily,
               fontSize: `${fontSize}pt`,

@@ -28,12 +28,14 @@ const SITE_URL = 'https://haikal-hafidz.github.io/';
 let siteName = 'Haikal A. Hafidz — Content Writer & Editor';
 let browserTitle = siteName;
 let defaultShareImage = '';
+let defaultDescription = '';
 
-export function setSiteIdentity({ name, role, title, shareImage } = {}) {
+export function setSiteIdentity({ name, role, title, description, shareImage } = {}) {
   const cleanName = String(name || '').trim();
   const cleanRole = String(role || '').trim();
   siteName = [cleanName, cleanRole].filter(Boolean).join(' — ') || siteName;
   browserTitle = String(title || '').trim() || siteName;
+  defaultDescription = String(description || '').trim();
   defaultShareImage = String(shareImage || '').trim();
 }
 
@@ -65,17 +67,18 @@ export function setPageMeta({ title, description, image, url } = {}) {
   // ditempelkan ke document.title saat pengunjung berpindah tab portfolio.
   const fullTitle = browserTitle;
   const resolvedImage = image || defaultShareImage;
+  const resolvedDescription = String(description || defaultDescription || '').trim();
   document.title = fullTitle;
 
-  upsertMeta('name', 'description', description);
+  upsertMeta('name', 'description', resolvedDescription);
   upsertMeta('property', 'og:site_name', browserTitle);
   upsertMeta('property', 'og:title', fullTitle);
-  upsertMeta('property', 'og:description', description);
+  upsertMeta('property', 'og:description', resolvedDescription);
   upsertMeta('property', 'og:image', resolvedImage);
   upsertMeta('property', 'og:url', url || SITE_URL);
   upsertMeta('property', 'og:type', 'website');
   upsertMeta('name', 'twitter:card', title && resolvedImage ? 'summary_large_image' : 'summary');
   upsertMeta('name', 'twitter:title', fullTitle);
-  upsertMeta('name', 'twitter:description', description);
+  upsertMeta('name', 'twitter:description', resolvedDescription);
   upsertMeta('name', 'twitter:image', resolvedImage);
 }

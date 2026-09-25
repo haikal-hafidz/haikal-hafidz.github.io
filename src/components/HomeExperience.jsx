@@ -207,6 +207,14 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
   };
 
   useEffect(() => {
+    let ignore = false;
+    getMiniGameLeaderboard('red-pen', 10)
+      .then((rows) => { if (!ignore && rows.length) setScoreboard(rows); })
+      .catch(() => { /* local scoreboard remains available */ });
+    return () => { ignore = true; };
+  }, []);
+
+  useEffect(() => {
     if (!modalOpen) return undefined;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -343,24 +351,20 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
   }, [mode, gamePhase, hangmanTimeLeft, hangmanFinishedBy]);
 
   const openZine = (event) => {
+    showcaseOpenSound?.();
     lastTriggerRef.current = event?.currentTarget || null;
     setZineMode(null);
     setZineNotice('');
     setSelectedZine(null);
     setMode('zine');
-    window.setTimeout(() => {
-      try { showcaseOpenSound?.(); } catch {}
-    }, 0);
   };
 
   const openGame = (event) => {
+    showcaseOpenSound?.();
     lastTriggerRef.current = event?.currentTarget || lastTriggerRef.current;
     setGamePhase('library');
     setSessionDrafts([]);
     setMode('game');
-    window.setTimeout(() => {
-      try { showcaseOpenSound?.(); } catch {}
-    }, 0);
   };
 
   useEffect(() => {
@@ -527,6 +531,7 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
     setGamePhase('result');
   };
 
+  // `data` is the localized Home payload; Quick Views must read labels from it.
   const navigateFromGame = (page) => {
     closeExperience();
     window.setTimeout(() => onNavigate?.(page), 0);
@@ -536,12 +541,17 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
     <section className="relative px-5 pb-8 pt-7 sm:min-h-[65vh] sm:px-10 sm:py-12" aria-label="Home introduction">
       <div className="relative sm:min-h-[52vh]">
         <div className="mx-auto w-full max-w-[60rem] lg:absolute lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2"><DynamicStatement settings={data?.dynamicStatement} /></div>
-        <nav className="mx-auto mt-8 grid w-full gap-2 sm:grid-cols-2 md:hidden" aria-label="Home routes and interactive features">
-          {zineData?.enabled !== false && <button type="button" onClick={openZine} data-hint-id="home-wassup" className={homeRouteClass}><span>{zineData?.menuLabel || 'Wassup?'}</span><span aria-hidden="true">→</span></button>}
-          {miniGameData?.enabled !== false && <button type="button" onClick={openGame} data-hint-id="home-mini-game" className={homeRouteClass}><span>{miniGameData?.menuLabel || 'Mini Game'}</span><span aria-hidden="true">→</span></button>}
-          <button type="button" onClick={() => onNavigate?.('Projects')} data-hint-id="home-selected-work" className={homeRouteClass}><span>Selected work</span><span aria-hidden="true">→</span></button>
-          <button type="button" onClick={() => onNavigate?.('Career')} data-hint-id="home-experience" className={homeRouteClass}><span>Experience</span><span aria-hidden="true">→</span></button>
-          <button type="button" onClick={() => onNavigate?.('Contact')} data-hint-id="home-contact" className={homeRouteClass}><span>Contact</span><span aria-hidden="true">→</span></button>
+        <nav className="mx-auto mt-8 w-full md:hidden" aria-label="Home routes and interactive features">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button type="button" onClick={() => onNavigate?.('Projects')} data-hint-id="home-selected-work" className={homeRouteClass}><span>{data?.navigationLabels?.quickViews?.selectedWorks || 'Selected Works'}</span><span aria-hidden="true">→</span></button>
+            <button type="button" onClick={() => onNavigate?.('Career')} data-hint-id="home-experience" className={homeRouteClass}><span>{data?.navigationLabels?.quickViews?.experience || 'Experience'}</span><span aria-hidden="true">→</span></button>
+            <button type="button" onClick={() => onNavigate?.('Contact')} data-hint-id="home-contact" className={homeRouteClass}><span>{data?.navigationLabels?.quickViews?.contact || 'Contact'}</span><span aria-hidden="true">→</span></button>
+          </div>
+          <div className="my-4 border-t border-gray-300/80 dark:border-gray-600/80" aria-hidden="true" />
+          <div className="grid gap-2 sm:grid-cols-2">
+            {zineData?.enabled !== false && <button type="button" onClick={openZine} data-hint-id="home-wassup" className={homeRouteClass}><span>{data?.navigationLabels?.quickViews?.wassup || zineData?.menuLabel || 'Wassup?'}</span><span aria-hidden="true">→</span></button>}
+            {miniGameData?.enabled !== false && <button type="button" onClick={openGame} data-hint-id="home-mini-game" className={homeRouteClass}><span>{data?.navigationLabels?.quickViews?.miniGames || miniGameData?.menuLabel || 'Mini Games'}</span><span aria-hidden="true">→</span></button>}
+          </div>
         </nav>
       </div>
       <div className="mt-9 border-t border-gray-200 pt-5 text-right dark:border-gray-700 sm:absolute sm:bottom-10 sm:right-12 sm:mt-0 sm:max-w-[70%] sm:border-0 sm:pt-0">

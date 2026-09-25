@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useInsertionEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { supabase, IMAGES_BUCKET } from '../lib/supabaseClient';
 import InteractiveLinksEditor from './InteractiveLinksEditor';
 import { normalizeVisitorIntroduction } from '../lib/visitorIntroductionData';
@@ -76,7 +76,7 @@ function ContentCard({ cardKey, listKey, idx, count, title, subtitle, onRemove, 
 
 // Tiga kelompok CMS: halaman pokok, pengaturan sampingan, lalu pengalaman interaktif.
 const MAIN_TABS = ['home', 'about', 'projects', 'career', 'book', 'contact'];
-const SIDE_TABS = ['featuredWorks', 'visitorIntroduction', 'interactiveWords', 'general'];
+const SIDE_TABS = ['featuredWorks', 'visitorIntroduction', 'navigationLabels', 'interactiveWords', 'general'];
 const EXTRA_TABS = ['zine', 'miniGame', 'leaderboardSystems'];
 
 // Metadata buat kartu menu utama CMS — cukup diedit di sini kalau mau ganti label/ikon/deskripsi
@@ -92,9 +92,10 @@ const TAB_META = {
   zine: { label: 'Wassup?', desc: 'Pengaturan menulis, menerima & moderasi kiriman' },
   miniGame: { label: 'Mini Game', desc: 'Game shelf, draft The Red Pen & koreksi editorial' },
   leaderboardSystems: { label: 'Leaderboard Systems', desc: 'Klasemen lintas Mini Game, ranking pemain & moderasi nama' },
+  navigationLabels: { label: 'Navigation & Labels', desc: 'Teks navbar atas dan Quick Views di dalam A4' },
   interactiveWords: { label: 'Interactive Words', desc: 'Frasa klik, tujuan, warna & spellcheck underline' },
   general: { label: 'Update Patch', desc: 'Info update patch, suara, dan pengaturan terkait pembaruan situs' },
-  websikee: { label: 'Websikee!', desc: 'Judul website dan gambar preview saat link dibagikan' },
+  websikee: { label: 'Websikee!', desc: 'Judul, deskripsi, favicon, dan gambar preview saat link dibagikan' },
 };
 
 const DEV_NOTES_STORAGE_KEY = 'portfolio_cms_dev_notes';
@@ -111,6 +112,7 @@ const writeLocalDevNotes = (value) => {
 
 const DEFAULT_WEBSITE = {
   title: 'Haikal A. Hafidz — Content Writer & Editor',
+  description: 'Portfolio Haikal A. Hafidz — writing, editing, creative work, and selected projects.',
   favicon: '',
   shareImage: '',
   devNotes: '',
@@ -2034,15 +2036,28 @@ const phraseOccurrences = (text, phrase) => {
   return count;
 };
 
-const redPenDraftErrors = (draft) => (draft?.issues || []).flatMap((issue, issueIndex) => {
-  const phrase = String(issue?.phrase || '').trim();
-  if (!phrase) return [`Koreksi ${issueIndex + 1}: frasa bermasalah masih kosong.`];
-  const count = phraseOccurrences(draft?.passage || '', phrase);
-  if (count === 0) return [`Koreksi ${issueIndex + 1}: frasa “${phrase}” tidak ditemukan persis di paragraf.`];
-  if (count > 1) return [`Koreksi ${issueIndex + 1}: frasa “${phrase}” muncul ${count} kali. Buat frasanya lebih spesifik.`];
-  if (!String(issue?.replacement || '').trim()) return [`Koreksi ${issueIndex + 1}: pengganti/kata “hapus” belum diisi.`];
-  return [];
-}).concat(!String(draft?.passage || '').trim() ? ['Paragraf masih kosong.'] : [], !(draft?.issues || []).length ? ['Tambahkan minimal satu koreksi editorial.'] : []);
+const isBlankMiniGameIssue = (issue) =>
+  !String(issue?.phrase || '').trim() &&
+  !String(issue?.replacement || '').trim() &&
+  !String(issue?.explanation || '').trim();
+
+const redPenDraftErrors = (draft) => {
+  const issues = Array.isArray(draft?.issues) ? draft.issues : [];
+  const meaningfulIssues = issues.filter((issue) => !isBlankMiniGameIssue(issue));
+
+  return meaningfulIssues.flatMap((issue, issueIndex) => {
+    const phrase = String(issue?.phrase || '').trim();
+    if (!phrase) return [`Koreksi ${issueIndex + 1}: frasa bermasalah masih kosong.`];
+    const count = phraseOccurrences(draft?.passage || '', phrase);
+    if (count === 0) return [`Koreksi ${issueIndex + 1}: frasa “${phrase}” tidak ditemukan persis di paragraf.`];
+    if (count > 1) return [`Koreksi ${issueIndex + 1}: frasa “${phrase}” muncul ${count} kali. Buat frasanya lebih spesifik.`];
+    if (!String(issue?.replacement || '').trim()) return [`Koreksi ${issueIndex + 1}: pengganti/kata “hapus” belum diisi.`];
+    return [];
+  }).concat(
+    !String(draft?.passage || '').trim() ? ['Paragraf masih kosong.'] : [],
+    !meaningfulIssues.length && String(draft?.passage || '').trim() ? [] : []
+  );
+};
 
 const hangmanWordErrors = (draft) => {
   const errors = [];
@@ -2438,10 +2453,19 @@ function normalizeProjectsData(raw) {
 }
 
 /* Input & textarea kecil biar gak nulis className berulang-ulang */
-function Field({ label, children }) {
+function Field({ label, children, sourceValue, cmsLanguage = 'id', translatable = true }) {
+  const sourceText = typeof sourceValue === 'string' ? sourceValue : '';
   return (
     <div>
       <label className="block text-xs font-medium mb-1">{label}</label>
+      {cmsLanguage === 'en' && translatable && sourceText.trim() && (
+        <div
+          data-id-source-reference="true"
+          className="mb-1 rounded border border-dashed border-gray-200 bg-gray-50 px-2 py-1 font-mono text-[10px] leading-relaxed text-gray-500 dark:border-gray-700 dark:bg-[#252525] dark:text-gray-400"
+        >
+          ID · {sourceText}
+        </div>
+      )}
       {children}
     </div>
   );
@@ -2845,69 +2869,51 @@ export default function CmsDashboard({ data, onSave }) {
   const bumpCmsDomRevision = React.useCallback(() => {
     setCmsDomRevision((value) => value + 1);
   }, []);
-  const englishFormData = React.useMemo(
-    () => localizedPortfolioData(sourceFormData, 'en'),
-    [sourceFormData]
-  );
+  const englishFormData = React.useMemo(() => {
+    const translated = localizedPortfolioData(sourceFormData, 'en');
+    const translationMap = normalizeTranslations(sourceFormData.translations).en;
+
+    // EN editor law: every untranslated human-readable string is rendered empty.
+    // The Indonesian source stays intact in sourceFormData and is shown above the field
+    // by the existing ID-source decorator.
+    const blankUntranslated = (source, localized, path = '') => {
+      if (typeof source === 'string') {
+        return typeof translationMap[path] === 'string' ? localized : '';
+      }
+
+      if (Array.isArray(source)) {
+        return source.map((item, index) => {
+          const stable = item && typeof item === 'object' && item.id != null && String(item.id).trim()
+            ? `@${encodeURIComponent(String(item.id).trim())}`
+            : `#${index}`;
+          return blankUntranslated(
+            item,
+            Array.isArray(localized) ? localized[index] : undefined,
+            path ? `${path}.${stable}` : stable
+          );
+        });
+      }
+
+      if (source && typeof source === 'object') {
+        const result = { ...(localized && typeof localized === 'object' ? localized : {}) };
+        Object.keys(source).forEach((key) => {
+          if (key === 'translations') return;
+          const childPath = path ? `${path}.${key}` : key;
+          result[key] = blankUntranslated(source[key], localized?.[key], childPath);
+        });
+        return result;
+      }
+
+      return localized;
+    };
+
+    return blankUntranslated(sourceFormData, translated);
+  }, [sourceFormData]);
   const formData = cmsLanguage === 'en' ? englishFormData : sourceFormData;
   const cmsCopy = React.useCallback((idText, enText) => (cmsLanguage === 'en' ? enText : idText), [cmsLanguage]);
 
-  useInsertionEffect(() => {
-    const root = document.querySelector('[data-cms-language-root]');
-    if (!root) return undefined;
-
-    // Remove stale ID references in the same React commit when leaving EN.
-    root.querySelectorAll('[data-id-source-reference]').forEach((node) => node.remove());
-    if (cmsLanguage !== 'en') return undefined;
-
-    const pairs = new Map();
-    const ambiguous = new Set();
-
-    const collectPairs = (source, translated) => {
-      if (typeof source === 'string' && typeof translated === 'string') {
-        if (pairs.has(translated) && pairs.get(translated) !== source) ambiguous.add(translated);
-        else pairs.set(translated, source);
-        return;
-      }
-      if (!source || !translated || typeof source !== 'object' || typeof translated !== 'object') return;
-      if (Array.isArray(translated)) {
-        translated.forEach((item, index) => collectPairs(Array.isArray(source) ? source[index] : undefined, item));
-        return;
-      }
-      Object.keys(translated).forEach((key) => {
-        if (key === 'translations') return;
-        collectPairs(source?.[key], translated[key]);
-      });
-    };
-
-    collectPairs(sourceFormData, englishFormData);
-    ambiguous.forEach((value) => pairs.delete(value));
-
-    const decorate = () => {
-      root.querySelectorAll('input[type="text"], input:not([type]), textarea').forEach((field) => {
-        const englishValue = field.value;
-        const indonesianValue = pairs.get(englishValue);
-        if (!indonesianValue) return;
-
-        const note = document.createElement('div');
-        note.dataset.idSourceReference = 'true';
-        note.className = 'mb-1 rounded border border-dashed border-gray-200 bg-gray-50 px-2 py-1 font-mono text-[10px] leading-relaxed text-gray-500 dark:border-gray-700 dark:bg-[#252525] dark:text-gray-400';
-        note.textContent = `ID · ${indonesianValue}`;
-        field.parentNode?.insertBefore(note, field);
-
-        // In EN mode, an untranslated field must look empty. Keep the Indonesian
-        // fallback in React state only long enough to identify its source reference,
-        // then clear the DOM value. As soon as an English translation exists,
-        // englishValue differs from the Indonesian source and is shown normally.
-        if (englishValue === indonesianValue) {
-          field.value = '';
-        }
-      });
-    };
-
-    decorate();
-    return undefined;
-  }, [cmsLanguage, sourceFormData, englishFormData, cmsDomRevision]);
+  // Source-language notes are rendered declaratively by <Field>.
+  // No querySelector/insertBefore DOM mutation: this keeps the CMS layout and React tree stable.
 
   const setFormData = React.useCallback((nextOrUpdater) => {
     if (cmsLanguage !== 'en') {
@@ -2916,7 +2922,32 @@ export default function CmsDashboard({ data, onSave }) {
     }
 
     setSourceFormData((currentSource) => {
-      const currentView = localizedPortfolioData(currentSource, 'en');
+      // Use the same EN editor shape that is currently rendered. This avoids reintroducing
+      // Indonesian fallback strings during an edit/click in newer CMS sections.
+      const translated = localizedPortfolioData(currentSource, 'en');
+      const translationMap = normalizeTranslations(currentSource.translations).en;
+      const blankUntranslatedForEdit = (source, localized, path = '') => {
+        if (typeof source === 'string') return typeof translationMap[path] === 'string' ? localized : '';
+        if (Array.isArray(source)) {
+          return source.map((item, index) => {
+            const stable = item && typeof item === 'object' && item.id != null && String(item.id).trim()
+              ? `@${encodeURIComponent(String(item.id).trim())}`
+              : `#${index}`;
+            return blankUntranslatedForEdit(item, Array.isArray(localized) ? localized[index] : undefined, path ? `${path}.${stable}` : stable);
+          });
+        }
+        if (source && typeof source === 'object') {
+          const result = { ...(localized && typeof localized === 'object' ? localized : {}) };
+          Object.keys(source).forEach((key) => {
+            if (key === 'translations') return;
+            const childPath = path ? `${path}.${key}` : key;
+            result[key] = blankUntranslatedForEdit(source[key], localized?.[key], childPath);
+          });
+          return result;
+        }
+        return localized;
+      };
+      const currentView = blankUntranslatedForEdit(currentSource, translated);
       const nextView = typeof nextOrUpdater === 'function' ? nextOrUpdater(currentView) : nextOrUpdater;
       if (!nextView || typeof nextView !== 'object') return currentSource;
 
@@ -3043,7 +3074,6 @@ export default function CmsDashboard({ data, onSave }) {
   const [zineInboxLoading, setZineInboxLoading] = useState(false);
   const [zineInboxError, setZineInboxError] = useState('');
   const [moderatingZineId, setModeratingZineId] = useState(null);
-  const [zineArchiveTarget, setZineArchiveTarget] = useState(null);
   const [leaderboardRows, setLeaderboardRows] = useState([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState('');
@@ -3135,21 +3165,12 @@ export default function CmsDashboard({ data, onSave }) {
 
   const archiveInboxZine = async (entry) => {
     if (!entry || entry.status === 'pending') return;
-    setZineArchiveTarget(entry);
-  };
-
-  const confirmArchiveInboxZine = async () => {
-    const entry = zineArchiveTarget;
-    if (!entry || entry.status === 'pending') {
-      setZineArchiveTarget(null);
-      return;
-    }
+    if (!window.confirm(`Hapus Submission #${entry.id} dari history CMS? Kiriman Approved tetap tersedia di fitur Menerima.`)) return;
     setModeratingZineId(entry.id);
     setZineInboxError('');
     try {
       await archiveZineSubmissions(entry.id);
       setZineInbox((current) => current.filter((item) => item.id !== entry.id));
-      setZineArchiveTarget(null);
     } catch (error) {
       console.error('Gagal menghapus history Zine:', error);
       setZineInboxError('History belum bisa dihapus. Pastikan kolom/policy cms_archived di Supabase sudah aktif.');
@@ -3160,21 +3181,42 @@ export default function CmsDashboard({ data, onSave }) {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    const miniGamesToValidate = [formData.miniGame, ...(formData.miniGame?.gameSlots || [])];
-    const invalidDrafts = miniGamesToValidate.flatMap((game) => (game?.drafts || []).flatMap((draft, index) => {
-      if (draft.enabled === false) return [];
-      const isHangman = game?.gameType === 'hangman' || String(game?.gameName || '').trim().toLowerCase() === 'the hangman';
-      const itemLabel = isHangman ? `Kata ${index + 1}` : `Draft ${index + 1}`;
-      return miniGameContentErrors(game, draft).map((error) => `${game.gameName || 'Game baru'} · ${itemLabel}: ${error}`);
-    }));
-    if (invalidDrafts.length) {
-      setActiveTab('miniGame');
-      setNotice(`Mini Game belum bisa disimpan. ${invalidDrafts[0]}`);
-      return;
+    // Mini Game validation only belongs to the Mini Game editor.
+    // Saving Navigation, Home, About, etc. must never be blocked by an unfinished
+    // Mini Game draft that the admin is not currently editing.
+    if (activeTab === 'miniGame') {
+      const miniGamesToValidate = [formData.miniGame, ...(formData.miniGame?.gameSlots || [])];
+      const invalidDrafts = miniGamesToValidate.flatMap((game) => (game?.drafts || []).flatMap((draft, index) => {
+        if (draft.enabled === false) return [];
+        const isHangman = game?.gameType === 'hangman' || String(game?.gameName || '').trim().toLowerCase() === 'the hangman';
+        const itemLabel = isHangman ? `Kata ${index + 1}` : `Draft ${index + 1}`;
+        return miniGameContentErrors(game, draft).map((error) => `${game.gameName || 'Game baru'} · ${itemLabel}: ${error}`);
+      }));
+      if (invalidDrafts.length) {
+        setNotice(`Mini Game belum bisa disimpan. ${invalidDrafts[0]}`);
+        return;
+      }
     }
     setIsSaving(true);
+    const cleanMiniGameIssues = (game) => ({
+      ...game,
+      drafts: Array.isArray(game?.drafts)
+        ? game.drafts.map((draft) => ({
+            ...draft,
+            issues: Array.isArray(draft?.issues)
+              ? draft.issues.filter((issue) => !isBlankMiniGameIssue(issue))
+              : [],
+          }))
+        : [],
+    });
     const cleanData = {
       ...sourceFormData,
+      miniGame: {
+        ...cleanMiniGameIssues(sourceFormData.miniGame || {}),
+        gameSlots: Array.isArray(sourceFormData.miniGame?.gameSlots)
+          ? sourceFormData.miniGame.gameSlots.map(cleanMiniGameIssues)
+          : [],
+      },
       website: { ...normalizeWebsite(sourceFormData.website) },
     };
     // Catatan Website adalah admin-local note: jangan pernah kirim ke row portfolio
@@ -4246,21 +4288,6 @@ export default function CmsDashboard({ data, onSave }) {
         </div>
       )}
 
-      {zineArchiveTarget && (
-        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/55 px-4" role="alertdialog" aria-modal="true">
-          <div className="w-full max-w-sm overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#202020] shadow-2xl">
-            <div className="bg-[#2B579A] px-5 py-3 text-white"><h2 className="font-mono text-sm font-bold tracking-wider">SAYA SATPAM!</h2></div>
-            <div className="p-5">
-              <p className="text-sm text-gray-700 dark:text-gray-200">{`Hapus Submission #${zineArchiveTarget.id} dari history CMS? Kiriman Approved tetap tersedia di fitur Menerima.`}</p>
-              <div className="mt-5 flex justify-end gap-2">
-                <button type="button" onClick={() => setZineArchiveTarget(null)} disabled={moderatingZineId === zineArchiveTarget.id} className="rounded-md bg-gray-200 dark:bg-gray-700 px-4 py-2 text-xs font-bold text-gray-700 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50">Batal</button>
-                <button type="button" onClick={confirmArchiveInboxZine} disabled={moderatingZineId === zineArchiveTarget.id} className="rounded-md bg-[#2B579A] px-4 py-2 text-xs font-bold text-white hover:bg-[#234a84] disabled:opacity-50">{moderatingZineId === zineArchiveTarget.id ? 'Menghapus...' : 'Ya, Hapus'}</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {notice && (
         <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/55 px-4" role="alertdialog" aria-modal="true">
           <div className="w-full max-w-sm overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#202020] shadow-2xl">
@@ -4302,7 +4329,7 @@ export default function CmsDashboard({ data, onSave }) {
 
       {activeTab === null ? (
         <div>
-          {cmsSection === null ? <><h2 className="mb-4 text-xs font-mono uppercase tracking-widest text-gray-400 dark:text-gray-500">Pilih kelompok pengaturan</h2><div className="mx-auto grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-4"><button type="button" onClick={() => setCmsSection('main')} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">01 / Pokok</span><strong className="mt-4 block font-mono text-xl">UTAMA</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Home, About, Projects, Career, Book, dan Contact.</span></button><button type="button" onClick={() => setCmsSection('side')} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">02 / Sampingan</span><strong className="mt-4 block font-mono text-xl">SAMPINGAN</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Featured Works, Visitor Introduction, Interactive Words, dan Update Patch.</span></button><button type="button" onClick={() => setCmsSection('extra')} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">03 / Interaktif</span><strong className="mt-4 block font-mono text-xl">INTERAKTIF</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Wassup? dan Mini Game untuk pengalaman tambahan pengunjung.</span></button><button type="button" onClick={() => { setCmsSection('websikee'); setActiveTab('websikee'); }} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">04 / Metadata</span><strong className="mt-4 block font-mono text-xl">WEBSIKEE!</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Judul website dan foto preview saat link dibagikan.</span></button></div></> : <><div className="mb-4 flex items-center justify-between gap-3"><div><button type="button" onClick={() => setCmsSection(null)} className="mb-2 font-mono text-xs text-gray-500 hover:text-blue-600">← Pilih kelompok lain</button><h2 className="text-xs font-mono uppercase tracking-widest text-gray-400 dark:text-gray-500">{cmsSection === 'main' ? 'Pokok / kebutuhan utama portofolio' : cmsSection === 'side' ? 'Sampingan / fitur pendukung portofolio' : cmsSection === 'websikee' ? 'Websikee! / metadata website' : 'Interaktif / pengalaman tambahan pengunjung'}</h2></div></div><div className="grid max-h-[calc(100vh-17rem)] grid-cols-2 gap-3 overflow-y-auto overscroll-contain pr-1 sm:grid-cols-3">
+          {cmsSection === null ? <><h2 className="mb-4 text-xs font-mono uppercase tracking-widest text-gray-400 dark:text-gray-500">Pilih kelompok pengaturan</h2><div className="mx-auto grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-4"><button type="button" onClick={() => setCmsSection('main')} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">01 / Pokok</span><strong className="mt-4 block font-mono text-xl">UTAMA</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Home, About, Projects, Career, Book, dan Contact.</span></button><button type="button" onClick={() => setCmsSection('side')} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">02 / Sampingan</span><strong className="mt-4 block font-mono text-xl">SAMPINGAN</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Featured Works, Visitor Introduction, Navigation & Labels, Interactive Words, dan Update Patch.</span></button><button type="button" onClick={() => setCmsSection('extra')} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">03 / Interaktif</span><strong className="mt-4 block font-mono text-xl">INTERAKTIF</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Wassup? dan Mini Game untuk pengalaman tambahan pengunjung.</span></button><button type="button" onClick={() => { setCmsSection('websikee'); setActiveTab('websikee'); }} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">04 / Metadata</span><strong className="mt-4 block font-mono text-xl">WEBSIKEE!</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Judul website dan foto preview saat link dibagikan.</span></button></div></> : <><div className="mb-4 flex items-center justify-between gap-3"><div><button type="button" onClick={() => setCmsSection(null)} className="mb-2 font-mono text-xs text-gray-500 hover:text-blue-600">← Pilih kelompok lain</button><h2 className="text-xs font-mono uppercase tracking-widest text-gray-400 dark:text-gray-500">{cmsSection === 'main' ? 'Pokok / kebutuhan utama portofolio' : cmsSection === 'side' ? 'Sampingan / fitur pendukung portofolio' : cmsSection === 'websikee' ? 'Websikee! / metadata website' : 'Interaktif / pengalaman tambahan pengunjung'}</h2></div></div><div className="grid max-h-[calc(100vh-17rem)] grid-cols-2 gap-3 overflow-y-auto overscroll-contain pr-1 sm:grid-cols-3">
             {(cmsSection === 'main' ? MAIN_TABS : cmsSection === 'side' ? SIDE_TABS : EXTRA_TABS).map((tab) => {
               const meta = TAB_META[tab];
               return (
@@ -4334,7 +4361,6 @@ export default function CmsDashboard({ data, onSave }) {
           <span>←</span> Kembali ke {cmsSection === 'main' ? 'Pokok' : cmsSection === 'side' ? 'Sampingan' : cmsSection === 'websikee' ? 'Websikee!' : 'Interaktif'}
         </button>
 
-        {activeTab !== 'websikee' && (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-[#282828]">
           <div>
             <p className="text-xs font-bold text-gray-700 dark:text-gray-200">Bahasa konten</p>
@@ -4346,10 +4372,6 @@ export default function CmsDashboard({ data, onSave }) {
           </div>
         </div>
 
-
-
-        )}
-
         {/* ================= WEBSIKEE! ================= */}
         {activeTab === 'websikee' && (
           <section className="space-y-5">
@@ -4358,13 +4380,22 @@ export default function CmsDashboard({ data, onSave }) {
               <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">Metadata website. Website Title tersimpan lewat CMS. Share Preview Image di bawah ini menimpa satu file tetap di Supabase, sehingga GitHub Pages dan crawler share memakai sumber gambar yang sama.</p>
             </div>
 
-            <Field label="Website Title">
+            <Field label="Website Title" sourceValue={sourceFormData.website?.title || ''} cmsLanguage={cmsLanguage}>
               <input
                 type="text"
-                value={sourceFormData.website?.title || ''}
-                onChange={(e) => setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), title: e.target.value } }))}
+                value={formData.website?.title || ''}
+                onChange={(e) => setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), title: e.target.value } }))}
                 className={inputCls}
                 placeholder="Haikal A. Hafidz — Content Writer & Editor"
+              />
+            </Field>
+
+            <Field label="Website Description" sourceValue={sourceFormData.website?.description || ''} cmsLanguage={cmsLanguage}>
+              <textarea
+                value={formData.website?.description || ''}
+                onChange={(e) => setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), description: e.target.value } }))}
+                className={`${inputCls} min-h-[96px] resize-y`}
+                placeholder="Deskripsi singkat yang muncul pada metadata dan preview saat link portfolio dibagikan."
               />
             </Field>
 
@@ -4462,10 +4493,10 @@ export default function CmsDashboard({ data, onSave }) {
         {activeTab === 'home' && (
           <div className="space-y-4">
             <h2 className="text-sm font-bold border-b pb-2 border-gray-100 dark:border-gray-800 text-blue-600 dark:text-blue-400">Tab Home</h2>
-            <Field label="Nama Lengkap">
+            <Field label="Nama Lengkap" sourceValue={sourceFormData.home.name} cmsLanguage={cmsLanguage}>
               <input type="text" value={formData.home.name} onChange={(e) => setHome('name', e.target.value)} className={inputCls} />
             </Field>
-            <Field label="Role / Jabatan Singkat">
+            <Field label="Role / Jabatan Singkat" sourceValue={sourceFormData.home.role} cmsLanguage={cmsLanguage}>
               <input type="text" value={formData.home.role} onChange={(e) => setHome('role', e.target.value)} className={inputCls} />
             </Field>
             <CollapsibleSection sectionKey="home-dynamic-statement" title="Dynamic Statement" subtitle="Kalimat besar di kanan identitas Home.">
@@ -4481,9 +4512,9 @@ export default function CmsDashboard({ data, onSave }) {
               </div>
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <Field label="Pembuka"><input type="text" value={formData.home.dynamicStatement.prefix || ''} onChange={(e) => setDynamicStatement('prefix', e.target.value)} className={inputCls} placeholder="Gue" /></Field>
-                <Field label="Kata highlight kuning"><input type="text" value={formData.home.dynamicStatement.highlightedWord || ''} onChange={(e) => setDynamicStatement('highlightedWord', e.target.value)} className={inputCls} placeholder="mengubah" /></Field>
-                <Field label="Kata penghubung"><input type="text" value={formData.home.dynamicStatement.connector || ''} onChange={(e) => setDynamicStatement('connector', e.target.value)} className={inputCls} placeholder="menjadi" /></Field>
+                <Field label="Pembuka" sourceValue={sourceFormData.home.dynamicStatement.prefix || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.home.dynamicStatement.prefix || ''} onChange={(e) => setDynamicStatement('prefix', e.target.value)} className={inputCls} placeholder="Gue" /></Field>
+                <Field label="Kata highlight kuning" sourceValue={sourceFormData.home.dynamicStatement.highlightedWord || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.home.dynamicStatement.highlightedWord || ''} onChange={(e) => setDynamicStatement('highlightedWord', e.target.value)} className={inputCls} placeholder="mengubah" /></Field>
+                <Field label="Kata penghubung" sourceValue={sourceFormData.home.dynamicStatement.connector || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.home.dynamicStatement.connector || ''} onChange={(e) => setDynamicStatement('connector', e.target.value)} className={inputCls} placeholder="menjadi" /></Field>
               </div>
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -4533,7 +4564,7 @@ export default function CmsDashboard({ data, onSave }) {
           <div className="space-y-4">
             <h2 className="text-sm font-bold border-b pb-2 border-gray-100 dark:border-gray-800 text-blue-600 dark:text-blue-400">Featured Works / Carousel</h2>
             <p className="text-xs text-gray-500 italic">Pilih maksimal lima karya. Judul dan gambar otomatis mengikuti data asli di Book atau Projects.</p>
-            <Field label="Heading Carousel">
+            <Field label="Heading Carousel" sourceValue={sourceFormData.home.featuredWorksHeading || ''} cmsLanguage={cmsLanguage}>
               <input type="text" value={formData.home.featuredWorksHeading || ''} onChange={(e) => setHome('featuredWorksHeading', e.target.value)} className={inputCls} placeholder="Pilihan Karya" />
             </Field>
             <div className="space-y-3">
@@ -4559,20 +4590,20 @@ export default function CmsDashboard({ data, onSave }) {
             <p className="text-xs text-gray-500 italic">The Author dan Bits & Pieces tampil sebagai dua tab yang mengganti isi halaman A4.</p>
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <Field label="Judul Halaman"><input value={formData.about.heading || ''} onChange={(e) => setAboutField('heading', e.target.value)} className={inputCls} /></Field>
-              <Field label="Subheading Halaman"><input value={formData.about.subheading || ''} onChange={(e) => setAboutField('subheading', e.target.value)} className={inputCls} /></Field>
-              <Field label="Nama tab bio"><input value={formData.about.authorNoteTabLabel || ''} onChange={(e) => setAboutField('authorNoteTabLabel', e.target.value)} className={inputCls} /></Field>
-              <Field label="Nama tab Bits & Pieces"><input value={formData.about.bitsTabLabel || ''} onChange={(e) => setAboutField('bitsTabLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Judul Halaman" sourceValue={sourceFormData.about.heading || ''} cmsLanguage={cmsLanguage}><input value={formData.about.heading || ''} onChange={(e) => setAboutField('heading', e.target.value)} className={inputCls} /></Field>
+              <Field label="Subheading Halaman" sourceValue={sourceFormData.about.subheading || ''} cmsLanguage={cmsLanguage}><input value={formData.about.subheading || ''} onChange={(e) => setAboutField('subheading', e.target.value)} className={inputCls} /></Field>
+              <Field label="Nama tab bio" sourceValue={sourceFormData.about.authorNoteTabLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.about.authorNoteTabLabel || ''} onChange={(e) => setAboutField('authorNoteTabLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Nama tab Bits & Pieces" sourceValue={sourceFormData.about.bitsTabLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.about.bitsTabLabel || ''} onChange={(e) => setAboutField('bitsTabLabel', e.target.value)} className={inputCls} /></Field>
             </div>
 
             <CollapsibleSection sectionKey="about-author" title="The Author">
 
               <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400">The Author</h3>
-              <Field label="Headline"><input value={formData.about.headline || ''} onChange={(e) => setAboutField('headline', e.target.value)} className={inputCls} /></Field>
-              <Field label="Bio"><textarea rows={5} value={formData.about.bio || ''} onChange={(e) => setAboutField('bio', e.target.value)} className={`${inputCls} resize-y`} /></Field>
+              <Field label="Headline" sourceValue={sourceFormData.about.headline || ''} cmsLanguage={cmsLanguage}><input value={formData.about.headline || ''} onChange={(e) => setAboutField('headline', e.target.value)} className={inputCls} /></Field>
+              <Field label="Bio" sourceValue={sourceFormData.about.bio || ''} cmsLanguage={cmsLanguage}><textarea rows={5} value={formData.about.bio || ''} onChange={(e) => setAboutField('bio', e.target.value)} className={`${inputCls} resize-y`} /></Field>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Field label="Tanda tangan"><input value={formData.about.signature || ''} onChange={(e) => setAboutField('signature', e.target.value)} className={inputCls} /></Field>
-                <Field label="Lokasi / closing"><input value={formData.about.locationLine || ''} onChange={(e) => setAboutField('locationLine', e.target.value)} className={inputCls} /></Field>
+                <Field label="Tanda tangan" sourceValue={sourceFormData.about.signature || ''} cmsLanguage={cmsLanguage}><input value={formData.about.signature || ''} onChange={(e) => setAboutField('signature', e.target.value)} className={inputCls} /></Field>
+                <Field label="Lokasi / closing" sourceValue={sourceFormData.about.locationLine || ''} cmsLanguage={cmsLanguage}><input value={formData.about.locationLine || ''} onChange={(e) => setAboutField('locationLine', e.target.value)} className={inputCls} /></Field>
               </div>
             
             </CollapsibleSection>
@@ -4622,18 +4653,18 @@ export default function CmsDashboard({ data, onSave }) {
                   {formData.about.listeningFootnote.enabled !== false ? 'Ditampilkan' : 'Disembunyikan'}
                 </label>
               </div>
-              <Field label="Username Last.fm"><input value={formData.about.listeningFootnote.username || ''} onChange={(e) => setListeningFootnote('username', e.target.value)} className={inputCls} placeholder="Username Last.fm" /></Field>
+              <Field label="Username Last.fm" sourceValue={sourceFormData.about.listeningFootnote.username || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.username || ''} onChange={(e) => setListeningFootnote('username', e.target.value)} className={inputCls} placeholder="Username Last.fm" /></Field>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <Field label="Label sedang diputar"><input value={formData.about.listeningFootnote.nowPlayingLabel || ''} onChange={(e) => setListeningFootnote('nowPlayingLabel', e.target.value)} className={inputCls} /></Field>
-                <Field label="Label terakhir diputar"><input value={formData.about.listeningFootnote.lastPlayedLabel || ''} onChange={(e) => setListeningFootnote('lastPlayedLabel', e.target.value)} className={inputCls} /></Field>
-                <Field label="Label fallback"><input value={formData.about.listeningFootnote.fallbackLabel || ''} onChange={(e) => setListeningFootnote('fallbackLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Label sedang diputar" sourceValue={sourceFormData.about.listeningFootnote.nowPlayingLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.nowPlayingLabel || ''} onChange={(e) => setListeningFootnote('nowPlayingLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Label terakhir diputar" sourceValue={sourceFormData.about.listeningFootnote.lastPlayedLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.lastPlayedLabel || ''} onChange={(e) => setListeningFootnote('lastPlayedLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Label fallback" sourceValue={sourceFormData.about.listeningFootnote.fallbackLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.fallbackLabel || ''} onChange={(e) => setListeningFootnote('fallbackLabel', e.target.value)} className={inputCls} /></Field>
               </div>
               <p className="text-xs text-gray-500">Fallback dipakai kalau live Last.fm belum tersedia.</p>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <Field label="Judul lagu fallback"><input value={formData.about.listeningFootnote.fallbackTitle || ''} onChange={(e) => setListeningFootnote('fallbackTitle', e.target.value)} className={inputCls} /></Field>
-                <Field label="Artis fallback"><input value={formData.about.listeningFootnote.fallbackArtist || ''} onChange={(e) => setListeningFootnote('fallbackArtist', e.target.value)} className={inputCls} /></Field>
-                <Field label="URL cover fallback"><input value={formData.about.listeningFootnote.fallbackImage || ''} onChange={(e) => setListeningFootnote('fallbackImage', e.target.value)} className={inputCls} /></Field>
-                <Field label="Link lagu fallback"><input value={formData.about.listeningFootnote.fallbackUrl || ''} onChange={(e) => setListeningFootnote('fallbackUrl', e.target.value)} className={inputCls} /></Field>
+                <Field label="Judul lagu fallback" sourceValue={sourceFormData.about.listeningFootnote.fallbackTitle || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.fallbackTitle || ''} onChange={(e) => setListeningFootnote('fallbackTitle', e.target.value)} className={inputCls} /></Field>
+                <Field label="Artis fallback" sourceValue={sourceFormData.about.listeningFootnote.fallbackArtist || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.fallbackArtist || ''} onChange={(e) => setListeningFootnote('fallbackArtist', e.target.value)} className={inputCls} /></Field>
+                <Field label="URL cover fallback" sourceValue={sourceFormData.about.listeningFootnote.fallbackImage || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.fallbackImage || ''} onChange={(e) => setListeningFootnote('fallbackImage', e.target.value)} className={inputCls} /></Field>
+                <Field label="Link lagu fallback" sourceValue={sourceFormData.about.listeningFootnote.fallbackUrl || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.fallbackUrl || ''} onChange={(e) => setListeningFootnote('fallbackUrl', e.target.value)} className={inputCls} /></Field>
               </div>
             </CollapsibleSection>
           </div>
@@ -4650,26 +4681,26 @@ export default function CmsDashboard({ data, onSave }) {
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Field label="Judul Halaman (mis. Career & Education)">
+              <Field label="Judul Halaman (mis. Career & Education)" sourceValue={sourceFormData.career.heading} cmsLanguage={cmsLanguage}>
                 <input type="text" value={formData.career.heading} onChange={(e) => setCareerHeading('heading', e.target.value)} className={inputCls} />
               </Field>
-              <Field label="Sub-judul / Keterangan Singkat">
+              <Field label="Sub-judul / Keterangan Singkat" sourceValue={sourceFormData.career.subheading} cmsLanguage={cmsLanguage}>
                 <input type="text" value={formData.career.subheading} onChange={(e) => setCareerHeading('subheading', e.target.value)} className={inputCls} />
               </Field>
             </div>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <CollapsibleSection sectionKey="career-archive-cover" title="Career Archive Cover">
-                <Field label="Judul besar sampul"><textarea rows={2} value={formData.career.archiveTitle || ''} onChange={(e) => setCareerHeading('archiveTitle', e.target.value)} className={`${inputCls} resize-y`} placeholder="A record of work, study..." /></Field>
-                <Field label="Pengantar sampul"><textarea rows={2} value={formData.career.archiveIntro || ''} onChange={(e) => setCareerHeading('archiveIntro', e.target.value)} className={`${inputCls} resize-y`} /></Field>
-                <Field label="Tulisan tombol buka arsip"><input type="text" value={formData.career.archiveButtonLabel || ''} onChange={(e) => setCareerHeading('archiveButtonLabel', e.target.value)} className={inputCls} placeholder="Open career archive" /></Field>
+                <Field label="Judul besar sampul" sourceValue={sourceFormData.career.archiveTitle || ''} cmsLanguage={cmsLanguage}><textarea rows={2} value={formData.career.archiveTitle || ''} onChange={(e) => setCareerHeading('archiveTitle', e.target.value)} className={`${inputCls} resize-y`} placeholder="A record of work, study..." /></Field>
+                <Field label="Pengantar sampul" sourceValue={sourceFormData.career.archiveIntro || ''} cmsLanguage={cmsLanguage}><textarea rows={2} value={formData.career.archiveIntro || ''} onChange={(e) => setCareerHeading('archiveIntro', e.target.value)} className={`${inputCls} resize-y`} /></Field>
+                <Field label="Tulisan tombol buka arsip" sourceValue={sourceFormData.career.archiveButtonLabel || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.career.archiveButtonLabel || ''} onChange={(e) => setCareerHeading('archiveButtonLabel', e.target.value)} className={inputCls} placeholder="Open career archive" /></Field>
               </CollapsibleSection>
 
               <CollapsibleSection sectionKey="career-view-credentials" title="View Credentials">
-                <Field label="Tulisan tombol credentials"><input type="text" value={formData.career.credentialsButtonLabel || ''} onChange={(e) => setCareerHeading('credentialsButtonLabel', e.target.value)} className={inputCls} placeholder="View credentials" /></Field>
-                <Field label="Judul halaman Credentials"><input value={formData.career.credentialsHeading || ''} onChange={(e) => setCareerHeading('credentialsHeading', e.target.value)} className={inputCls} /></Field>
-                  <Field label="Subheading halaman Credentials"><textarea rows={2} value={formData.career.credentialsSubheading || ''} onChange={(e) => setCareerHeading('credentialsSubheading', e.target.value)} className={`${inputCls} resize-y`} /></Field>
-                  <Field label="Tulisan kembali dari Credentials"><input value={formData.career.credentialsBackLabel || ''} onChange={(e) => setCareerHeading('credentialsBackLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Tulisan tombol credentials" sourceValue={sourceFormData.career.credentialsButtonLabel || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.career.credentialsButtonLabel || ''} onChange={(e) => setCareerHeading('credentialsButtonLabel', e.target.value)} className={inputCls} placeholder="View credentials" /></Field>
+                <Field label="Judul halaman Credentials" sourceValue={sourceFormData.career.credentialsHeading || ''} cmsLanguage={cmsLanguage}><input value={formData.career.credentialsHeading || ''} onChange={(e) => setCareerHeading('credentialsHeading', e.target.value)} className={inputCls} /></Field>
+                  <Field label="Subheading halaman Credentials" sourceValue={sourceFormData.career.credentialsSubheading || ''} cmsLanguage={cmsLanguage}><textarea rows={2} value={formData.career.credentialsSubheading || ''} onChange={(e) => setCareerHeading('credentialsSubheading', e.target.value)} className={`${inputCls} resize-y`} /></Field>
+                  <Field label="Tulisan kembali dari Credentials" sourceValue={sourceFormData.career.credentialsBackLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.career.credentialsBackLabel || ''} onChange={(e) => setCareerHeading('credentialsBackLabel', e.target.value)} className={inputCls} /></Field>
                 </CollapsibleSection>
               </div>
   
@@ -5064,12 +5095,12 @@ export default function CmsDashboard({ data, onSave }) {
             <div className="border-b pb-2 border-gray-100 dark:border-gray-800"><h2 className="text-sm font-bold text-blue-600 dark:text-blue-400">Tab Book</h2></div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Field label="Nama tab karya saya"><input type="text" value={formData.books.worksTabLabel || ''} onChange={(e) => setBooksHeading('worksTabLabel', e.target.value)} className={inputCls} /></Field>
-              <Field label="Nama tab buku yang dibaca"><input type="text" value={formData.books.readingTabLabel || ''} onChange={(e) => setBooksHeading('readingTabLabel', e.target.value)} className={inputCls} /></Field>
-              <Field label="Judul Halaman (mis. Books, Writings & Open Source)">
+              <Field label="Nama tab karya saya" sourceValue={sourceFormData.books.worksTabLabel || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.books.worksTabLabel || ''} onChange={(e) => setBooksHeading('worksTabLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Nama tab buku yang dibaca" sourceValue={sourceFormData.books.readingTabLabel || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.books.readingTabLabel || ''} onChange={(e) => setBooksHeading('readingTabLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Judul Halaman (mis. Books, Writings & Open Source)" sourceValue={sourceFormData.books.heading} cmsLanguage={cmsLanguage}>
                 <input type="text" value={formData.books.heading} onChange={(e) => setBooksHeading('heading', e.target.value)} className={inputCls} />
               </Field>
-              <Field label="Sub-judul / Keterangan Singkat">
+              <Field label="Sub-judul / Keterangan Singkat" sourceValue={sourceFormData.books.subheading} cmsLanguage={cmsLanguage}>
                 <input type="text" value={formData.books.subheading} onChange={(e) => setBooksHeading('subheading', e.target.value)} className={inputCls} />
               </Field>
             </div>
@@ -5343,18 +5374,18 @@ export default function CmsDashboard({ data, onSave }) {
             <h2 className="text-sm font-bold border-b pb-2 border-gray-100 dark:border-gray-800 text-blue-600 dark:text-blue-400">Tab Projects</h2>
 
 
-            <Field label="Heading Halaman">
+            <Field label="Heading Halaman" sourceValue={sourceFormData.projects.heading} cmsLanguage={cmsLanguage}>
               <input type="text" value={formData.projects.heading} onChange={(e) => setProjectsField('heading', e.target.value)} className={inputCls} />
             </Field>
-            <Field label="Subheading Halaman">
+            <Field label="Subheading Halaman" sourceValue={sourceFormData.projects.subheading} cmsLanguage={cmsLanguage}>
               <textarea rows={2} value={formData.projects.subheading} onChange={(e) => setProjectsField('subheading', e.target.value)} className={`${inputCls} resize-none`} />
             </Field>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <Field label="Judul Project Index"><input value={formData.projects.indexHeading || ''} onChange={(e) => setProjectsField('indexHeading', e.target.value)} className={inputCls} /></Field>
-              <Field label="Keterangan Project Index"><input value={formData.projects.indexDescription || ''} onChange={(e) => setProjectsField('indexDescription', e.target.value)} className={inputCls} /></Field>
-              <Field label="Label pencarian"><input value={formData.projects.searchLabel || ''} onChange={(e) => setProjectsField('searchLabel', e.target.value)} className={inputCls} /></Field>
-              <Field label="Tulisan kembali ke index"><input value={formData.projects.backLabel || ''} onChange={(e) => setProjectsField('backLabel', e.target.value)} className={inputCls} /></Field>
-              <Field label="Tulisan buka drawer"><input value={formData.projects.openDrawerLabel || ''} onChange={(e) => setProjectsField('openDrawerLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Judul Project Index" sourceValue={sourceFormData.projects.indexHeading || ''} cmsLanguage={cmsLanguage}><input value={formData.projects.indexHeading || ''} onChange={(e) => setProjectsField('indexHeading', e.target.value)} className={inputCls} /></Field>
+              <Field label="Keterangan Project Index" sourceValue={sourceFormData.projects.indexDescription || ''} cmsLanguage={cmsLanguage}><input value={formData.projects.indexDescription || ''} onChange={(e) => setProjectsField('indexDescription', e.target.value)} className={inputCls} /></Field>
+              <Field label="Label pencarian" sourceValue={sourceFormData.projects.searchLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.projects.searchLabel || ''} onChange={(e) => setProjectsField('searchLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Tulisan kembali ke index" sourceValue={sourceFormData.projects.backLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.projects.backLabel || ''} onChange={(e) => setProjectsField('backLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Tulisan buka drawer" sourceValue={sourceFormData.projects.openDrawerLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.projects.openDrawerLabel || ''} onChange={(e) => setProjectsField('openDrawerLabel', e.target.value)} className={inputCls} /></Field>
             </div>
 
             <CollapsibleSection sectionKey="projects-card-descriptions" title="Keterangan kartu setiap tab">
@@ -5364,9 +5395,9 @@ export default function CmsDashboard({ data, onSave }) {
                 <p className="mt-1 text-xs text-gray-500">Kosongkan kolom untuk menghapus tulisan di bawah nama tab. Tab baru otomatis muncul di bagian ini.</p>
               </div>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <Field label={formData.projects.articlesLabel || 'Articles'}><input value={formData.projects.articlesDescription || ''} onChange={(e) => setProjectsField('articlesDescription', e.target.value)} className={inputCls} /></Field>
-                <Field label={formData.projects.directingLabel || 'Directing'}><input value={formData.projects.directingDescription || ''} onChange={(e) => setProjectsField('directingDescription', e.target.value)} className={inputCls} /></Field>
-                <Field label={formData.projects.posterLabel || 'Poster'}><input value={formData.projects.posterDescription || ''} onChange={(e) => setProjectsField('posterDescription', e.target.value)} className={inputCls} /></Field>
+                <Field label={formData.projects.articlesLabel || 'Articles'} sourceValue={sourceFormData.projects.articlesDescription || ''} cmsLanguage={cmsLanguage}><input value={formData.projects.articlesDescription || ''} onChange={(e) => setProjectsField('articlesDescription', e.target.value)} className={inputCls} /></Field>
+                <Field label={formData.projects.directingLabel || 'Directing'} sourceValue={sourceFormData.projects.directingDescription || ''} cmsLanguage={cmsLanguage}><input value={formData.projects.directingDescription || ''} onChange={(e) => setProjectsField('directingDescription', e.target.value)} className={inputCls} /></Field>
+                <Field label={formData.projects.posterLabel || 'Poster'} sourceValue={sourceFormData.projects.posterDescription || ''} cmsLanguage={cmsLanguage}><input value={formData.projects.posterDescription || ''} onChange={(e) => setProjectsField('posterDescription', e.target.value)} className={inputCls} /></Field>
                 {formData.projects.customSections.map((section, sectionIdx) => (
                   <Field key={section.id || sectionIdx} label={section.label || `Tab Baru #${sectionIdx + 1}`}>
                     <input value={section.description || ''} onChange={(e) => setCustomSectionDescription(sectionIdx, e.target.value)} className={inputCls} />
@@ -5420,7 +5451,7 @@ export default function CmsDashboard({ data, onSave }) {
                   <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">{cmsCopy("Articles", "Articles")}</h3>
                   <AddBtn onClick={addArticle} label={cmsCopy("Tambah Artikel", "Add Article")} />
                 </div>
-                <Field label={cmsCopy('Nama Tab (tampil di navigasi, kosongkan buat pakai "Articles")', 'Tab Name (shown in navigation, leave blank to use "Articles")')}>
+                <Field label={cmsCopy('Nama Tab (tampil di navigasi, kosongkan buat pakai "Articles")', 'Tab Name (shown in navigation, leave blank to use "Articles")')} sourceValue={sourceFormData.projects.articlesLabel} cmsLanguage={cmsLanguage}>
                   <input
                     type="text"
                     value={formData.projects.articlesLabel}
@@ -5626,17 +5657,17 @@ export default function CmsDashboard({ data, onSave }) {
         {activeTab === 'contact' && (
           <div className="space-y-5">
             <h2 className="text-sm font-bold border-b pb-2 border-gray-100 dark:border-gray-800 text-blue-600 dark:text-blue-400">Contact — New Collaboration Document</h2>
-            <Field label="Heading Utama"><textarea rows={2} value={formData.contact.heading} onChange={(e) => setContactField('heading', e.target.value)} className={`${inputCls} resize-none`} /></Field>
-            <Field label="Subheading"><textarea rows={2} value={formData.contact.subheading} onChange={(e) => setContactField('subheading', e.target.value)} className={`${inputCls} resize-none`} /></Field>
+            <Field label="Heading Utama" sourceValue={sourceFormData.contact.heading} cmsLanguage={cmsLanguage}><textarea rows={2} value={formData.contact.heading} onChange={(e) => setContactField('heading', e.target.value)} className={`${inputCls} resize-none`} /></Field>
+            <Field label="Subheading" sourceValue={sourceFormData.contact.subheading} cmsLanguage={cmsLanguage}><textarea rows={2} value={formData.contact.subheading} onChange={(e) => setContactField('subheading', e.target.value)} className={`${inputCls} resize-none`} /></Field>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <Field label="Judul formulir"><input value={formData.contact.formTitle || ''} onChange={(e) => setContactField('formTitle', e.target.value)} className={inputCls} /></Field>
-              <Field label="Judul properties"><input value={formData.contact.propertiesTitle || ''} onChange={(e) => setContactField('propertiesTitle', e.target.value)} className={inputCls} /></Field>
+              <Field label="Judul formulir" sourceValue={sourceFormData.contact.formTitle || ''} cmsLanguage={cmsLanguage}><input value={formData.contact.formTitle || ''} onChange={(e) => setContactField('formTitle', e.target.value)} className={inputCls} /></Field>
+              <Field label="Judul properties" sourceValue={sourceFormData.contact.propertiesTitle || ''} cmsLanguage={cmsLanguage}><input value={formData.contact.propertiesTitle || ''} onChange={(e) => setContactField('propertiesTitle', e.target.value)} className={inputCls} /></Field>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Field label="Email Tujuan"><input type="email" value={formData.contact.email} onChange={(e) => setContactField('email', e.target.value)} className={inputCls} /></Field>
-              <Field label="Lokasi Fallback"><input type="text" value={formData.contact.location} onChange={(e) => setContactField('location', e.target.value)} className={inputCls} /></Field>
-              <Field label="Label Tombol Draft"><input type="text" value={formData.contact.draftButtonLabel} onChange={(e) => setContactField('draftButtonLabel', e.target.value)} className={inputCls} /></Field>
-              <Field label="Notifikasi Setelah Klik"><input type="text" value={formData.contact.responseNote} onChange={(e) => setContactField('responseNote', e.target.value)} className={inputCls} /></Field>
+              <Field label="Email Tujuan" sourceValue={sourceFormData.contact.email} cmsLanguage={cmsLanguage}><input type="email" value={formData.contact.email} onChange={(e) => setContactField('email', e.target.value)} className={inputCls} /></Field>
+              <Field label="Lokasi Fallback" sourceValue={sourceFormData.contact.location} cmsLanguage={cmsLanguage}><input type="text" value={formData.contact.location} onChange={(e) => setContactField('location', e.target.value)} className={inputCls} /></Field>
+              <Field label="Label Tombol Draft" sourceValue={sourceFormData.contact.draftButtonLabel} cmsLanguage={cmsLanguage}><input type="text" value={formData.contact.draftButtonLabel} onChange={(e) => setContactField('draftButtonLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Notifikasi Setelah Klik" sourceValue={sourceFormData.contact.responseNote} cmsLanguage={cmsLanguage}><input type="text" value={formData.contact.responseNote} onChange={(e) => setContactField('responseNote', e.target.value)} className={inputCls} /></Field>
             </div>
 
             <CollapsibleSection sectionKey="contact-content-manager" title="Konten Contact" subtitle="Jalur inquiry, opsi, properties, sosial media, dan link tambahan">
@@ -5725,32 +5756,32 @@ export default function CmsDashboard({ data, onSave }) {
 
             <ContentCard cardKey="visitor-trigger" listKey="visitor-introduction" idx={0} count={1} title="Printer di margin kiri" subtitle={formData.home.visitorIntroduction.triggerTitle || 'New to this document?'}>
               <div className="grid gap-3 md:grid-cols-2">
-                <Field label="Label kecil"><input value={formData.home.visitorIntroduction.triggerEyebrow || ''} onChange={(e) => setVisitorIntroduction('triggerEyebrow', e.target.value)} className={inputCls} /></Field>
-                <Field label="Judul printer"><input value={formData.home.visitorIntroduction.triggerTitle || ''} onChange={(e) => setVisitorIntroduction('triggerTitle', e.target.value)} className={inputCls} /></Field>
+                <Field label="Label kecil" sourceValue={sourceFormData.home.visitorIntroduction.triggerEyebrow || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.triggerEyebrow || ''} onChange={(e) => setVisitorIntroduction('triggerEyebrow', e.target.value)} className={inputCls} /></Field>
+                <Field label="Judul printer" sourceValue={sourceFormData.home.visitorIntroduction.triggerTitle || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.triggerTitle || ''} onChange={(e) => setVisitorIntroduction('triggerTitle', e.target.value)} className={inputCls} /></Field>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
-                <Field label="Ajakan sebelum dicetak"><input value={formData.home.visitorIntroduction.triggerAction || ''} onChange={(e) => setVisitorIntroduction('triggerAction', e.target.value)} className={inputCls} /></Field>
-                <Field label="Label setelah pernah dibuka"><input value={formData.home.visitorIntroduction.printedLabel || ''} onChange={(e) => setVisitorIntroduction('printedLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Ajakan sebelum dicetak" sourceValue={sourceFormData.home.visitorIntroduction.triggerAction || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.triggerAction || ''} onChange={(e) => setVisitorIntroduction('triggerAction', e.target.value)} className={inputCls} /></Field>
+                <Field label="Label setelah pernah dibuka" sourceValue={sourceFormData.home.visitorIntroduction.printedLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.printedLabel || ''} onChange={(e) => setVisitorIntroduction('printedLabel', e.target.value)} className={inputCls} /></Field>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
-                <Field label="Judul Quick View"><input value={formData.home.visitorIntroduction.quickViewLabel || ''} onChange={(e) => setVisitorIntroduction('quickViewLabel', e.target.value)} className={inputCls} /></Field>
-                <Field label="Judul Document Index"><input value={formData.home.visitorIntroduction.documentIndexLabel ?? 'Document index'} onChange={(e) => setVisitorIntroduction('documentIndexLabel', e.target.value)} className={inputCls} /></Field>
-                <Field label="Tombol Projects"><input value={formData.home.visitorIntroduction.selectedWorksLabel || ''} onChange={(e) => setVisitorIntroduction('selectedWorksLabel', e.target.value)} className={inputCls} /></Field>
-                <Field label="Tombol Careers"><input value={formData.home.visitorIntroduction.experienceLabel || ''} onChange={(e) => setVisitorIntroduction('experienceLabel', e.target.value)} className={inputCls} /></Field>
-                <Field label="Tombol Contact"><input value={formData.home.visitorIntroduction.contactLabel || ''} onChange={(e) => setVisitorIntroduction('contactLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Judul Quick View" sourceValue={sourceFormData.home.visitorIntroduction.quickViewLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.quickViewLabel || ''} onChange={(e) => setVisitorIntroduction('quickViewLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Judul Document Index" sourceValue={sourceFormData.home.visitorIntroduction.documentIndexLabel ?? 'Document index'} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.documentIndexLabel ?? 'Document index'} onChange={(e) => setVisitorIntroduction('documentIndexLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Tombol Projects" sourceValue={sourceFormData.home.visitorIntroduction.selectedWorksLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.selectedWorksLabel || ''} onChange={(e) => setVisitorIntroduction('selectedWorksLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Tombol Careers" sourceValue={sourceFormData.home.visitorIntroduction.experienceLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.experienceLabel || ''} onChange={(e) => setVisitorIntroduction('experienceLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Tombol Contact" sourceValue={sourceFormData.home.visitorIntroduction.contactLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.contactLabel || ''} onChange={(e) => setVisitorIntroduction('contactLabel', e.target.value)} className={inputCls} /></Field>
               </div>
             </ContentCard>
 
             <ContentCard cardKey="visitor-sheet" listKey="visitor-introduction" idx={0} count={1} title="Isi lembar fullscreen" subtitle={formData.home.visitorIntroduction.documentCode || 'Visitor’s Copy'}>
               <div className="grid gap-3 md:grid-cols-2">
-                <Field label="Kode dokumen"><input value={formData.home.visitorIntroduction.documentCode || ''} onChange={(e) => setVisitorIntroduction('documentCode', e.target.value)} className={inputCls} /></Field>
-                <Field label="Dicetak untuk"><input value={formData.home.visitorIntroduction.recipient || ''} onChange={(e) => setVisitorIntroduction('recipient', e.target.value)} className={inputCls} /></Field>
+                <Field label="Kode dokumen" sourceValue={sourceFormData.home.visitorIntroduction.documentCode || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.documentCode || ''} onChange={(e) => setVisitorIntroduction('documentCode', e.target.value)} className={inputCls} /></Field>
+                <Field label="Dicetak untuk" sourceValue={sourceFormData.home.visitorIntroduction.recipient || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.recipient || ''} onChange={(e) => setVisitorIntroduction('recipient', e.target.value)} className={inputCls} /></Field>
               </div>
-              <Field label="Label pembuka"><input value={formData.home.visitorIntroduction.kicker || ''} onChange={(e) => setVisitorIntroduction('kicker', e.target.value)} className={inputCls} /></Field>
-              <Field label="Judul besar"><textarea rows={3} value={formData.home.visitorIntroduction.title || ''} onChange={(e) => setVisitorIntroduction('title', e.target.value)} className={`${inputCls} resize-y font-serif`} /></Field>
-              <Field label="Penjelasan portofolio"><textarea rows={5} value={formData.home.visitorIntroduction.body || ''} onChange={(e) => setVisitorIntroduction('body', e.target.value)} className={`${inputCls} resize-y`} /></Field>
-              <Field label="Kalimat penutup"><textarea rows={3} value={formData.home.visitorIntroduction.closing || ''} onChange={(e) => setVisitorIntroduction('closing', e.target.value)} className={`${inputCls} resize-y`} /></Field>
-              <Field label="Tulisan tombol Close"><input value={formData.home.visitorIntroduction.closeLabel || ''} onChange={(e) => setVisitorIntroduction('closeLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Label pembuka" sourceValue={sourceFormData.home.visitorIntroduction.kicker || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.kicker || ''} onChange={(e) => setVisitorIntroduction('kicker', e.target.value)} className={inputCls} /></Field>
+              <Field label="Judul besar" sourceValue={sourceFormData.home.visitorIntroduction.title || ''} cmsLanguage={cmsLanguage}><textarea rows={3} value={formData.home.visitorIntroduction.title || ''} onChange={(e) => setVisitorIntroduction('title', e.target.value)} className={`${inputCls} resize-y font-serif`} /></Field>
+              <Field label="Penjelasan portofolio" sourceValue={sourceFormData.home.visitorIntroduction.body || ''} cmsLanguage={cmsLanguage}><textarea rows={5} value={formData.home.visitorIntroduction.body || ''} onChange={(e) => setVisitorIntroduction('body', e.target.value)} className={`${inputCls} resize-y`} /></Field>
+              <Field label="Kalimat penutup" sourceValue={sourceFormData.home.visitorIntroduction.closing || ''} cmsLanguage={cmsLanguage}><textarea rows={3} value={formData.home.visitorIntroduction.closing || ''} onChange={(e) => setVisitorIntroduction('closing', e.target.value)} className={`${inputCls} resize-y`} /></Field>
+              <Field label="Tulisan tombol Close" sourceValue={sourceFormData.home.visitorIntroduction.closeLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.closeLabel || ''} onChange={(e) => setVisitorIntroduction('closeLabel', e.target.value)} className={inputCls} /></Field>
             </ContentCard>
           </div>
         )}
@@ -5819,6 +5850,112 @@ export default function CmsDashboard({ data, onSave }) {
           );
         })()}
 
+
+        {/* ================= NAVIGATION & LABELS ================= */}
+        {activeTab === 'navigationLabels' && (() => {
+          const localizedLabels = formData.home?.navigationLabels;
+          const labels = localizedLabels && typeof localizedLabels === 'object' && !Array.isArray(localizedLabels)
+            ? localizedLabels
+            : {};
+          const top = labels.top && typeof labels.top === 'object' && !Array.isArray(labels.top) ? labels.top : {};
+          const quick = labels.quickViews && typeof labels.quickViews === 'object' && !Array.isArray(labels.quickViews) ? labels.quickViews : {};
+
+          const updateNavigationLabel = (group, key, value) => {
+            // Navigation is a fixed object (not a dynamic content array), so write its
+            // English copy straight to the canonical translation path. This avoids the
+            // generic EN editor diff having to infer navbar paths.
+            if (cmsLanguage === 'en') {
+              const path = `home.navigationLabels.${group}.${key}`;
+              setSourceFormData((previous) => {
+                const sourceValue = previous.home?.navigationLabels?.[group]?.[key] ?? '';
+                const nextTranslations = {
+                  ...(previous.translations || {}),
+                  en: { ...(previous.translations?.en || {}) },
+                };
+                if (String(value).trim() && value !== sourceValue) nextTranslations.en[path] = value;
+                else delete nextTranslations.en[path];
+                return { ...previous, translations: nextTranslations };
+              });
+              return;
+            }
+
+            setSourceFormData((previous) => ({
+              ...previous,
+              home: {
+                ...previous.home,
+                navigationLabels: {
+                  ...(previous.home?.navigationLabels && typeof previous.home.navigationLabels === 'object'
+                    ? previous.home.navigationLabels
+                    : {}),
+                  [group]: {
+                    ...(previous.home?.navigationLabels?.[group] && typeof previous.home.navigationLabels[group] === 'object'
+                      ? previous.home.navigationLabels[group]
+                      : {}),
+                    [key]: value,
+                  },
+                },
+              },
+            }));
+          };
+
+          const field = (label, group, key, fallback) => {
+            const localizedValue = group === 'top' ? top[key] : quick[key];
+            const sourceGroup = sourceFormData.home?.navigationLabels?.[group] || {};
+            const sourceValue = sourceGroup[key] ?? fallback;
+
+            return (
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold text-gray-600 dark:text-gray-300">{label}</span>
+                <input
+                  type="text"
+                  value={cmsLanguage === 'en' ? (localizedValue || '') : (localizedValue ?? fallback)}
+                  data-id-source={sourceValue}
+                  onChange={(event) => updateNavigationLabel(group, key, event.target.value)}
+                  placeholder={cmsLanguage === 'en' ? 'Tulis versi English di sini…' : ''}
+                  className={inputCls}
+                />
+              </label>
+            );
+          };
+
+          return (
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-sm font-bold text-blue-600 dark:text-blue-400">Navigation & Labels</h2>
+                <p className="mt-1 text-xs leading-relaxed text-gray-500">
+                  Hanya mengubah tulisan yang terlihat. Route, fungsi tombol, urutan navbar,
+                  urutan Quick Views, dan garis pembatas setelah Contact tetap dikunci.
+                  Perubahan berlaku di HP, laptop, dan desktop.
+                </p>
+              </div>
+
+              <CollapsibleSection sectionKey="navigation-labels-top" title="Top Navigation">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {field('Home', 'top', 'home', 'Home')}
+                  {field('About', 'top', 'about', 'About')}
+                  {field('Projects', 'top', 'projects', 'Projects')}
+                  {field('Career', 'top', 'career', 'Careers')}
+                  {field('Book', 'top', 'book', 'Books')}
+                  {field('Contact', 'top', 'contact', 'Contact')}
+                </div>
+              </CollapsibleSection>
+
+              <CollapsibleSection sectionKey="navigation-labels-quick-views" title="Quick Views / A4 Navigation">
+                <div className="mb-3 rounded border border-gray-200 bg-white px-3 py-2 font-mono text-[10px] leading-relaxed text-gray-400 dark:border-gray-700 dark:bg-[#202020]">
+                  FIXED ORDER: Selected Works → Experience → Contact → divider → Wassup? → Mini Games
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {field('Selected Works', 'quickViews', 'selectedWorks', 'Selected Works')}
+                  {field('Experience', 'quickViews', 'experience', 'Experience')}
+                  {field('Contact', 'quickViews', 'contact', 'Contact')}
+                  {field('Wassup?', 'quickViews', 'wassup', 'Wassup?')}
+                  {field('Mini Games', 'quickViews', 'miniGames', 'Mini Games')}
+                </div>
+              </CollapsibleSection>
+            </div>
+          );
+        })()}
+
         {activeTab === 'interactiveWords' && (
           <InteractiveLinksEditor
             value={formData.interactiveWords}
@@ -5872,7 +6009,7 @@ export default function CmsDashboard({ data, onSave }) {
                 </button>
               </div>
 
-              <Field label="Kode versi patch">
+              <Field label="Kode versi patch" sourceValue={sourceFormData.general.welcomeNotification.version || ''} cmsLanguage={cmsLanguage}>
                 <input
                   type="text"
                   value={formData.general.welcomeNotification.version || ''}
@@ -5885,7 +6022,7 @@ export default function CmsDashboard({ data, onSave }) {
                 </p>
               </Field>
 
-              <Field label="Judul update">
+              <Field label="Judul update" sourceValue={sourceFormData.general.welcomeNotification.title} cmsLanguage={cmsLanguage}>
                 <input
                   type="text"
                   value={formData.general.welcomeNotification.title}
@@ -5940,7 +6077,7 @@ export default function CmsDashboard({ data, onSave }) {
                 </button>
               </Field>
 
-              <Field label="Isi patch lama (fallback)">
+              <Field label="Isi patch lama (fallback)" sourceValue={sourceFormData.general.welcomeNotification.message} cmsLanguage={cmsLanguage}>
                 <textarea
                   rows={2}
                   value={formData.general.welcomeNotification.message}
@@ -5953,7 +6090,7 @@ export default function CmsDashboard({ data, onSave }) {
                 </p>
               </Field>
 
-              <Field label="Muncul setelah (detik)">
+              <Field label="Muncul setelah (detik)" sourceValue={sourceFormData.general.welcomeNotification.delaySeconds} cmsLanguage={cmsLanguage}>
                 <input
                   type="number"
                   min={0}
