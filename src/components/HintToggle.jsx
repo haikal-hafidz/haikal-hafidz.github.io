@@ -24,21 +24,20 @@ export default function HintToggle({ active, onToggle }) {
       type="button"
       onClick={onToggle}
       aria-pressed={active}
+      aria-label={active ? 'Matikan Help' : 'Aktifkan Help'}
       title={active ? 'Matikan mode hint' : 'Tunjukkan apa aja yang bisa diklik'}
-      style={{ position: 'fixed', left: '12px', right: 'auto', top: 'auto', bottom: '48px', width: 'auto', height: 'auto' }}
-      className={`portfolio-help-toggle flex z-[90] items-center gap-2 px-3 py-2.5 sm:gap-1.5 sm:p-2 sm:pl-2.5 sm:pr-3 sm:py-2 rounded-full border shadow-lg font-mono text-[11px] font-semibold uppercase tracking-wider transition-colors ${
+      className={`portfolio-help-toggle fixed bottom-14 left-3 z-[90] grid h-11 w-11 place-items-center rounded-full border shadow-lg transition-colors sm:flex sm:h-auto sm:w-auto sm:items-center sm:gap-1.5 sm:px-3 sm:py-2 ${
         active
-          ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700'
-          : 'bg-white dark:bg-[#202020] border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-800'
+          ? 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700'
+          : 'border-gray-200 bg-white text-gray-500 hover:border-blue-300 hover:text-blue-600 dark:border-gray-700 dark:bg-[#202020] dark:text-gray-400 dark:hover:border-blue-800 dark:hover:text-blue-400'
       }`}
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4 shrink-0 sm:h-3.5 sm:w-3.5">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5 shrink-0 sm:h-3.5 sm:w-3.5">
         <circle cx="12" cy="12" r="9" />
         <path d="M12 16v-1.5c0-.9.5-1.4 1.2-1.9.8-.6 1.3-1.3 1.3-2.3A2.5 2.5 0 0 0 12 7.8a2.5 2.5 0 0 0-2.5 2.5" strokeLinecap="round" />
         <circle cx="12" cy="17.6" r="0.6" fill="currentColor" stroke="none" />
       </svg>
-      <span className="sm:hidden">Help</span>
-      <span className="hidden sm:inline">{active ? 'Help On' : 'Help'}</span>
+      <span className="sr-only sm:not-sr-only sm:font-mono sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-wider">{active ? 'Help On' : 'Help'}</span>
     </button>
   );
 }

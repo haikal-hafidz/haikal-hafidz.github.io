@@ -12,6 +12,12 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.112.2",
     "@tailwindcss/vite": "^4.3.3",
+    "@tiptap/core": "^3.30.3",
+    "@tiptap/extension-text-align": "^3.30.3",
+    "@tiptap/extension-text-style": "^3.30.3",
+    "@tiptap/pm": "^3.30.3",
+    "@tiptap/react": "^3.30.3",
+    "@tiptap/starter-kit": "^3.30.3",
     "mammoth": "^1.12.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

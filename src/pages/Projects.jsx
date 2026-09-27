@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { setPageMeta } from '../lib/pageMeta';
 import InteractiveText from '../components/InteractiveText';
+import RichContent from '../components/RichContent';
 
 // TEMPLATE BAKU buat semua bentuk tulisan panjang di halaman Projects (artikel biasa,
 // tulisan panjang dari Word di Tab Tambahan, dan APAPUN jenis konten tulisan yang
@@ -10,8 +11,9 @@ import InteractiveText from '../components/InteractiveText';
 // bentuk baru. Isinya: ukuran font & warna teks badan tulisan, line-height nyaman baca,
 // rata kiri-kanan (justify) buat paragraf (termasuk paragraf hasil dangerouslySetInnerHTML
 // dari editor CMS / convert Word), plus styling dasar buat heading/list/link di dalamnya.
+const PROJECT_DETAIL_TITLE_CLASS = 'font-serif text-[1.5em] sm:text-[1.875em] font-extrabold leading-snug tracking-normal normal-case text-left text-gray-900 dark:text-white';
 const ARTICLE_TEXT_CLASS =
-  'text-[0.875em] sm:text-[1em] text-gray-700 dark:text-gray-300 leading-relaxed text-justify [&_p]:text-justify [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1 [&_h1]:text-[1.25em] [&_h1]:font-bold [&_h1]:text-gray-900 dark:[&_h1]:text-white [&_h2]:text-[1.1em] [&_h2]:font-bold [&_h2]:text-gray-900 dark:[&_h2]:text-white [&_h3]:font-bold [&_blockquote]:border-l-4 [&_blockquote]:border-[#2B579A] [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-gray-500 [&_a]:text-[#2B579A] dark:[&_a]:text-[#6FA8DC] [&_a]:underline [&_a]:font-medium';
+  'text-[0.875em] sm:text-[1em] text-gray-700 dark:text-gray-300 leading-relaxed [&_p]:my-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1 [&_h1]:my-5 [&_h1]:text-[1.5em] [&_h1]:font-bold [&_h1]:leading-tight [&_h1]:text-gray-900 dark:[&_h1]:text-white [&_h2]:my-4 [&_h2]:text-[1.25em] [&_h2]:font-bold [&_h2]:leading-tight [&_h2]:text-gray-900 dark:[&_h2]:text-white [&_h3]:my-3 [&_h3]:font-bold [&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-[#2B579A] [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-gray-500 [&_a]:text-[#2B579A] dark:[&_a]:text-[#6FA8DC] [&_a]:underline [&_a]:font-medium';
 
 // TEMPLATE BAKU buat lebar & posisi kontainer tulisan panjang — biar semua konten
 // tulisan di halaman Projects ke-center kayak halaman A4 (gak nempel ke kiri), bukan cuma
@@ -47,6 +49,28 @@ function getCoverPosition(item = {}) {
   return item.coverPosition || item.imagePosition || item.objectPosition || 'center center';
 }
 
+function richTextToPlainText(value = '') {
+  const html = String(value || '');
+  if (!html) return '';
+  if (typeof document === 'undefined') {
+    return html
+      .replace(/<br\s*\/?\s*>/gi, ' ')
+      .replace(/<\/p>/gi, ' ')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  const node = document.createElement('div');
+  node.innerHTML = html;
+  return (node.textContent || node.innerText || '').replace(/\s+/g, ' ').trim();
+}
+
 // TEMPLATE BAKU buat tampilan MENU/listing gaya portal berita (kartu unggulan besar +
 // daftar kecil di sampingnya) — dipakai bareng oleh tab Articles bawaan DAN tab tambahan
 // mana pun yang di-set admin ke layout "Tulisan (seperti Articles)" lewat CMS. SATU
@@ -66,124 +90,68 @@ function ArticleStyleListing({
   getMeta = (item) => item.date,
 }) {
   if (!items || items.length === 0) return null;
-  const featured = items[0];
-  const rest = items.slice(1);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-8 lg:gap-10">
-      {/* Item unggulan — tampil besar di kiri */}
-      <div
-        onClick={() => onOpen(featured)}
-        {...(featured.hintEnabled !== false ? { 'data-hint-id': `${hintPrefix}-${featured.id}` } : {})}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onOpen(featured);
-          }
-        }}
-        className="cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#161616] rounded-sm"
-      >
-        {featured.category && (
-          <span className="inline-block bg-green-600 text-white text-[0.625em] sm:text-[0.75em] font-bold uppercase tracking-wide px-3 py-1.5 mb-3">
-            {featured.category}
-          </span>
-        )}
-        {getImage(featured) && (
-          <div className="w-full aspect-[16/10] overflow-hidden rounded-sm mb-4 bg-gray-100 dark:bg-black/40">
-            <img
-              src={projectThumbnail(getImage(featured), 1100)}
-              alt={featured.title}
-              loading="lazy"
-              decoding="async"
-              fetchPriority="low"
-              className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
-              style={{ objectPosition: getCoverPosition(featured) }}
-            />
-          </div>
-        )}
-        <h2 className="text-[1.25em] sm:text-[1.5em] lg:text-[1.875em] font-extrabold leading-snug text-gray-900 dark:text-white group-hover:text-green-700 dark:group-hover:text-green-400 transition-colors">
-          {featured.title}
-        </h2>
-        {(featured.author || getMeta(featured)) && (
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.75em] text-gray-400 mt-3 font-mono">
-            {featured.author && (
-              <>
-                <span>
-                  OLEH{' '}
-                  <span className="text-green-700 dark:text-green-400 font-semibold">
-                    {featured.author.toUpperCase()}
-                  </span>
-                </span>
-                {getMeta(featured) && <span>&middot;</span>}
-              </>
-            )}
-            {getMeta(featured) && <span>{getMeta(featured)}</span>}
-          </div>
-        )}
-        {getSnippet(featured) && (
-          <p className="text-[0.875em] sm:text-[1em] text-gray-600 dark:text-gray-400 leading-relaxed mt-4">
-            {getSnippet(featured)}
-          </p>
-        )}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpen(featured);
+    <div className="divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+      {items.map((item) => (
+        <article
+          key={item.id}
+          onClick={() => onOpen(item)}
+          {...(item.hintEnabled !== false ? { 'data-hint-id': `${hintPrefix}-${item.id}` } : {})}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onOpen(item);
+            }
           }}
-          className="mt-5 inline-flex items-center gap-2 text-[0.6875em] sm:text-[0.75em] font-bold uppercase tracking-wide border border-gray-300 dark:border-gray-600 px-4 py-2 rounded-sm hover:border-green-600 hover:text-green-700 dark:hover:text-green-400 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#161616]"
+          className="group grid cursor-pointer grid-cols-[5.5rem_minmax(0,1fr)] gap-4 py-5 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-6 dark:focus-visible:ring-[#6FA8DC]"
         >
-          Baca Selengkapnya
-        </button>
-      </div>
+          <div className="aspect-[4/3] overflow-hidden rounded-md bg-[#f4f1ea] dark:bg-[#242424]">
+            {getImage(item) ? (
+              <img
+                src={projectThumbnail(getImage(item), 520)}
+                alt={item.title}
+                loading="lazy"
+                decoding="async"
+                className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025]"
+                style={{ objectPosition: getCoverPosition(item) }}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center font-mono text-[0.625em] uppercase tracking-[0.16em] text-gray-400">Read</div>
+            )}
+          </div>
 
-      {/* Daftar item lainnya — kecil di kanan */}
-      {rest.length > 0 && (
-        <div className="space-y-5 lg:border-l lg:pl-8 border-gray-100 dark:border-gray-800">
-          {rest.map((item) => (
-            <div
-              key={item.id}
-              onClick={() => onOpen(item)}
-              {...(item.hintEnabled !== false ? { 'data-hint-id': `${hintPrefix}-${item.id}` } : {})}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onOpen(item);
-                }
-              }}
-              className="flex gap-3 cursor-pointer group items-start rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-green-600 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#161616]"
-            >
-              {getImage(item) && (
-                <div className="w-20 h-16 sm:w-24 sm:h-20 shrink-0 overflow-hidden rounded-sm bg-gray-100 dark:bg-black/40">
-                  <img
-                    src={projectThumbnail(getImage(item), 280)}
-                    alt={item.title}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-full object-cover"
-                    style={{ objectPosition: getCoverPosition(item) }}
-                  />
-                </div>
-              )}
-              <div className="min-w-0">
-                <h3 className="text-[0.875em] font-bold leading-snug text-gray-900 dark:text-white group-hover:text-green-700 dark:group-hover:text-green-400 transition-colors line-clamp-3">
-                  {item.title}
-                </h3>
-                {getMeta(item) && (
-                  <span className="text-[0.625em] font-mono text-gray-400 mt-1.5 inline-block">
-                    {getMeta(item)}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+          <div className="min-w-0 self-center">
+            {(getMeta(item) || item.category) && (
+              <p className="mb-1.5 font-mono text-[0.625em] text-gray-400">
+                {[getMeta(item), item.category].filter(Boolean).join(' · ')}
+              </p>
+            )}
+            <h2 className="text-[1em] font-bold leading-snug text-gray-900 transition group-hover:text-[#2B579A] sm:text-[1.15em] dark:text-white dark:group-hover:text-[#6FA8DC]">
+              {item.title}
+            </h2>
+            {getSnippet(item) && (
+              <p className="mt-2 line-clamp-2 text-[0.75em] leading-relaxed text-gray-500 sm:text-[0.8125em] dark:text-gray-400">
+                {richTextToPlainText(getSnippet(item))}
+              </p>
+            )}
+          </div>
+        </article>
+      ))}
     </div>
+  );
+}
+
+function ProjectPager({ page, totalPages, onPageChange }) {
+  if (!totalPages) return null;
+  return (
+    <nav className="mt-8 flex items-center justify-center gap-3 border-t border-gray-200 pt-5 dark:border-gray-700" aria-label="Navigasi halaman karya">
+      <button type="button" onClick={() => onPageChange(Math.max(1, page - 1))} disabled={page <= 1} className="min-h-9 min-w-9 rounded-md px-2 font-mono text-[0.75em] font-bold text-gray-600 transition hover:bg-gray-100 disabled:cursor-default disabled:opacity-30 dark:text-gray-300 dark:hover:bg-[#2d2d2d]" aria-label="Halaman sebelumnya">←</button>
+      <span className="font-mono text-[0.75em] font-bold text-gray-700 dark:text-gray-200">{page}</span>
+      <button type="button" onClick={() => onPageChange(Math.min(totalPages, page + 1))} disabled={page >= totalPages} className="min-h-9 min-w-9 rounded-md px-2 font-mono text-[0.75em] font-bold text-gray-600 transition hover:bg-gray-100 disabled:cursor-default disabled:opacity-30 dark:text-gray-300 dark:hover:bg-[#2d2d2d]" aria-label="Halaman berikutnya">→</button>
+    </nav>
   );
 }
 
@@ -208,6 +176,976 @@ function getMediaEmbed(mediaType, rawUrl) {
   return null;
 }
 
+
+function hasStudioPresentation(item = {}) {
+  return item?.cmsPresentation?.mode === 'studio';
+}
+
+// One source-of-truth helper for custom writing families.
+// Studio mode must read Universal Blocks first; Legacy keeps the historical
+// Word/content fields. This prevents CMS edits from saving successfully while
+// the public Scriptwriting view keeps rendering stale legacy content.
+function getCmsWritingBlocksHtml(item = {}) {
+  if (!Array.isArray(item.cmsBlocks)) return '';
+  return item.cmsBlocks
+    .filter((block) => block?.type === 'text' || block?.type === 'word')
+    .map((block) => block?.text || block?.html || block?.content || '')
+    .filter(Boolean)
+    .join('');
+}
+
+function getCustomWritingHtml(item = {}) {
+  const blocksHtml = getCmsWritingBlocksHtml(item);
+  // Custom writing families (Scriptwriting/Short Story) expose Universal Blocks as
+  // their CMS writing toolbox. If those blocks contain writing, they are the newest
+  // authored content and must win regardless of the presentation skin. Legacy
+  // fields remain a non-destructive fallback for older entries that have no blocks.
+  return blocksHtml || item.wordContent || item.content || '';
+}
+
+function ProjectStudioRenderer({ item = {}, type = 'project' }) {
+  const [drivePlayerLoaded, setDrivePlayerLoaded] = useState(false);
+  const blocks = Array.isArray(item.cmsBlocks) ? item.cmsBlocks.filter(Boolean) : [];
+  const presentation = {
+    recipe: item.cmsPresentation?.recipe || 'default',
+    layout: item.cmsPresentation?.layout || 'default',
+    coverStyle: item.cmsPresentation?.coverStyle || 'split',
+    contentWidth: item.cmsPresentation?.contentWidth || 'normal',
+    alignment: item.cmsPresentation?.alignment || 'left',
+  };
+
+  const cover = getProjectCover(item);
+  const widthClass =
+    presentation.contentWidth === 'narrow' ? 'max-w-2xl' :
+    presentation.contentWidth === 'wide' ? 'max-w-6xl' : 'max-w-4xl';
+  const alignClass = presentation.alignment === 'center' ? 'text-center' : 'text-left';
+
+  // Phase 4 final design families.
+  // IMPORTANT: these are visual treatments for the Layout + Design Recipe that ALREADY
+  // exist in CMS. No new CMS field/category/content type is introduced here.
+  const recipeId = presentation.recipe || 'default';
+  const isPosterRecipe = recipeId === 'poster-piece';
+  const isEditorial = presentation.layout === 'editorial';
+  const isVisual = presentation.layout === 'visual' || isPosterRecipe;
+  const isCaseStudy = presentation.layout === 'case-study';
+  const isMedia = presentation.layout === 'media';
+  const isMinimal = presentation.layout === 'minimal';
+
+  // Recipe semantics sit ON TOP of the existing layout engine.
+  // This keeps one Presentation Studio while allowing future portfolio formats
+  // to auto-format differently without tying presentation to a tab name.
+  const isEditorialStoryRecipe = recipeId === 'editorial-story';
+  const isLongReadRecipe = recipeId === 'long-read';
+  const isContentEditorialRecipe = isEditorialStoryRecipe || isLongReadRecipe;
+  const isLiteraryRecipe = recipeId === 'literary';
+  const isScreenplayRecipe = recipeId === 'screenplay';
+  const isTechnicalRecipe = recipeId === 'technical-documentation';
+  const isUxWritingRecipe = recipeId === 'ux-writing-case-study';
+  const isCopywritingRecipe = recipeId === 'copywriting-campaign';
+  const isSeoRecipe = recipeId === 'seo-content-case-study';
+  const isStrategyRecipe = recipeId === 'content-strategy';
+  const isEditingRecipe = recipeId === 'editing-case-study';
+  const isAudioRecipe = recipeId === 'audio-piece';
+
+  const layoutClass =
+    isScreenplayRecipe
+      ? 'font-mono tracking-[0.005em]'
+      : isTechnicalRecipe
+        ? 'tracking-[0.002em]'
+        : (isContentEditorialRecipe || isLiteraryRecipe || isEditorial)
+          ? 'font-serif'
+          : isMinimal
+            ? 'tracking-[0.005em]'
+            : '';
+
+  const renderBlock = (block, index) => {
+    const display = block.display || {};
+    const key = block.id || `${block.type || 'block'}-${index}`;
+    const textWidth =
+      display.width === 'narrow' ? 'max-w-2xl' :
+      display.width === 'wide' ? 'max-w-5xl' :
+      isScreenplayRecipe ? 'max-w-[42rem]' :
+      isTechnicalRecipe ? 'max-w-4xl' :
+      isCopywritingRecipe ? 'max-w-5xl' :
+      (isUxWritingRecipe || isSeoRecipe || isEditingRecipe || isStrategyRecipe) ? 'max-w-4xl' :
+      isCaseStudy ? 'max-w-4xl' :
+      isContentEditorialRecipe ? 'max-w-[44rem]' :
+      (isLiteraryRecipe || isEditorial) ? 'max-w-2xl' : 'max-w-3xl';
+
+    if (block.type === 'text' || block.type === 'word') {
+      const style =
+        display.style === 'intro'
+          ? `${isEditorial ? 'text-[1.08em] sm:text-[1.18em]' : 'text-[1.05em] sm:text-[1.15em]'} leading-relaxed`
+          : display.style === 'quote'
+            ? 'border-l-4 border-[#2B579A] pl-5 italic text-[1.05em]'
+            : display.style === 'callout'
+              ? 'rounded-lg border border-gray-200 bg-gray-50 p-5 dark:border-gray-700 dark:bg-[#242424]'
+              : '';
+      return (
+        <div
+          key={key}
+          className={`${textWidth} ${ARTICLE_TEXT_CLASS} ${style} mx-auto min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all ${
+            isCopywritingRecipe
+              ? '[&_h2]:text-[1.65em] [&_h2]:leading-tight [&_h2]:tracking-[-0.025em] [&_h3]:text-[1.18em] [&_h3]:leading-snug [&_h3]:tracking-[-0.015em] [&_blockquote]:text-[1.35em] [&_blockquote]:leading-snug'
+              : isContentEditorialRecipe
+                ? '[&_p]:leading-[1.85] [&_h2]:mt-10 [&_h2]:mb-4 [&_h2]:text-[1.55em] [&_h2]:leading-tight [&_h2]:tracking-[-0.02em] [&_h3]:mt-7 [&_h3]:mb-3 [&_h3]:text-[1.08em] [&_h3]:font-bold [&_blockquote]:my-8 [&_blockquote]:border-y [&_blockquote]:border-gray-200 [&_blockquote]:py-6 [&_blockquote]:text-[1.35em] [&_blockquote]:leading-relaxed [&_blockquote]:not-italic dark:[&_blockquote]:border-gray-700'
+                : ''
+          }`}
+          dangerouslySetInnerHTML={{ __html: block.text || '' }}
+        />
+      );
+    }
+
+    if (block.type === 'image' && block.url) {
+      const requestedSize = display.size || 'auto';
+      const requestedAlign = display.align || 'auto';
+      const autoSize =
+        isCopywritingRecipe ? 'wide' :
+        isContentEditorialRecipe ? 'normal' :
+        isUxWritingRecipe ? 'normal' :
+        isSeoRecipe ? 'normal' :
+        isTechnicalRecipe ? 'contained' :
+        isStrategyRecipe ? 'wide' :
+        isEditingRecipe ? 'normal' :
+        isVisual ? 'wide' : 'normal';
+      const resolvedSize = requestedSize === 'auto' ? autoSize : requestedSize;
+      const resolvedAlign = requestedAlign === 'auto' ? 'center' : requestedAlign;
+      const size =
+        resolvedSize === 'full' ? 'w-full' :
+        resolvedSize === 'wide' ? 'mx-auto w-full max-w-6xl' :
+        resolvedSize === 'contained' ? 'mx-auto w-full max-w-2xl' :
+        resolvedSize === 'left' ? 'mr-auto w-full max-w-xl' :
+        resolvedSize === 'right' ? 'ml-auto w-full max-w-xl' :
+        isCopywritingRecipe ? 'mx-auto w-full max-w-5xl' :
+        isContentEditorialRecipe ? 'mx-auto w-full max-w-4xl' :
+        isSeoRecipe ? 'mx-auto w-full max-w-5xl' :
+        'mx-auto w-full max-w-3xl';
+      const objectAlign =
+        resolvedSize === 'left' || resolvedAlign === 'left' ? 'mr-auto' :
+        resolvedSize === 'right' || resolvedAlign === 'right' ? 'ml-auto' : 'mx-auto';
+      const frameClass =
+        isTechnicalRecipe ? 'rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-[#202020]' :
+        isUxWritingRecipe ? 'rounded-xl border border-gray-200 bg-gray-50 p-2 shadow-sm dark:border-gray-700 dark:bg-[#202020]' :
+        isSeoRecipe ? 'rounded-xl border border-gray-200 bg-white p-2 shadow-sm dark:border-gray-700 dark:bg-[#202020]' :
+        isContentEditorialRecipe ? 'rounded-md' :
+        isCopywritingRecipe ? 'rounded-2xl shadow-sm' :
+        'rounded-md';
+      return (
+        <figure key={key} className={`${size} ${objectAlign}`}>
+          <img
+            src={block.url}
+            alt={block.caption || item.title || ''}
+            loading="lazy"
+            decoding="async"
+            className={`h-auto w-full object-contain ${frameClass} ${isCopywritingRecipe || isVisual ? 'max-h-[86vh]' : ''}`}
+          />
+          {block.caption && (
+            <figcaption className={`${resolvedAlign === 'left' ? 'text-left' : resolvedAlign === 'right' ? 'text-right' : 'text-center'} mt-2 font-mono text-[0.6875em] leading-relaxed text-gray-400`}>
+              {block.caption}
+            </figcaption>
+          )}
+        </figure>
+      );
+    }
+
+    if (block.type === 'gallery' && Array.isArray(block.items) && block.items.length) {
+      const requestedLayout = display.layout || 'auto';
+      const autoLayout =
+        isCopywritingRecipe ? (block.items.length === 2 ? 'duo' : 'grid') :
+        isContentEditorialRecipe ? (block.items.length > 2 ? 'filmstrip' : 'duo') :
+        isUxWritingRecipe ? (block.items.length === 2 ? 'duo' : 'grid') :
+        isTechnicalRecipe ? 'grid' :
+        isSeoRecipe ? 'grid' :
+        isVisual ? 'filmstrip' : 'grid';
+      const resolvedLayout = requestedLayout === 'auto' ? autoLayout : requestedLayout;
+      const autoColumns = resolvedLayout === 'duo' ? 2 : (isCopywritingRecipe ? 3 : isVisual ? 4 : 3);
+      const columns = Math.min(4, Math.max(2, Number(display.columns) || autoColumns));
+      const gridCols =
+        resolvedLayout === 'duo' || columns === 2 ? 'sm:grid-cols-2' :
+        columns === 4 ? 'sm:grid-cols-2 lg:grid-cols-4' :
+        'sm:grid-cols-2 lg:grid-cols-3';
+
+      if (resolvedLayout === 'filmstrip' || resolvedLayout === 'carousel') {
+        return (
+          <figure key={key} className={(isVisual || isCopywritingRecipe || isStrategyRecipe) ? 'mx-auto w-full max-w-6xl' : 'mx-auto w-full max-w-4xl'}>
+            <div className="flex snap-x gap-3 overflow-x-auto pb-2">
+              {block.items.map((url, i) => (
+                <img
+                  key={`${key}-${i}`}
+                  src={url}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  className={`${isVisual ? 'h-64 sm:h-80' : 'h-56 sm:h-72'} w-auto max-w-[85vw] shrink-0 snap-center rounded-md object-cover`}
+                />
+              ))}
+            </div>
+            {block.caption && (
+              <figcaption className="mt-2 text-center font-mono text-[0.6875em] text-gray-400">
+                {block.caption}
+              </figcaption>
+            )}
+          </figure>
+        );
+      }
+
+      return (
+        <figure key={key} className={(isVisual || isCopywritingRecipe || isStrategyRecipe) ? 'mx-auto w-full max-w-6xl' : 'mx-auto w-full max-w-4xl'}>
+          <div className={`grid grid-cols-1 ${gridCols} gap-3`}>
+            {block.items.map((url, i) => (
+              <img
+                key={`${key}-${i}`}
+                src={url}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                className={`h-full w-full rounded-md ${
+                  (isVisual || isCopywritingRecipe)
+                    ? 'max-h-[38rem] object-contain bg-gray-50 dark:bg-[#202020]'
+                    : 'max-h-[32rem] object-cover'
+                }`}
+              />
+            ))}
+          </div>
+          {block.caption && (
+            <figcaption className="mt-2 text-center font-mono text-[0.6875em] text-gray-400">
+              {block.caption}
+            </figcaption>
+          )}
+        </figure>
+      );
+    }
+
+    if (block.type === 'audio' && block.url) {
+      const shell =
+        display.style === 'hero' || isMedia
+          ? 'mx-auto w-full max-w-4xl rounded-xl border border-gray-200 bg-gray-50 p-5 sm:p-7 dark:border-gray-700 dark:bg-[#242424]'
+          : display.style === 'compact'
+            ? 'mx-auto max-w-xl'
+            : 'mx-auto max-w-3xl';
+      return (
+        <div key={key} className={shell}>
+          {block.label && (
+            <p className="mb-3 font-mono text-[0.6875em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">
+              {block.label}
+            </p>
+          )}
+          <audio src={block.url} controls preload="metadata" className="w-full" />
+          {block.caption && <p className="mt-3 text-[0.75em] leading-relaxed text-gray-500 dark:text-gray-400">{block.caption}</p>}
+        </div>
+      );
+    }
+
+    if (block.type === 'video' && block.url) {
+      const media =
+        getMediaEmbed(block.mediaType || 'youtube', block.url) ||
+        getMediaEmbed('youtube', block.url) ||
+        getMediaEmbed('vimeo', block.url) ||
+        getMediaEmbed('drive', block.url) ||
+        { kind: 'video', src: block.url };
+      const shell =
+        display.style === 'cinema' || isMedia
+          ? 'mx-auto w-full max-w-6xl bg-black p-2 sm:p-4'
+          : display.style === 'wide'
+            ? 'mx-auto max-w-6xl'
+            : 'mx-auto max-w-4xl';
+      return (
+        <figure key={key} className={shell}>
+          <div className="aspect-video overflow-hidden rounded-md bg-black">
+            {media.kind === 'iframe' ? (
+              <iframe
+                src={media.src}
+                title={block.caption || item.title || 'Video'}
+                className="h-full w-full"
+                loading="lazy"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            ) : (
+              <video src={media.src} controls playsInline preload="metadata" className="h-full w-full" />
+            )}
+          </div>
+          {block.caption && (
+            <figcaption className={`${isMedia ? 'text-gray-300' : 'text-gray-400'} mt-2 text-center font-mono text-[0.6875em]`}>
+              {block.caption}
+            </figcaption>
+          )}
+        </figure>
+      );
+    }
+
+    if ((block.type === 'link' || block.type === 'file') && block.url) {
+      return (
+        <div key={key} className="text-center">
+          <a
+            href={block.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded bg-[#2B579A] px-4 py-2 text-[0.75em] font-bold text-white hover:bg-[#234a84]"
+          >
+            {block.label || (block.type === 'file' ? 'Buka File' : 'Buka Tautan')} <span>↗</span>
+          </a>
+        </div>
+      );
+    }
+
+    if (block.type === 'embed' && block.text) {
+      const raw = String(block.text).trim();
+      if (/^https?:\/\//i.test(raw)) {
+        return (
+          <div key={key} className="mx-auto aspect-video w-full max-w-5xl overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">
+            <iframe src={raw} title={block.label || item.title || 'Embed'} className="h-full w-full" loading="lazy" />
+          </div>
+        );
+      }
+      return (
+        <pre key={key} className="mx-auto max-w-4xl overflow-x-auto rounded-md bg-gray-100 p-4 text-[0.75em] dark:bg-[#242424]">
+          <code>{raw}</code>
+        </pre>
+      );
+    }
+
+    if (block.type === 'divider') {
+      return <hr key={key} className="mx-auto w-full max-w-5xl border-gray-200 dark:border-gray-700" />;
+    }
+
+    return null;
+  };
+
+  const primaryMedia = type === 'Directing' && item.mediaUrl
+    ? getMediaEmbed(item.mediaType || 'youtube', item.mediaUrl)
+    : null;
+
+  const primaryMediaNode = primaryMedia ? (
+    <figure className={isMedia ? 'mx-auto w-full max-w-6xl' : 'mx-auto w-full max-w-4xl'}>
+      {primaryMedia.kind === 'iframe' ? (
+        <div className="aspect-video overflow-hidden rounded-md bg-black shadow-sm">
+          <iframe
+            src={primaryMedia.src}
+            title={item.title || 'Directing video'}
+            className="h-full w-full"
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        </div>
+      ) : primaryMedia.kind === 'video' ? (
+        <video
+          src={primaryMedia.src}
+          poster={item.posterImage || undefined}
+          controls
+          playsInline
+          preload="metadata"
+          className="aspect-video w-full rounded-md bg-black object-contain shadow-sm"
+        />
+      ) : (
+        <a
+          href={primaryMedia.src}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex rounded bg-[#2B579A] px-4 py-2 text-[0.75em] font-bold text-white"
+        >
+          Buka media ↗
+        </a>
+      )}
+    </figure>
+  ) : null;
+
+  const directingStudioHero = type === 'Directing' ? (() => {
+    const media = item.mediaUrl ? getMediaEmbed(item.mediaType || 'youtube', item.mediaUrl) : null;
+    const ratio = item.videoRatio || 'auto';
+    const ratioClass =
+      ratio === '9:16' ? 'aspect-[9/16] max-h-[68vh] max-w-[18rem] mx-auto' :
+      ratio === '4:3' ? 'aspect-[4/3]' :
+      ratio === '1:1' ? 'aspect-square' :
+      'aspect-video';
+    const meta = [
+      ['TYPE', item.type || item.category || 'Film / Video'],
+      ['ROLE', item.role],
+      ['YEAR', item.year],
+      ['DURATION', item.runtime],
+      ['TOOLS', item.tools],
+    ].filter(([, value]) => value);
+    const snippets = Array.isArray(item.videoSnippets)
+      ? item.videoSnippets.filter((frame) => frame?.imageUrl)
+      : [];
+
+    return (
+      <div className="mx-auto w-full max-w-[54rem]">
+        <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,25rem)_minmax(0,1fr)] md:justify-center md:gap-8">
+          <div className="min-w-0 md:max-w-[25rem]">
+            <div className={`${ratioClass} w-full overflow-hidden rounded-md border border-gray-200 bg-black dark:border-gray-700`}>
+              {media?.kind === 'iframe' && (
+                item.mediaType === 'drive' && !drivePlayerLoaded ? (
+                  <button
+                    type="button"
+                    onClick={() => setDrivePlayerLoaded(true)}
+                    className="relative flex h-full w-full items-center justify-center overflow-hidden bg-black"
+                    aria-label={`Play ${item.title || 'Directing video'}`}
+                  >
+                    {cover && <img src={cover} alt="" className="absolute inset-0 h-full w-full object-contain opacity-80" />}
+                    <span className="relative z-10 flex h-12 w-12 items-center justify-center rounded-full border border-white/70 bg-black/50 text-lg text-white">▶</span>
+                  </button>
+                ) : (
+                  <iframe
+                    src={media.src}
+                    title={item.title || 'Directing video'}
+                    className="block h-full w-full border-0"
+                    loading="lazy"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                )
+              )}
+              {media?.kind === 'video' && (
+                <video
+                  src={media.src}
+                  poster={cover || undefined}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="h-full w-full object-contain"
+                />
+              )}
+              {(!media || media.kind === 'external') && (
+                cover
+                  ? <img src={cover} alt={item.title || ''} className="h-full w-full object-contain" style={{ objectPosition: getCoverPosition(item) }} />
+                  : <div className="flex h-full items-center justify-center font-mono text-xs text-gray-400">PREVIEW NOT AVAILABLE</div>
+              )}
+            </div>
+
+            {snippets.length > 0 && (
+              <div className="mt-3 flex snap-x gap-2 overflow-x-auto pb-2">
+                {snippets.map((frame, frameIndex) => (
+                  <figure key={frame.id || `${frame.imageUrl}-${frameIndex}`} className="w-[31%] min-w-[7rem] shrink-0 snap-start">
+                    <img src={frame.imageUrl} alt={frame.caption || `Video frame ${frameIndex + 1}`} loading="lazy" decoding="async" className="aspect-video w-full rounded object-cover" />
+                    {(frame.timestamp || frame.caption) && (
+                      <figcaption className="mt-1 truncate text-[0.625em] text-gray-400">
+                        {[frame.timestamp, frame.caption].filter(Boolean).join(' · ')}
+                      </figcaption>
+                    )}
+                  </figure>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <aside className="min-w-0 border-t border-gray-200 pt-5 md:border-l md:border-t-0 md:pl-6 md:pt-0 dark:border-gray-700">
+            {item.premise && <div className="project-rich-text text-[0.9em] leading-relaxed text-gray-600 dark:text-gray-300" dangerouslySetInnerHTML={{ __html: item.premise }} />}
+            {Array.isArray(item.tags) && item.tags.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-1.5">
+                {item.tags.map((tag) => <span key={tag} className="rounded-full bg-gray-100 px-2 py-1 text-[0.65em] text-gray-600 dark:bg-[#2d2d2d] dark:text-gray-300">{tag}</span>)}
+              </div>
+            )}
+            <div className="mt-5 space-y-4 border-t border-gray-200 pt-5 dark:border-gray-700">
+              {meta.map(([label, value]) => (
+                <div key={label}>
+                  <p className="font-mono text-[0.5625em] uppercase tracking-[0.16em] text-gray-400">{label}</p>
+                  <p className="mt-1 text-[0.8125em] font-semibold text-gray-800 dark:text-gray-200">{value}</p>
+                </div>
+              ))}
+              {(item.externalUrl || media?.kind === 'external') && (
+                <a href={item.externalUrl || media.src} target="_blank" rel="noopener noreferrer" className="inline-flex w-full items-center justify-between rounded bg-[#2B579A] px-3 py-2 text-[0.6875em] font-bold uppercase tracking-wide text-white">
+                  {item.externalLabel || 'Open full work'} <span>↗</span>
+                </a>
+              )}
+            </div>
+          </aside>
+        </div>
+      </div>
+    );
+  })() : null;
+
+  const coverNode = type !== 'Directing' && cover && presentation.coverStyle !== 'none' ? (
+    <div
+      className={
+        presentation.coverStyle === 'small'
+          ? 'mx-auto w-full max-w-2xl'
+          : presentation.coverStyle === 'full'
+            ? `${isVisual ? 'mx-auto max-w-6xl' : 'w-full'}`
+            : 'w-full'
+      }
+    >
+      <img
+        src={projectThumbnail(cover, presentation.coverStyle === 'full' ? 1500 : 1000)}
+        alt={item.title || ''}
+        className={`w-full rounded-md ${
+          isVisual
+            ? 'max-h-[82vh] bg-gray-50 object-contain dark:bg-[#202020]'
+            : isCaseStudy
+              ? 'aspect-[4/3] object-cover'
+              : 'aspect-[16/9] object-cover'
+        }`}
+        style={{ objectPosition: getCoverPosition(item) }}
+      />
+    </div>
+  ) : null;
+
+  const technicalDocument = (() => {
+    if (!isTechnicalRecipe || type !== 'Article' || !item.content) {
+      return { html: item.content || '', headings: [] };
+    }
+
+    const headings = [];
+    let headingIndex = 0;
+    const html = String(item.content).replace(
+      /<(h2|h3)([^>]*)>([\s\S]*?)<\/\1>/gi,
+      (match, tag, attrs, inner) => {
+        const label = inner
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&nbsp;/gi, ' ')
+          .replace(/&amp;/gi, '&')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        if (!label) return match;
+
+        const id = `doc-section-${headingIndex++}`;
+        headings.push({ id, label, level: tag.toLowerCase() === 'h3' ? 3 : 2 });
+        const cleanAttrs = String(attrs || '').replace(/\s+id=(?:"[^"]*"|'[^']*')/gi, '');
+        return `<${tag}${cleanAttrs} id="${id}">${inner}</${tag}>`;
+      }
+    );
+
+    return { html, headings };
+  })();
+
+  const uxCaseStudyDocument = (() => {
+    if (!isUxWritingRecipe || type !== 'Article' || !item.content) {
+      return { html: item.content || '', sections: [] };
+    }
+
+    const sections = [];
+    let sectionIndex = 0;
+    const html = String(item.content).replace(
+      /<(h2|h3)([^>]*)>([\s\S]*?)<\/\1>/gi,
+      (match, tag, attrs, inner) => {
+        const label = inner
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&nbsp;/gi, ' ')
+          .replace(/&amp;/gi, '&')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        if (!label) return match;
+
+        const id = `ux-section-${sectionIndex++}`;
+        sections.push({ id, label, level: tag.toLowerCase() === 'h3' ? 3 : 2 });
+        const cleanAttrs = String(attrs || '').replace(/\s+id=(?:"[^"]*"|'[^']*')/gi, '');
+        return `<${tag}${cleanAttrs} id="${id}">${inner}</${tag}>`;
+      }
+    );
+
+    return { html, sections };
+  })();
+
+  const copywritingCampaignDocument = (() => {
+    if (!isCopywritingRecipe || type !== 'Article' || !item.content) {
+      return { html: item.content || '', sections: [] };
+    }
+
+    const sections = [];
+    let sectionIndex = 0;
+    const html = String(item.content).replace(
+      /<(h2|h3)([^>]*)>([\s\S]*?)<\/\1>/gi,
+      (match, tag, attrs, inner) => {
+        const label = inner
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&nbsp;/gi, ' ')
+          .replace(/&amp;/gi, '&')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (!label) return match;
+
+        const id = `copy-section-${sectionIndex++}`;
+        sections.push({ id, label, level: tag.toLowerCase() === 'h3' ? 3 : 2 });
+        const cleanAttrs = String(attrs || '').replace(/\s+id=(?:"[^"]*"|'[^']*')/gi, '');
+        return `<${tag}${cleanAttrs} id="${id}">${inner}</${tag}>`;
+      }
+    );
+
+    return { html, sections };
+  })();
+
+  const seoCaseStudyDocument = (() => {
+    if (!isSeoRecipe || type !== 'Article' || !item.content) {
+      return { html: item.content || '', sections: [] };
+    }
+
+    const sections = [];
+    let sectionIndex = 0;
+    const html = String(item.content).replace(
+      /<(h2|h3)([^>]*)>([\s\S]*?)<\/\1>/gi,
+      (match, tag, attrs, inner) => {
+        const label = inner
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/&nbsp;/gi, ' ')
+          .replace(/&amp;/gi, '&')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (!label) return match;
+        const id = `seo-section-${sectionIndex++}`;
+        sections.push({ id, label, level: tag.toLowerCase() === 'h3' ? 3 : 2 });
+        const cleanAttrs = String(attrs || '').replace(/\s+id=(?:"[^"]*"|'[^']*')/gi, '');
+        return `<${tag}${cleanAttrs} id="${id}">${inner}</${tag}>`;
+      }
+    );
+    return { html, sections };
+  })();
+
+  // Shared Studio detail header — satu sumber untuk metadata project sekarang + tab baru.
+  // Field yang kosong tidak bikin placeholder: category/type, author/writer, date/year tampil hanya kalau ada.
+  const studioHeader = (
+    <header className={`${widthClass} ${alignClass} mx-auto`}>
+      {item.category && (
+        <span className="mb-4 inline-block bg-green-600 px-3 py-1.5 text-[0.625em] font-bold uppercase tracking-wide text-white">
+          {item.category}
+        </span>
+      )}
+
+      <h1 className={PROJECT_DETAIL_TITLE_CLASS}>
+        {item.title}
+      </h1>
+
+      {(item.author || item.writer || item.date || item.year) && (
+        <div className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[0.75em] text-gray-400">
+          {(item.author || item.writer) && (
+            <span>
+              OLEH{' '}
+              <span className="font-semibold text-green-700 dark:text-green-400">
+                {(item.author || item.writer).toUpperCase()}
+              </span>
+            </span>
+          )}
+          {(item.author || item.writer) && (item.date || item.year) && <span>·</span>}
+          {(item.date || item.year) && <span>{item.date || item.year}</span>}
+        </div>
+      )}
+    </header>
+  );
+
+  const articleContent = type === 'Article' && item.content ? (
+    isTechnicalRecipe ? (
+      <div className={`${widthClass} mx-auto grid min-w-0 grid-cols-1 gap-8 lg:grid-cols-[12rem_minmax(0,1fr)] lg:gap-10`}>
+        <aside className="hidden lg:block">
+          <div className="sticky top-24 border-l border-gray-200 pl-4 dark:border-gray-700">
+            <p className="mb-3 font-mono text-[0.625em] font-bold uppercase tracking-[0.18em] text-gray-400">
+              On this page
+            </p>
+            {technicalDocument.headings.length ? (
+              <nav aria-label="Technical document sections" className="space-y-2">
+                {technicalDocument.headings.map((heading) => {
+                  const compactLabel = heading.label.length > 72
+                    ? `${heading.label.slice(0, 69).trimEnd()}…`
+                    : heading.label;
+
+                  return (
+                    <a
+                      key={heading.id}
+                      href={`#${heading.id}`}
+                      title={heading.label}
+                      aria-label={`Jump to ${heading.label}`}
+                      className={`block overflow-hidden text-ellipsis text-[0.72em] leading-snug text-gray-500 transition hover:text-[#2B579A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] focus-visible:ring-offset-2 dark:text-gray-400 dark:hover:text-[#6FA8DC] dark:focus-visible:ring-[#6FA8DC] dark:focus-visible:ring-offset-[#161616] ${
+                        heading.level === 3 ? 'pl-3' : ''
+                      }`}
+                    >
+                      {compactLabel}
+                    </a>
+                  );
+                })}
+              </nav>
+            ) : (
+              <p className="text-[0.7em] leading-relaxed text-gray-400">
+                Tambahkan Heading 2 / Heading 3 di editor untuk membuat navigasi dokumentasi otomatis.
+              </p>
+            )}
+          </div>
+        </aside>
+
+        <div className="min-w-0">
+          <div className="mb-7 border-b border-gray-200 pb-4 dark:border-gray-700">
+            <p className="font-mono text-[0.625em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">
+              Technical Documentation
+            </p>
+            <p className="mt-2 max-w-2xl text-[0.78em] leading-relaxed text-gray-500 dark:text-gray-400">
+              Structured for procedures, explanations, examples, notes, and troubleshooting.
+            </p>
+          </div>
+
+          <div
+            className={`${ARTICLE_TEXT_CLASS} technical-document-body min-w-0 max-w-none space-y-4 break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all [&_h2]:scroll-mt-28 [&_h2]:border-t [&_h2]:border-gray-200 [&_h2]:pt-7 [&_h2]:text-[1.35em] [&_h2]:font-bold [&_h2]:tracking-[-0.01em] dark:[&_h2]:border-gray-700 [&_h3]:scroll-mt-28 [&_h3]:pt-3 [&_h3]:text-[1.08em] [&_h3]:font-bold [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-gray-100 [&_pre]:p-4 [&_pre]:font-mono [&_pre]:text-[0.82em] dark:[&_pre]:bg-[#242424] [&_code]:font-mono`}
+            dangerouslySetInnerHTML={{ __html: technicalDocument.html }}
+          />
+        </div>
+      </div>
+    ) : isUxWritingRecipe ? (
+      <div className={`${widthClass} mx-auto min-w-0 space-y-8`}>
+        <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-5 dark:border-gray-700 dark:bg-[#202020]">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="max-w-2xl">
+              <p className="font-mono text-[0.625em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">
+                UX Writing / Content Design
+              </p>
+              <p className="mt-2 text-[0.8em] leading-relaxed text-gray-500 dark:text-gray-400">
+                A writing case study organized around user context, interface copy, decisions, states, and flow.
+              </p>
+            </div>
+            <span className="w-fit rounded-full border border-gray-200 bg-white px-3 py-1 font-mono text-[0.625em] uppercase tracking-[0.12em] text-gray-500 dark:border-gray-600 dark:bg-[#181818] dark:text-gray-400">
+              Case Study
+            </span>
+          </div>
+
+          {uxCaseStudyDocument.sections.length > 0 && (
+            <nav aria-label="UX case study sections" className="mt-5 flex flex-wrap gap-2 border-t border-gray-200 pt-4 dark:border-gray-700">
+              {uxCaseStudyDocument.sections
+                .filter((section) => section.level === 2)
+                .map((section) => {
+                  const compactLabel = section.label.length > 42
+                    ? `${section.label.slice(0, 39).trimEnd()}…`
+                    : section.label;
+                  return (
+                    <a
+                      key={section.id}
+                      href={`#${section.id}`}
+                      title={section.label}
+                      className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[0.7em] leading-none text-gray-600 transition hover:border-[#2B579A] hover:text-[#2B579A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:border-gray-600 dark:bg-[#181818] dark:text-gray-300 dark:hover:border-[#6FA8DC] dark:hover:text-[#6FA8DC]"
+                    >
+                      {compactLabel}
+                    </a>
+                  );
+                })}
+            </nav>
+          )}
+        </div>
+
+        <div
+          className={`${ARTICLE_TEXT_CLASS} ux-writing-case-study min-w-0 max-w-none space-y-5 break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all [&_h2]:scroll-mt-28 [&_h2]:mt-8 [&_h2]:border-t [&_h2]:border-gray-200 [&_h2]:pt-6 [&_h2]:mb-3 [&_h2]:text-[1.45em] [&_h2]:font-bold [&_h2]:tracking-[-0.015em] dark:[&_h2]:border-gray-700 [&_h3]:scroll-mt-28 [&_h3]:mt-7 [&_h3]:text-[0.78em] [&_h3]:font-bold [&_h3]:uppercase [&_h3]:tracking-[0.12em] [&_h3]:text-[#2B579A] dark:[&_h3]:text-[#6FA8DC] [&_blockquote]:my-6 [&_blockquote]:rounded-xl [&_blockquote]:border [&_blockquote]:border-gray-200 [&_blockquote]:bg-gray-50 [&_blockquote]:px-5 [&_blockquote]:py-5 [&_blockquote]:not-italic [&_blockquote]:shadow-sm dark:[&_blockquote]:border-gray-700 dark:[&_blockquote]:bg-[#202020] [&_blockquote_p]:text-[1.05em] [&_blockquote_p]:font-medium [&_blockquote_p]:leading-relaxed [&_img]:my-7 [&_img]:rounded-xl [&_img]:border [&_img]:border-gray-200 [&_img]:bg-gray-50 [&_img]:p-2 dark:[&_img]:border-gray-700 dark:[&_img]:bg-[#202020]`}
+          dangerouslySetInnerHTML={{ __html: uxCaseStudyDocument.html }}
+        />
+      </div>
+    ) : isCopywritingRecipe ? (
+      <div className="mx-auto min-w-0 max-w-6xl space-y-8">
+        <section className="overflow-hidden rounded-2xl border border-gray-200 bg-[#111827] text-white shadow-sm dark:border-gray-700">
+          <div className="grid gap-0 lg:grid-cols-[1.25fr_0.75fr]">
+            <div className="px-6 py-7 sm:px-8 sm:py-9">
+              <p className="font-mono text-[0.625em] font-bold uppercase tracking-[0.2em] text-[#93C5FD]">
+                Copywriting Campaign
+              </p>
+              <p className="mt-3 max-w-2xl text-[1.05em] font-semibold leading-snug sm:text-[1.2em]">
+                Creative work presented as a campaign system — brief, insight, idea, copy executions, rationale, and learning.
+              </p>
+              <p className="mt-4 max-w-2xl text-[0.78em] leading-relaxed text-gray-300">
+                Built to show the thinking behind the words, not just a wall of finished copy.
+              </p>
+            </div>
+            <div className="border-t border-white/10 bg-white/5 px-6 py-7 lg:border-l lg:border-t-0 sm:px-8">
+              <p className="font-mono text-[0.6em] font-bold uppercase tracking-[0.16em] text-gray-400">Campaign Map</p>
+              {copywritingCampaignDocument.sections.length > 0 ? (
+                <nav aria-label="Copywriting campaign sections" className="mt-4 flex flex-wrap gap-2">
+                  {copywritingCampaignDocument.sections
+                    .filter((section) => section.level === 2)
+                    .map((section) => (
+                      <a
+                        key={section.id}
+                        href={`#${section.id}`}
+                        title={section.label}
+                        className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 font-mono text-[0.64em] leading-none text-gray-200 transition hover:border-white/40 hover:bg-white/10"
+                      >
+                        {section.label.length > 34 ? `${section.label.slice(0, 31).trimEnd()}…` : section.label}
+                      </a>
+                    ))}
+                </nav>
+              ) : (
+                <p className="mt-3 text-[0.72em] leading-relaxed text-gray-400">
+                  Add Heading 2 sections in RichEditor to build the campaign map automatically.
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+
+        <div
+          className={`${ARTICLE_TEXT_CLASS} copywriting-campaign min-w-0 max-w-none space-y-5 break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all [&_h2]:scroll-mt-28 [&_h2]:mt-10 [&_h2]:border-t [&_h2]:border-gray-200 [&_h2]:pt-7 [&_h2]:text-[1.5em] [&_h2]:font-bold [&_h2]:tracking-[-0.02em] dark:[&_h2]:border-gray-700 [&_h3]:scroll-mt-28 [&_h3]:mt-7 [&_h3]:font-mono [&_h3]:text-[0.72em] [&_h3]:font-bold [&_h3]:uppercase [&_h3]:tracking-[0.14em] [&_h3]:text-[#2B579A] dark:[&_h3]:text-[#6FA8DC] [&_blockquote]:my-7 [&_blockquote]:rounded-2xl [&_blockquote]:border-0 [&_blockquote]:bg-[#111827] [&_blockquote]:px-6 [&_blockquote]:py-7 [&_blockquote]:not-italic [&_blockquote]:text-white [&_blockquote]:shadow-sm dark:[&_blockquote]:bg-[#0f172a] [&_blockquote]:before:mb-3 [&_blockquote]:before:block [&_blockquote]:before:font-mono [&_blockquote]:before:text-[0.6em] [&_blockquote]:before:font-bold [&_blockquote]:before:uppercase [&_blockquote]:before:tracking-[0.18em] [&_blockquote]:before:text-[#93C5FD] [&_blockquote]:before:content-['Copy_specimen'] [&_blockquote_p]:text-[1.18em] [&_blockquote_p]:font-semibold [&_blockquote_p]:leading-snug [&_img]:my-8 [&_img]:rounded-2xl [&_img]:border [&_img]:border-gray-200 [&_img]:bg-gray-50 [&_img]:p-2 [&_img]:shadow-sm dark:[&_img]:border-gray-700 dark:[&_img]:bg-[#202020]`}
+          dangerouslySetInnerHTML={{ __html: copywritingCampaignDocument.html }}
+        />
+      </div>
+    ) : isSeoRecipe ? (
+      <div className={`${widthClass} mx-auto min-w-0 space-y-8`}>
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-[#1c1c1c]">
+          <div className="border-b border-gray-200 bg-gray-50/80 px-5 py-4 dark:border-gray-700 dark:bg-[#202020]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="font-mono text-[0.625em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">SEO Content Case Study</p>
+                <p className="mt-2 max-w-2xl text-[0.8em] leading-relaxed text-gray-500 dark:text-gray-400">
+                  Search intent, audience, content decisions, optimization, and evidence — without requiring invented performance metrics.
+                </p>
+              </div>
+              <span className="w-fit rounded-full border border-gray-200 bg-white px-3 py-1 font-mono text-[0.625em] uppercase tracking-[0.12em] text-gray-500 dark:border-gray-600 dark:bg-[#181818] dark:text-gray-400">Search / Content</span>
+            </div>
+          </div>
+          {seoCaseStudyDocument.sections.length > 0 && (
+            <nav aria-label="SEO case study sections" className="flex flex-wrap gap-2 px-5 py-4">
+              {seoCaseStudyDocument.sections.filter((section) => section.level === 2).map((section) => (
+                <a key={section.id} href={`#${section.id}`} title={section.label}
+                  className="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 font-mono text-[0.66em] leading-none text-gray-600 transition hover:border-[#2B579A] hover:text-[#2B579A] dark:border-gray-600 dark:bg-[#242424] dark:text-gray-300 dark:hover:border-[#6FA8DC] dark:hover:text-[#6FA8DC]">
+                  {section.label.length > 42 ? `${section.label.slice(0, 39).trimEnd()}…` : section.label}
+                </a>
+              ))}
+            </nav>
+          )}
+        </div>
+        <div
+          className={`${ARTICLE_TEXT_CLASS} seo-content-case-study min-w-0 max-w-none space-y-5 break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all [&_h2]:scroll-mt-28 [&_h2]:mt-8 [&_h2]:border-t [&_h2]:border-gray-200 [&_h2]:pt-6 [&_h2]:mb-3 [&_h2]:text-[1.4em] [&_h2]:font-bold dark:[&_h2]:border-gray-700 [&_h3]:scroll-mt-28 [&_h3]:mt-7 [&_h3]:font-mono [&_h3]:text-[0.76em] [&_h3]:font-bold [&_h3]:uppercase [&_h3]:tracking-[0.1em] [&_h3]:text-[#2B579A] dark:[&_h3]:text-[#6FA8DC] [&_blockquote]:my-7 [&_blockquote]:rounded-xl [&_blockquote]:border [&_blockquote]:border-gray-200 [&_blockquote]:bg-white [&_blockquote]:px-5 [&_blockquote]:py-5 [&_blockquote]:not-italic [&_blockquote]:shadow-sm dark:[&_blockquote]:border-gray-700 dark:[&_blockquote]:bg-[#202020] [&_blockquote]:before:mb-2 [&_blockquote]:before:block [&_blockquote]:before:font-mono [&_blockquote]:before:text-[0.62em] [&_blockquote]:before:font-bold [&_blockquote]:before:uppercase [&_blockquote]:before:tracking-[0.14em] [&_blockquote]:before:text-gray-400 [&_blockquote]:before:content-['Search_specimen'] [&_img]:my-7 [&_img]:rounded-xl [&_img]:border [&_img]:border-gray-200 [&_img]:bg-gray-50 [&_img]:p-2 dark:[&_img]:border-gray-700 dark:[&_img]:bg-[#202020]`}
+          dangerouslySetInnerHTML={{ __html: seoCaseStudyDocument.html }}
+        />
+      </div>
+    ) : (
+      <div
+        className={`${widthClass} ${ARTICLE_TEXT_CLASS} mx-auto min-w-0 max-w-full space-y-4 break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
+        dangerouslySetInnerHTML={{ __html: item.content }}
+      />
+    )
+  ) : null;
+
+  // CASE STUDY / DEFAULT SPLIT:
+  // cover on one side, the first manually-created block on the other.
+  const splitHero = presentation.coverStyle === 'split' && coverNode ? (
+    <div
+      className={`${widthClass} mx-auto grid grid-cols-1 items-start gap-6 ${
+        isCaseStudy ? 'md:grid-cols-[1.15fr_0.85fr] md:gap-10' : 'md:grid-cols-2 md:gap-9'
+      }`}
+    >
+      {coverNode}
+      <div className={`${ARTICLE_TEXT_CLASS} min-w-0 space-y-4`}>
+        {blocks.slice(0, 1).map(renderBlock)}
+      </div>
+    </div>
+  ) : null;
+
+  const remainingBlocks = splitHero ? blocks.slice(1) : blocks;
+
+  // Recipe-aware Text + Image pairing — ORDER-SAFE.
+  // CMS order is law. The renderer may style adjacent TEXT -> IMAGE blocks together,
+  // but it must never reverse them, pull an image backward, or pair IMAGE -> TEXT.
+  const canAutoPairTextImage = (textBlock, imageBlock) => {
+    if (!textBlock || !imageBlock) return false;
+    if (!(textBlock.type === 'text' || textBlock.type === 'word')) return false;
+    if (imageBlock.type !== 'image' || !imageBlock.url) return false;
+    const textDisplay = textBlock.display || {};
+    const imageDisplay = imageBlock.display || {};
+    const textStyle = textDisplay.style || 'body';
+    const imageSize = imageDisplay.size || 'auto';
+    return ['body', 'intro'].includes(textStyle) && imageSize === 'auto';
+  };
+
+  const supportsAutoPairing =
+    isUxWritingRecipe || isTechnicalRecipe ||
+    isStrategyRecipe || isEditingRecipe;
+
+  // Copywriting is intentionally NOT auto-paired. Campaign copy and creative visuals
+  // need independent hierarchy: copy reads first, then the visual gets full showcase width.
+  // Editorial Story / Long Read are also intentionally NOT auto-paired. Reading rhythm
+  // stays primary; images interrupt the article vertically instead of becoming side columns.
+
+  const renderPairedBlocks = (list = []) => {
+    if (!supportsAutoPairing) return list.map(renderBlock);
+
+    const nodes = [];
+    for (let i = 0; i < list.length; i += 1) {
+      const current = list[i];
+      const next = list[i + 1];
+
+      // Pair ONLY when CMS explicitly has TEXT immediately followed by IMAGE.
+      // This preserves the exact sequence the editor created.
+      if (!canAutoPairTextImage(current, next)) {
+        nodes.push(renderBlock(current, i));
+        continue;
+      }
+
+      const textBlock = current;
+      const imageBlock = next;
+      const pairKey = `pair-${textBlock.id || i}-${imageBlock.id || i + 1}`;
+      const imageDominant = isCopywritingRecipe || isStrategyRecipe;
+      const technicalPair = isTechnicalRecipe;
+      const gridTemplate = imageDominant
+        ? 'md:grid-cols-[0.82fr_1.18fr]'
+        : technicalPair
+          ? 'md:grid-cols-[0.95fr_1.05fr]'
+          : 'md:grid-cols-2';
+
+      nodes.push(
+        <section
+          key={pairKey}
+          className={`mx-auto grid w-full items-center gap-6 md:gap-9 ${gridTemplate} ${
+            isCopywritingRecipe || isStrategyRecipe ? 'max-w-6xl' : 'max-w-4xl'
+          }`}
+          data-studio-pair="text-image"
+          data-studio-order="preserved"
+        >
+          <div className="md:order-1">
+            {renderBlock(textBlock, i)}
+          </div>
+          <div className="md:order-2">
+            {renderBlock(imageBlock, i + 1)}
+          </div>
+        </section>
+      );
+      i += 1;
+    }
+    return nodes;
+  };
+
+  return (
+    <article
+      className={`project-studio-public ${layoutClass} ${
+        isScreenplayRecipe
+          ? 'space-y-7'
+          : isTechnicalRecipe
+            ? 'space-y-7'
+            : (isCopywritingRecipe || isVisual)
+              ? 'space-y-7'
+              : isMinimal
+                ? 'space-y-6'
+                : 'space-y-8'
+      }`}
+      data-project-layout={presentation.layout}
+      data-project-recipe={presentation.recipe}
+      data-poster-recipe={isPosterRecipe ? 'true' : undefined}
+    >
+      {studioHeader}
+
+      {/* Directing Studio keeps the Studio content system, but uses the compact
+          video-left / information-right hero agreed for Directing. */}
+      {type === 'Directing' ? directingStudioHero : primaryMediaNode}
+
+      {/* EDITORIAL STORY / VISUAL SHOWCASE: cover treatment comes from the existing recipe. */}
+      {type !== 'Directing' && !splitHero && coverNode}
+
+      {/* DEFAULT / CASE STUDY: split hero. */}
+      {type !== 'Directing' && splitHero}
+
+      {/* In Studio, Universal Blocks become the ordered source of truth.
+          Legacy article content is only used as a fallback when no Studio blocks exist. */}
+      {blocks.length === 0 ? articleContent : null}
+
+      {/* Universal Blocks render in the exact CMS order. */}
+      <div
+        className={`${(isVisual || isCopywritingRecipe) ? 'max-w-6xl' : widthClass} mx-auto ${
+          isScreenplayRecipe
+            ? 'space-y-7'
+            : (isUxWritingRecipe || isSeoRecipe || isStrategyRecipe || isEditingRecipe || isCaseStudy)
+              ? 'space-y-10'
+              : isMinimal
+                ? 'space-y-6'
+                : 'space-y-8'
+        }`}
+      >
+        {renderPairedBlocks(remainingBlocks)}
+      </div>
+    </article>
+  );
+}
+
 export default function Projects({ data, initialArticleId, initialWorkTarget, navigationRequestKey, interactiveWords = [], onNavigate }) {
   const projectsData = data || {};
   const heading = projectsData.heading ?? '';
@@ -224,15 +1162,20 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
   const articlesLabel = projectsData.articlesLabel ?? '';
   const directingLabel = projectsData.directingLabel?.trim() || 'Directing';
   const posterLabel = projectsData.posterLabel ?? '';
+  const backButtonLabel = projectsData.backLabel?.trim() || 'Back';
 
   // Semua tab navigasi jadi 1 daftar: Articles & Poster bawaan, diikuti tab tambahan
   // apa pun yang ditambah lewat CMS (jumlahnya bebas, gak dibatasin cuma 2).
   const navTabs = useMemo(() => [
-    { key: 'articles', label: articlesLabel },
-    { key: 'directing', label: directingLabel },
-    { key: 'poster', label: posterLabel },
-    ...customSections.filter((cs) => cs.label?.trim()).map((cs) => ({ key: `custom:${cs.id}`, label: cs.label.trim() })),
-  ], [articlesLabel, directingLabel, posterLabel, customSections]);
+    { key: 'articles', label: articlesLabel, count: articles.length },
+    { key: 'directing', label: directingLabel, count: directingItems.length },
+    { key: 'poster', label: posterLabel, count: posterItems.length },
+    ...customSections.filter((cs) => cs.label?.trim()).map((cs) => ({
+      key: `custom:${cs.id}`,
+      label: cs.label.trim(),
+      count: Array.isArray(cs.items) ? cs.items.length : 0,
+    })),
+  ], [articlesLabel, directingLabel, posterLabel, customSections, articles.length, directingItems.length, posterItems.length]);
 
   // Halaman selalu masuk lewat Project Index dulu. Visitor memilih rak/kategori,
   // baru melihat karya di dalamnya—supaya halaman tidak terasa seperti CMS penuh tab.
@@ -244,6 +1187,21 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
       : null;
   const activeCustomItems = activeCustomSection?.items || [];
   const activeCustomType = activeCustomSection?.contentType || (activeCustomSection?.layout === 'articles' ? 'writing' : 'image');
+  const activeCustomLabel = (activeCustomSection?.label || '').trim().toLowerCase();
+  const activeCustomFamily =
+    activeCustomType === 'audio' ? 'audio' :
+    /audio|voice|vn|sound|podcast/.test(activeCustomLabel) ? 'audio' :
+    /script|screenplay|naskah/.test(activeCustomLabel) ? 'script' :
+    /short story|cerpen|story|fiction|fiksi/.test(activeCustomLabel) ? 'story' :
+    activeCustomType === 'video' ? 'video' :
+    activeCustomType === 'image' ? 'visual' :
+    activeCustomType === 'writing' ? 'writing' :
+    'generic';
+
+  const getItemAudio = (item = {}) => {
+    const audioBlock = Array.isArray(item.cmsBlocks) ? item.cmsBlocks.find((block) => block?.type === 'audio' && block?.url) : null;
+    return audioBlock?.url || item.audioUrl || item.fileUrl || (/\.(mp3|m4a|wav|ogg|aac)(\?|$)/i.test(item.url || '') ? item.url : '');
+  };
 
   // Artikel yang lagi dibaca penuh (null = masih di daftar/mode Mojok)
   const [selectedArticle, setSelectedArticle] = useState(null);
@@ -256,10 +1214,24 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
 
   // Item poster yang lagi dibuka detailnya (null = masih di tampilan grid)
   const [selectedGalleryIndex, setSelectedGalleryIndex] = useState(null);
+  const [posterSpotlightIndex, setPosterSpotlightIndex] = useState(0);
+  const posterThumbRailRef = useRef(null);
   // Item tab tambahan (custom section) yang lagi dibuka detailnya (null = masih di grid)
   const [selectedCustomIndex, setSelectedCustomIndex] = useState(null);
   // Ukuran grid masonry poster: kecil, medium, atau besar.
   const [gridDensity, setGridDensity] = useState('medium');
+  const [listPage, setListPage] = useState(1);
+  const itemsPerPage = activeCategory === 'poster' ? 24 : 6;
+
+  const goToProjectIndex = () => {
+    setSelectedArticle(null);
+    setSelectedDirectingIndex(null);
+    setSelectedGalleryIndex(null);
+    setPosterSpotlightIndex(0);
+    setSelectedCustomIndex(null);
+    setListPage(1);
+    setActiveCategory('overview');
+  };
 
   // Artikel pertama di data = artikel unggulan (gaya headline Mojok), sisanya jadi
   // daftar kecil di sampingnya — logic ini sekarang ada di dalem ArticleStyleListing
@@ -271,9 +1243,24 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     selectedGalleryIndex !== null ? activeGalleryItems[selectedGalleryIndex] : null;
   const selectedDirectingItem = selectedDirectingIndex !== null ? directingItems[selectedDirectingIndex] : null;
 
+  useEffect(() => {
+    if (activeCategory !== 'poster') return;
+    const activeThumb = posterThumbRailRef.current?.querySelector('[data-poster-thumb-active="true"]');
+    activeThumb?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+  }, [posterSpotlightIndex, listPage, activeCategory]);
+
+
+  // Slot navigasi paling kiri bersifat kontekstual:
+  // daftar tab = "← Projects", detail/postingan = label Back dari CMS ke daftar tab aktif.
+  const isProjectPostOpen =
+    selectedArticle !== null ||
+    selectedDirectingIndex !== null ||
+    selectedGalleryIndex !== null ||
+    selectedCustomIndex !== null;
+
   const projectSections = useMemo(() => [
     { key: 'articles', label: articlesLabel, type: 'writing', count: articles.length, image: getProjectCover(articles[0]), imagePosition: getCoverPosition(articles[0]), description: projectsData.articlesDescription ?? '' },
-    { key: 'directing', label: directingLabel, type: 'video', count: directingItems.length, image: getProjectCover(directingItems[0]), imagePosition: getCoverPosition(directingItems[0]), description: projectsData.directingDescription ?? '' },
+    { key: 'directing', label: directingLabel, type: 'video', count: directingItems.length, image: getProjectCover(directingItems.find((item) => item?.posterImage) || directingItems.find((item) => getProjectCover(item)) || directingItems[0]), imagePosition: getCoverPosition(directingItems.find((item) => item?.posterImage) || directingItems.find((item) => getProjectCover(item)) || directingItems[0]), description: projectsData.directingDescription ?? '' },
     { key: 'poster', label: posterLabel, type: 'image', count: posterItems.length, image: getProjectCover(posterItems[0]), imagePosition: getCoverPosition(posterItems[0]), description: projectsData.posterDescription ?? '' },
     ...customSections.filter((section) => section.label?.trim()).map((section) => ({
       key: `custom:${section.id}`,
@@ -310,14 +1297,45 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
 
   useEffect(() => {
     if (!initialWorkTarget || !navigationRequestKey) return;
+
+    if (initialWorkTarget.type === 'article') {
+      const item = articles.find((entry) => entry.id === initialWorkTarget.itemId);
+      if (item) {
+        setActiveCategory('articles');
+        openArticle(item);
+      }
+      return;
+    }
+
     if (initialWorkTarget.type === 'directing') {
       const index = directingItems.findIndex((item) => item.id === initialWorkTarget.itemId);
       if (index >= 0) {
         setActiveCategory('directing');
         setSelectedDirectingIndex(index);
       }
+      return;
     }
-  }, [navigationRequestKey, initialWorkTarget, directingItems]);
+
+    if (initialWorkTarget.type === 'poster') {
+      const index = posterItems.findIndex((item) => item.id === initialWorkTarget.itemId);
+      if (index >= 0) {
+        setActiveCategory('poster');
+        setSelectedGalleryIndex(index);
+        setPosterSpotlightIndex(index);
+      }
+      return;
+    }
+
+    if (initialWorkTarget.type === 'custom') {
+      const sectionIndex = customSections.findIndex((section) => section.id === initialWorkTarget.sectionId);
+      if (sectionIndex < 0) return;
+      const itemIndex = (customSections[sectionIndex].items || []).findIndex((item) => item.id === initialWorkTarget.itemId);
+      if (itemIndex >= 0) {
+        setActiveCategory(`custom:${customSections[sectionIndex].id}`);
+        setSelectedCustomIndex(itemIndex);
+      }
+    }
+  }, [navigationRequestKey, initialWorkTarget, articles, directingItems, posterItems, customSections]);
 
   // Deep-link: kalau app dibuka lewat link hasil Share (?tab=Projects&article=ID),
   // otomatis langsung buka artikel yang dimaksud begitu data artikel-nya kebaca.
@@ -358,7 +1376,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     const shareUrl = buildShareUrl(art);
     if (navigator.share) {
       try {
-        await navigator.share({ title: art.title, text: art.snippet, url: shareUrl });
+        await navigator.share({ title: art.title, text: richTextToPlainText(art.snippet), url: shareUrl });
         return;
       } catch (err) {
         // Kalau dibatalin (AbortError) ya udah, gak perlu munculin modal fallback
@@ -482,12 +1500,24 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
 
       {(heading || subheading) && <header className="mb-6 border-b border-gray-200 pb-5 dark:border-gray-700">
         {heading && <h1 className="text-[1.75em] font-semibold tracking-tight sm:text-[2.2em]"><InteractiveText text={heading} rules={interactiveWords} page="Projects" onNavigate={onNavigate} /></h1>}
-        {subheading && <p className="mt-2 max-w-2xl text-[0.8125em] leading-relaxed text-gray-500 dark:text-gray-400"><InteractiveText text={subheading} rules={interactiveWords} page="Projects" onNavigate={onNavigate} /></p>}
+        {subheading && <RichContent value={subheading} className="mt-2 max-w-2xl text-[0.8125em] leading-relaxed text-gray-500 dark:text-gray-400 [&_p]:my-0" />}
       </header>}
 
       {/* Navigasi kategori hanya muncul setelah masuk rak. Halaman awal memakai Project Index. */}
       {activeCategory !== 'overview' && <div className="mb-6 flex flex-wrap items-center gap-2 border-b border-gray-200 pb-3 dark:border-gray-700">
-        {(projectsData.backLabel ?? '') && <button type="button" onClick={() => { setActiveCategory('overview'); setSelectedArticle(null); setSelectedDirectingIndex(null); setSelectedGalleryIndex(null); setSelectedCustomIndex(null); }} className="mr-1 px-3 py-2 font-mono text-[0.6875em] font-bold uppercase tracking-wide text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800">← {projectsData.backLabel}</button>}
+        <button
+          type="button"
+          onClick={() => {
+            if (selectedArticle) closeArticle();
+            else if (selectedDirectingIndex !== null) setSelectedDirectingIndex(null);
+            else if (selectedGalleryIndex !== null) setSelectedGalleryIndex(null);
+            else if (selectedCustomIndex !== null) setSelectedCustomIndex(null);
+            else goToProjectIndex();
+          }}
+          className="mr-1 rounded-md bg-gray-100 px-3 py-2 font-mono text-[0.6875em] font-bold uppercase tracking-wide text-gray-600 transition hover:text-[#2B579A] dark:bg-[#2d2d2d] dark:text-gray-300"
+        >
+          {isProjectPostOpen ? `← ${backButtonLabel}` : '← Projects'}
+        </button>
         {navTabs.map((tab) => (
           <button
             key={tab.key}
@@ -497,7 +1527,9 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
               setSelectedArticle(null);
               setSelectedDirectingIndex(null);
               setSelectedGalleryIndex(null);
+              setPosterSpotlightIndex(0);
               setSelectedCustomIndex(null);
+              setListPage(1);
             }}
             className={`px-4 py-2 text-[0.75em] font-semibold rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#161616] ${
               activeCategory === tab.key
@@ -505,45 +1537,65 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                 : 'bg-gray-100 dark:bg-[#2d2d2d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#383838]'
             }`}
           >
-            {tab.label}
+            <span>{tab.label}</span>
           </button>
         ))}
       </div>}
 
       {activeCategory === 'overview' && (
         <section className="view-reveal">
-          <div className="mb-6 grid grid-cols-1 gap-5 border-b border-gray-200 pb-6 md:grid-cols-[minmax(0,1fr)_17rem] md:items-end dark:border-gray-700">
-            <div>
-              {(projectsData.indexHeading ?? '') && <h2 className="max-w-2xl text-[1.5em] font-bold leading-tight sm:text-[1.875em]">{projectsData.indexHeading}</h2>}
-              {(projectsData.indexDescription ?? '') && <p className="mt-2 max-w-xl text-[0.8125em] leading-relaxed text-gray-500 dark:text-gray-400">{projectsData.indexDescription}</p>}
+          <div className="mb-7 flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-end sm:justify-between dark:border-gray-700">
+            <div className="max-w-2xl">
+              {(projectsData.indexHeading ?? '') && <h2 className="text-[1.65em] font-bold leading-tight sm:text-[2em]">{projectsData.indexHeading}</h2>}
+              {(projectsData.indexDescription ?? '') && <p className="mt-2 max-w-xl text-[0.875em] leading-relaxed text-gray-500 dark:text-gray-400">{projectsData.indexDescription}</p>}
             </div>
-            <label className="block">
-              {(projectsData.searchLabel ?? '') && <span className="mb-1 block font-mono text-[0.5625em] uppercase tracking-widest text-gray-400">{projectsData.searchLabel}</span>}
-              <div className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 focus-within:border-[#2B579A] dark:border-gray-600 dark:bg-[#202020]">
-                <span className="text-gray-400">⌕</span><input value={projectQuery} onChange={(e) => setProjectQuery(e.target.value)} placeholder="Cari judul, kategori..." className="min-w-0 flex-1 bg-transparent text-[0.75em] outline-none" />
+            <label className="w-full sm:w-[17rem]">
+              <div className="flex items-center gap-2 border-b border-gray-300 py-2 focus-within:border-[#2B579A] dark:border-gray-600">
+                <span className="text-gray-400">⌕</span>
+                <input value={projectQuery} onChange={(e) => setProjectQuery(e.target.value)} placeholder="Cari karya..." className="min-w-0 flex-1 bg-transparent text-[0.8125em] outline-none" />
               </div>
             </label>
           </div>
 
           {normalizedQuery ? (
             <div>
-              <div className="mb-3 flex items-center justify-between"><p className="font-mono text-[0.625em] uppercase tracking-widest text-gray-400">Search results</p><span className="font-mono text-[0.625em] text-gray-400">{searchResults.length} found</span></div>
-              {searchResults.length ? <div className="divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">{searchResults.map((result) => <button key={`${result.sectionKey}-${result.item.id || result.index}`} type="button" onClick={() => openSearchResult(result)} className="group grid min-h-14 w-full grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-3 py-3 text-left"><div className="h-10 w-12 overflow-hidden rounded bg-gray-100 dark:bg-gray-800">{result.image ? <img src={projectThumbnail(result.image, 160)} alt={`Pratinjau ${result.item.title || result.sectionLabel}`} loading="lazy" decoding="async" fetchPriority="low" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center font-mono text-[0.5625em] text-gray-500 dark:text-gray-300">{result.type.slice(0, 3).toUpperCase()}</span>}</div><div className="min-w-0"><p className="truncate text-[0.8125em] font-bold group-hover:text-[#2B579A] dark:group-hover:text-[#6FA8DC]">{result.item.title || 'Untitled'}</p><p className="font-mono text-[0.5625em] uppercase tracking-wider text-gray-500 dark:text-gray-300">{result.sectionLabel}</p></div><span className="text-gray-500 group-hover:translate-x-1 transition-transform" aria-hidden="true">→</span></button>)}</div> : <p role="status" className="py-12 text-center text-[0.8125em] italic text-gray-600 dark:text-gray-300">Tidak ada karya yang cocok.</p>}
+              {searchResults.length ? <div className="divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">{searchResults.map((result) => <button key={`${result.sectionKey}-${result.item.id || result.index}`} type="button" onClick={() => openSearchResult(result)} className="group grid min-h-14 w-full grid-cols-[3rem_minmax(0,1fr)_auto] items-center gap-3 py-3 text-left"><div className="h-10 w-12 overflow-hidden rounded bg-gray-100 dark:bg-gray-800">{result.image ? <img src={projectThumbnail(result.image, 160)} alt={`Pratinjau ${result.item.title || result.sectionLabel}`} loading="lazy" decoding="async" fetchPriority="low" className="h-full w-full object-cover" /> : null}</div><div className="min-w-0"><p className="truncate text-[0.8125em] font-bold group-hover:text-[#2B579A] dark:group-hover:text-[#6FA8DC]">{result.item.title || 'Untitled'}</p><p className="text-[0.6875em] text-gray-400">{result.sectionLabel}</p></div><span className="text-gray-500 transition-transform group-hover:translate-x-1" aria-hidden="true">→</span></button>)}</div> : <p role="status" className="py-12 text-center text-[0.8125em] italic text-gray-600 dark:text-gray-300">Tidak ada karya yang cocok.</p>}
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="border-y border-gray-200 dark:border-gray-700">
               {visibleProjectSections.length === 0 && (
-                <p role="status" className="col-span-full rounded-md border border-dashed border-gray-300 px-5 py-12 text-center text-[0.8125em] text-gray-500 dark:border-gray-700 dark:text-gray-300">
-                  Arsip karya sedang tidak dapat dimuat. Coba muat ulang beberapa saat lagi.
-                </p>
+                <p role="status" className="py-12 text-center text-[0.8125em] text-gray-500 dark:text-gray-300">Arsip karya sedang tidak dapat dimuat.</p>
               )}
               {visibleProjectSections.map((section, index) => (
-                <button key={section.key} type="button" onClick={() => setActiveCategory(section.key)} className="group relative min-h-[12rem] overflow-hidden rounded-lg border border-gray-200 bg-gray-50 p-6 text-left transition duration-300 hover:-translate-y-0.5 hover:border-[#2B579A] hover:shadow-lg focus:outline-none focus-visible:-translate-y-0.5 focus-visible:border-[#2B579A] focus-visible:ring-2 focus-visible:ring-[#2B579A] focus-visible:ring-offset-2 dark:border-gray-700 dark:bg-[#222] dark:hover:border-[#6FA8DC] dark:focus-visible:border-[#6FA8DC] dark:focus-visible:ring-[#6FA8DC] dark:focus-visible:ring-offset-[#161616]">
-                  {section.image && <img src={projectThumbnail(section.image)} alt="" aria-hidden="true" loading="lazy" decoding="async" fetchPriority="low" className="absolute inset-0 h-full w-full object-cover opacity-[0.16] grayscale transition duration-500 group-hover:scale-105 group-hover:opacity-60 group-hover:grayscale-0 group-focus-visible:scale-105 group-focus-visible:opacity-60 group-focus-visible:grayscale-0 dark:opacity-[0.18]" style={{ objectPosition: section.imagePosition }} />}
-                  <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-white/95 via-white/90 to-white/65 transition-opacity duration-300 group-hover:opacity-55 group-focus-visible:opacity-55 dark:from-[#222]/95 dark:via-[#222]/90 dark:to-[#222]/70" />
-                  <div className="relative flex h-full flex-col justify-between">
-                    <div className="flex items-start justify-end gap-4"><span className="shrink-0 rounded-full border border-gray-300 bg-white/90 px-2.5 py-1 font-mono text-[0.6875em] font-medium text-gray-600 shadow-sm dark:border-gray-600 dark:bg-[#181818]/90 dark:text-gray-300">{section.count} {section.count === 1 ? 'file' : 'files'}</span></div>
-                    <div className="max-w-[24rem]"><h3 className="text-[1.5em] font-bold leading-tight text-gray-950 group-hover:text-[#2B579A] dark:text-white dark:group-hover:text-[#6FA8DC]">{section.label}</h3><p className="mt-2 line-clamp-2 text-[0.875em] leading-relaxed text-gray-700 dark:text-gray-300">{section.description}</p>{(projectsData.openDrawerLabel ?? '') && <span className="mt-4 inline-flex items-center gap-2 font-mono text-[0.75em] font-bold uppercase tracking-wide text-gray-900 dark:text-gray-100">{projectsData.openDrawerLabel} <span className="transition-transform group-hover:translate-x-1 group-focus-visible:translate-x-1">→</span></span>}</div>
+                <button
+                  key={section.key}
+                  type="button"
+                  onClick={() => setActiveCategory(section.key)}
+                  className={`group grid w-full grid-cols-[minmax(0,1fr)_7.5rem] items-center gap-5 py-5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#2B579A] sm:grid-cols-[minmax(0,1fr)_13rem] sm:gap-8 sm:py-6 dark:focus-visible:ring-[#6FA8DC] ${index ? 'border-t border-gray-200 dark:border-gray-700' : ''}`}
+                >
+                  <div className="flex min-w-0 items-center gap-4">
+                    <h3 className="min-w-0 flex-1 truncate text-[1.45em] font-bold leading-none tracking-[-0.025em] text-gray-900 transition-transform duration-300 group-hover:translate-x-1 dark:text-white sm:text-[1.85em]">
+                      {section.label}
+                    </h3>
+                    <span className="shrink-0 whitespace-nowrap font-mono text-[0.7em] text-gray-500 dark:text-gray-400">
+                      {String(section.count).padStart(2, '0')} works&nbsp; →
+                    </span>
+                  </div>
+                  <div className="relative aspect-[16/9] overflow-hidden bg-gray-100 dark:bg-[#222]">
+                    {section.image ? (
+                      <img
+                        src={projectThumbnail(section.image, 720)}
+                        alt=""
+                        aria-hidden="true"
+                        loading="lazy"
+                        decoding="async"
+                        fetchPriority="low"
+                        className="absolute inset-0 h-full w-full object-cover opacity-80 transition duration-500 group-hover:scale-[1.035] group-hover:opacity-100"
+                        style={{ objectPosition: section.imagePosition }}
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gray-100 dark:bg-[#252525]" />
+                    )}
                   </div>
                 </button>
               ))}
@@ -561,23 +1613,19 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                 Belum ada artikel yang ditambahkan.
               </p>
             ) : (
-              <ArticleStyleListing
-                items={articles}
-                onOpen={openArticle}
-                hintPrefix="projects-article"
-              />
+              <>
+                <ArticleStyleListing
+                  items={articles.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage)}
+                  onOpen={openArticle}
+                  hintPrefix="projects-article"
+                />
+                <ProjectPager page={listPage} totalPages={Math.max(1, Math.ceil(articles.length / itemsPerPage))} onPageChange={setListPage} />
+              </>
             )
           ) : (
             /* Tampilan Baca Artikel Penuh (Detail View) */
             <div className="space-y-6 view-reveal">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <button
-                  onClick={closeArticle}
-                  className="text-[0.75em] font-semibold text-gray-600 dark:text-gray-300 hover:text-[#2B579A] dark:hover:text-[#6FA8DC] bg-gray-100 dark:bg-[#2d2d2d] px-3 py-1.5 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#161616]"
-                >
-                  &larr; Kembali ke Daftar Artikel
-                </button>
-
+              <div className="flex items-center justify-end flex-wrap gap-2">
                 <button
                   onClick={() => handleNativeShare(selectedArticle)}
                   className="flex items-center gap-1.5 text-[0.75em] font-semibold text-white bg-[#2B579A] dark:bg-[#6FA8DC] dark:text-[#1a1a1a] px-3.5 py-1.5 rounded shadow-sm hover:bg-[#1e3f73] dark:hover:bg-[#5a95c9] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#161616]"
@@ -587,14 +1635,15 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                 </button>
               </div>
 
-              <div className={`${ARTICLE_CONTAINER_CLASS} space-y-4`}>
+              {hasStudioPresentation(selectedArticle) && <ProjectStudioRenderer item={selectedArticle} type="Article" onBack={goToProjectIndex} />}
+              <div className={`${hasStudioPresentation(selectedArticle) ? 'hidden' : ''} ${ARTICLE_CONTAINER_CLASS} space-y-4`}>
                 {selectedArticle.category && (
                   <span className="inline-block bg-green-600 text-white text-[0.625em] font-bold uppercase tracking-wide px-3 py-1.5">
                     {selectedArticle.category}
                   </span>
                 )}
 
-                <h1 className="text-[1.5em] sm:text-[1.875em] font-extrabold text-gray-900 dark:text-white leading-snug">
+                <h1 className={PROJECT_DETAIL_TITLE_CLASS}>
                   {selectedArticle.title}
                 </h1>
 
@@ -627,9 +1676,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                 )}
 
                 <div className={`${ARTICLE_TEXT_CLASS} space-y-4 pt-1`}>
-                  <p className="font-medium text-[1em] text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-[#252526] p-4 rounded border-l-4 border-green-600">
-                    {selectedArticle.snippet}
-                  </p>
+                  <RichContent value={selectedArticle.snippet} className="font-medium text-[1em] text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-[#252526] p-4 rounded border-l-4 border-green-600 [&_p]:my-0" />
                   {/* Isi artikel disimpan sebagai HTML (dari editor Bold/Italic/Underline/List/Link
                       di CMS), jadi dirender pakai dangerouslySetInnerHTML biar formatnya kebawa —
                       bukan cuma teks polos kayak sebelumnya. Cuma admin (password-protected) yang
@@ -637,7 +1684,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                       className justify/list/link manual lagi di sini — udah ikut ARTICLE_TEXT_CLASS
                       di parent-nya (text-align inherit ke bawah). */}
                   <div
-                    className="space-y-4"
+                    className="min-w-0 max-w-full space-y-4 break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all"
                     dangerouslySetInnerHTML={{ __html: selectedArticle.content }}
                   />
                 </div>
@@ -654,54 +1701,85 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
             <p className="text-[0.875em] text-gray-400 italic py-10 text-center">Belum ada video work yang ditambahkan.</p>
           ) : !selectedDirectingItem ? (
             <div>
-              <div className="mb-6 flex items-end justify-between gap-4 border-b border-gray-200 dark:border-gray-700 pb-4">
-                <div>
-                  <p className="font-mono text-[0.625em] uppercase tracking-[0.22em] text-[#2B579A] dark:text-[#6FA8DC]">Selected motion work</p>
-                  <h2 className="mt-1 text-[1.25em] font-bold">Directing desk</h2>
-                </div>
-                <span className="font-mono text-[0.625em] text-gray-400">{String(directingItems.length).padStart(2, '0')} FILM{directingItems.length === 1 ? '' : 'S'}</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
-                {directingItems.map((item, index) => (
-                  <button key={item.id || index} type="button" onClick={() => setSelectedDirectingIndex(index)} {...(item.hintEnabled !== false ? { 'data-hint-id': `projects-directing-${item.id || index}` } : {})} className="group text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] rounded-sm">
-                    <div className="relative aspect-video overflow-hidden rounded-sm border border-gray-200 bg-gray-950 dark:border-gray-700">
-                      {getProjectCover(item) ? <img src={projectThumbnail(getProjectCover(item), 720)} alt={`Poster ${item.title || 'video work'}`} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025] group-hover:opacity-75" style={{ objectPosition: getCoverPosition(item) }} loading="lazy" decoding="async" fetchPriority="low" /> : <div className="h-full w-full bg-gradient-to-br from-[#2B579A] to-[#101827]" />}
-                      <span className="absolute inset-0 flex items-center justify-center"><span className="flex h-12 w-12 items-center justify-center rounded-full border border-white/60 bg-black/35 text-lg text-white backdrop-blur-sm transition group-hover:scale-110">▶</span></span>
-                      {(item.runtime || item.year) && <span className="absolute bottom-2 right-2 rounded bg-black/70 px-2 py-1 font-mono text-[0.5625em] text-white">{[item.year, item.runtime].filter(Boolean).join(' · ')}</span>}
+              <div className="divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+                {directingItems.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage).map((item, pageIndex) => { const index = ((listPage - 1) * itemsPerPage) + pageIndex; return (
+                  <button key={item.id || index} type="button" onClick={() => setSelectedDirectingIndex(index)} {...(item.hintEnabled !== false ? { 'data-hint-id': `projects-directing-${item.id || index}` } : {})} className="group grid w-full grid-cols-1 gap-4 py-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] sm:grid-cols-[minmax(11rem,0.58fr)_minmax(0,1fr)] sm:items-center sm:gap-6 dark:focus-visible:ring-[#6FA8DC]">
+                    <div className="relative aspect-video overflow-hidden rounded-md bg-gray-950 sm:max-h-[170px]">
+                      {getProjectCover(item) ? <img src={projectThumbnail(getProjectCover(item), 800)} alt={`Poster ${item.title || 'video work'}`} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025] group-hover:opacity-75" style={{ objectPosition: getCoverPosition(item) }} loading="lazy" decoding="async" /> : <div className="h-full w-full bg-gradient-to-br from-[#2B579A] to-[#101827]" />}
+                      <span className="absolute inset-0 flex items-center justify-center"><span className="flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-black/35 text-white backdrop-blur-sm transition group-hover:scale-110">▶</span></span>
                     </div>
-                    <p className="mt-3 font-mono text-[0.625em] uppercase tracking-[0.18em] text-gray-400">{item.role || 'Directing'}</p>
-                    <h3 className="mt-1 text-[1.1em] font-bold leading-tight group-hover:text-[#2B579A] dark:group-hover:text-[#6FA8DC]">{item.title}</h3>
-                    {item.premise && <p className="mt-2 text-[0.8125em] leading-relaxed text-gray-500 dark:text-gray-400 line-clamp-2">{item.premise}</p>}
+                    <div className="min-w-0">
+                      <p className="font-mono text-[0.625em] uppercase tracking-[0.18em] text-gray-400">{[item.year, item.runtime].filter(Boolean).join(' · ') || 'Motion work'}</p>
+                      <h3 className="mt-1.5 text-[1.05em] font-bold leading-tight transition group-hover:text-[#2B579A] sm:text-[1.1em] dark:group-hover:text-[#6FA8DC]">{item.title}</h3>
+                      {item.premise && <p className="mt-3 line-clamp-2 text-[0.8125em] leading-relaxed text-gray-500 dark:text-gray-400">{richTextToPlainText(item.premise)}</p>}
+                      <span className="mt-3 inline-block font-mono text-[0.65em] font-bold uppercase tracking-wide text-[#2B579A] dark:text-[#6FA8DC]">Watch project ↗</span>
+                    </div>
                   </button>
-                ))}
+                );})}
               </div>
+              <ProjectPager page={listPage} totalPages={Math.max(1, Math.ceil(directingItems.length / itemsPerPage))} onPageChange={setListPage} />
             </div>
           ) : (
             <article className="view-reveal space-y-6">
-              <button type="button" onClick={() => setSelectedDirectingIndex(null)} className="rounded bg-gray-100 px-3 py-1.5 text-[0.75em] font-semibold text-gray-600 hover:text-[#2B579A] dark:bg-[#2d2d2d] dark:text-gray-300">&larr; Kembali ke Directing</button>
-              {(() => {
+              {hasStudioPresentation(selectedDirectingItem) ? (
+                <ProjectStudioRenderer item={selectedDirectingItem} type="Directing" onBack={goToProjectIndex} />
+              ) : (() => {
                 const media = getMediaEmbed(selectedDirectingItem.mediaType, selectedDirectingItem.mediaUrl);
+                const directingMeta = [
+                  ['TYPE', selectedDirectingItem.type || selectedDirectingItem.category || 'Film / Video'],
+                  ['ROLE', selectedDirectingItem.role],
+                  ['YEAR', selectedDirectingItem.year],
+                  ['DURATION', selectedDirectingItem.runtime],
+                  ['TOOLS', selectedDirectingItem.tools],
+                ].filter(([, value]) => value);
                 return (
-                  <>
-                    <div className="aspect-video w-full overflow-hidden rounded-md border border-gray-200 bg-black dark:border-gray-700">
-                      {media?.kind === 'iframe' && <iframe src={media.src} title={selectedDirectingItem.title} className="h-full w-full" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />}
-                      {media?.kind === 'video' && <video src={media.src} poster={getProjectCover(selectedDirectingItem) || undefined} controls preload="metadata" className="h-full w-full" />}
-                      {(!media || media.kind === 'external') && (getProjectCover(selectedDirectingItem) ? <img src={getProjectCover(selectedDirectingItem)} alt={selectedDirectingItem.title} className="h-full w-full object-cover" style={{ objectPosition: getCoverPosition(selectedDirectingItem) }} /> : <div className="flex h-full items-center justify-center font-mono text-xs text-gray-400">PREVIEW NOT AVAILABLE</div>)}
+                  <div className="space-y-7">
+                    <div className="flex items-start justify-between gap-5">
+                      <h1 className={`max-w-4xl ${PROJECT_DETAIL_TITLE_CLASS}`}>
+                        {selectedDirectingItem.title}
+                      </h1>
+                      <button type="button" onClick={() => handleNativeShare(selectedDirectingItem)} className="hidden shrink-0 rounded bg-[#2B579A] px-3 py-2 font-mono text-[0.6875em] font-bold text-white sm:inline-flex">Share</button>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_13rem] gap-7 md:gap-10">
-                      <div>
-                        <p className="font-mono text-[0.625em] uppercase tracking-[0.2em] text-[#2B579A] dark:text-[#6FA8DC]">{selectedDirectingItem.role || 'Directing work'}</p>
-                        <h2 className="mt-2 text-[1.75em] font-bold leading-tight">{selectedDirectingItem.title}</h2>
-                        {selectedDirectingItem.premise && <p className="mt-4 text-[1em] leading-relaxed text-gray-600 dark:text-gray-300">{selectedDirectingItem.premise}</p>}
-                        {selectedDirectingItem.contribution && <div className={`${ARTICLE_TEXT_CLASS} mt-6 border-t border-gray-200 pt-5 dark:border-gray-700`} dangerouslySetInnerHTML={{ __html: selectedDirectingItem.contribution }} />}
-                        {selectedDirectingItem.credits && <><h3 className="mt-7 font-mono text-[0.6875em] font-bold uppercase tracking-[0.18em]">Credits</h3><div className={`${ARTICLE_TEXT_CLASS} mt-3`} dangerouslySetInnerHTML={{ __html: selectedDirectingItem.credits }} /></>}
+
+                    <div className="grid grid-cols-1 items-start gap-7 md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.92fr)] md:gap-10">
+                      <div className="min-w-0">
+                        {(() => {
+                          const ratio = selectedDirectingItem.videoRatio || 'auto';
+                          const ratioClass = ratio === '9:16' ? 'aspect-[9/16] max-h-[68vh] max-w-[18rem] mx-auto' : ratio === '4:3' ? 'aspect-[4/3]' : ratio === '1:1' ? 'aspect-square' : 'aspect-video';
+                          return <div className={`${ratioClass} w-full overflow-hidden rounded-md border border-gray-200 bg-black dark:border-gray-700`}>
+                            {media?.kind === 'iframe' && <iframe src={media.src} title={selectedDirectingItem.title} className="h-full w-full" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />}
+                            {media?.kind === 'video' && <video src={media.src} poster={getProjectCover(selectedDirectingItem) || undefined} controls preload="metadata" className="h-full w-full object-contain" />}
+                            {(!media || media.kind === 'external') && (getProjectCover(selectedDirectingItem) ? <img src={getProjectCover(selectedDirectingItem)} alt={selectedDirectingItem.title} className="h-full w-full object-contain" style={{ objectPosition: getCoverPosition(selectedDirectingItem) }} /> : <div className="flex h-full items-center justify-center font-mono text-xs text-gray-400">PREVIEW NOT AVAILABLE</div>)}
+                          </div>;
+                        })()}
+
+                        {Array.isArray(selectedDirectingItem.videoSnippets) && selectedDirectingItem.videoSnippets.some((frame) => frame?.imageUrl) && (
+                          <div className="mt-3 flex snap-x gap-2 overflow-x-auto pb-2">
+                            {selectedDirectingItem.videoSnippets.filter((frame) => frame?.imageUrl).map((frame, frameIndex) => (
+                              <figure key={frame.id || `${frame.imageUrl}-${frameIndex}`} className="w-[31%] min-w-[7rem] shrink-0 snap-start">
+                                <img src={frame.imageUrl} alt={frame.caption || `Video frame ${frameIndex + 1}`} loading="lazy" decoding="async" className="aspect-video w-full rounded object-cover" />
+                                {(frame.timestamp || frame.caption) && <figcaption className="mt-1 truncate text-[0.625em] text-gray-400">{[frame.timestamp, frame.caption].filter(Boolean).join(' · ')}</figcaption>}
+                              </figure>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <aside className="space-y-4 border-t border-gray-200 pt-4 md:border-l md:border-t-0 md:pl-5 md:pt-0 dark:border-gray-700">
-                        {[['Role', selectedDirectingItem.role], ['Year', selectedDirectingItem.year], ['Runtime', selectedDirectingItem.runtime]].filter(([, value]) => value).map(([label, value]) => <div key={label}><p className="font-mono text-[0.5625em] uppercase tracking-widest text-gray-400">{label}</p><p className="mt-1 text-[0.8125em] font-semibold">{value}</p></div>)}
-                        {(selectedDirectingItem.externalUrl || media?.kind === 'external') && <a href={selectedDirectingItem.externalUrl || media.src} target="_blank" rel="noopener noreferrer" className="inline-flex w-full items-center justify-between rounded bg-[#2B579A] px-3 py-2 text-[0.6875em] font-bold uppercase tracking-wide text-white">{selectedDirectingItem.externalLabel || 'Open full work'} <span>↗</span></a>}
+
+                      <aside className="min-w-0 border-t border-gray-200 pt-5 md:border-l md:border-t-0 md:pl-6 md:pt-0 dark:border-gray-700">
+                        {selectedDirectingItem.premise && <div className="project-rich-text text-[0.9em] leading-relaxed text-gray-600 dark:text-gray-300" dangerouslySetInnerHTML={{ __html: selectedDirectingItem.premise }} />}
+                        {Array.isArray(selectedDirectingItem.tags) && selectedDirectingItem.tags.length > 0 && <div className="mt-4 flex flex-wrap gap-1.5">{selectedDirectingItem.tags.map((tag) => <span key={tag} className="rounded-full bg-gray-100 px-2 py-1 text-[0.65em] text-gray-600 dark:bg-[#2d2d2d] dark:text-gray-300">{tag}</span>)}</div>}
+                        <div className="mt-5 space-y-4 border-t border-gray-200 pt-5 dark:border-gray-700">
+                          {directingMeta.map(([label, value]) => <div key={label}><p className="font-mono text-[0.5625em] uppercase tracking-[0.16em] text-gray-400">{label}</p><p className="mt-1 text-[0.8125em] font-semibold text-gray-800 dark:text-gray-200">{value}</p></div>)}
+                          {(selectedDirectingItem.externalUrl || media?.kind === 'external') && <a href={selectedDirectingItem.externalUrl || media.src} target="_blank" rel="noopener noreferrer" className="inline-flex w-full items-center justify-between rounded bg-[#2B579A] px-3 py-2 text-[0.6875em] font-bold uppercase tracking-wide text-white">{selectedDirectingItem.externalLabel || 'Open full work'} <span>↗</span></a>}
+                        </div>
                       </aside>
                     </div>
-                  </>
+
+                    {(selectedDirectingItem.contribution || selectedDirectingItem.credits) && <div className="grid grid-cols-1 gap-7 border-t border-gray-200 pt-6 md:grid-cols-2 md:gap-10 dark:border-gray-700">
+                      {selectedDirectingItem.contribution && <div><h2 className="text-[1.05em] font-bold text-gray-900 dark:text-white">About the Project</h2><div className={`${ARTICLE_TEXT_CLASS} mt-3`} dangerouslySetInnerHTML={{ __html: selectedDirectingItem.contribution }} /></div>}
+                      {selectedDirectingItem.credits && <div><h3 className="font-mono text-[0.6875em] font-bold uppercase tracking-[0.18em]">Credits</h3><div className={`${ARTICLE_TEXT_CLASS} mt-3`} dangerouslySetInnerHTML={{ __html: selectedDirectingItem.credits }} /></div>}
+                    </div>}
+                  </div>
                 );
               })()}
             </article>
@@ -709,157 +1787,91 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
         </div>
       )}
 
-      {/* ======================= MENU: POSTER (daftar file langsung, tanpa Sub Bab) ======================= */}
+      {/* ======================= MENU: POSTER / VISUAL WORKS ======================= */}
       {activeCategory === 'poster' && (
         <div className="space-y-6">
-          <div>
-            <div className="flex items-center justify-end flex-wrap gap-3 mb-4">
-                {activeGalleryItems.length > 0 && !selectedGalleryItem && (
-                  <div className="flex items-center gap-1 text-[0.6875em] font-mono text-gray-400">
-                    <span className="hidden sm:inline mr-1">Ukuran:</span>
-                    {[
-                      { key: 'small', label: 'Small' },
-                      { key: 'medium', label: 'Medium' },
-                      { key: 'large', label: 'Large' },
-                    ].map((opt) => (
-                      <button
-                        key={opt.key}
-                        onClick={() => setGridDensity(opt.key)}
-                        className={`px-2.5 py-1 rounded-full border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#161616] ${
-                          gridDensity === opt.key
-                            ? 'bg-[#2B579A] dark:bg-[#6FA8DC] text-white dark:text-[#1a1a1a] border-[#2B579A] dark:border-[#6FA8DC]'
-                            : 'bg-transparent text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600 hover:border-gray-500 dark:hover:border-gray-400'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-            </div>
+          {activeGalleryItems.length === 0 ? (
+            <p className="py-10 text-center text-[0.875em] italic text-gray-400">Belum ada poster yang ditambahkan.</p>
+          ) : !selectedGalleryItem ? (
+            <>
+              {(() => {
+                const pageItems = activeGalleryItems.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage);
+                const baseIndex = (listPage - 1) * itemsPerPage;
+                const localSpotlight = Math.min(Math.max(posterSpotlightIndex - baseIndex, 0), Math.max(pageItems.length - 1, 0));
+                const featured = pageItems[localSpotlight] || pageItems[0];
+                const featuredIndex = baseIndex + localSpotlight;
+                if (!featured) return null;
 
-              {activeGalleryItems.length === 0 ? (
-                <p className="text-[0.875em] text-gray-400 italic py-10 text-center">
-                  Belum ada poster yang ditambahkan.
-                </p>
-              ) : !selectedGalleryItem ? (
-                /* Masonry ala Pinterest — tinggi kartu ngikutin rasio gambar asli,
-                   bukan dipaksa seragam, jadi susunannya berantakan alami */
-                <div
-                  className={`gap-4 sm:gap-5 ${
-                    gridDensity === 'large'
-                      ? 'columns-1 sm:columns-2'
-                      : gridDensity === 'small'
-                        ? 'columns-2 sm:columns-3 lg:columns-4'
-                        : 'columns-1 sm:columns-2 lg:columns-3'
-                  }`}
-                >
-                  {activeGalleryItems.map((item, idx) => (
-                    <div
-                      key={item.id || idx}
-                      onClick={() => setSelectedGalleryIndex(idx)}
-                      {...(item.hintEnabled !== false ? { 'data-hint-id': `projects-gallery-${item.id || idx}` } : {})}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setSelectedGalleryIndex(idx);
-                        }
-                      }}
-                      className="mb-4 sm:mb-5 break-inside-avoid cursor-pointer group rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#161616]"
-                    >
-                      <div className="relative overflow-hidden rounded-md border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-black/40">
-                        <img
-                          src={projectThumbnail(item.imageUrl, 640)}
-                          alt={item.title}
-                          loading="lazy"
-                          decoding="async"
-                          fetchPriority="low"
-                          className="w-full h-auto block group-hover:scale-105 transition-transform duration-300"
-                        />
-                        {item.dimensions && (
-                          <span className="absolute top-2 left-2 text-[0.5625em] font-mono uppercase bg-white/90 dark:bg-black/70 text-gray-700 dark:text-gray-200 px-1.5 py-0.5 rounded">
-                            {item.dimensions}
-                          </span>
+                const moveSpotlight = (direction) => {
+                  const nextIndex = (featuredIndex + direction + activeGalleryItems.length) % activeGalleryItems.length;
+                  const nextPage = Math.floor(nextIndex / itemsPerPage) + 1;
+                  if (nextPage !== listPage) setListPage(nextPage);
+                  setPosterSpotlightIndex(nextIndex);
+                };
+
+                return (
+                  <section className="mx-auto max-w-[58rem]">
+                    <div className="grid items-center gap-8 md:grid-cols-[minmax(0,0.88fr)_minmax(19rem,1.12fr)] md:gap-12">
+                      <div className="min-w-0 md:pr-3">
+                        <div className="mb-5 h-px w-8 bg-gray-500/70 dark:bg-gray-400/70" />
+                        {featured.title && <h2 className="text-[1.65em] font-bold leading-tight tracking-[-0.025em] text-gray-900 dark:text-white sm:text-[2em]">{featured.title}</h2>}
+                        {featured.description && <p className="mt-4 max-w-[31rem] text-[0.875em] leading-[1.7] text-gray-600 dark:text-gray-300">{richTextToPlainText(featured.description)}</p>}
+
+                        {activeGalleryItems.length > 1 && (
+                          <div ref={posterThumbRailRef} className="mt-6 flex max-w-full gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                            {activeGalleryItems.map((item, idx) => {
+                              const isActive = idx === featuredIndex;
+                              return (
+                                <button
+                                  key={item.id || idx}
+                                  type="button"
+                                  onClick={() => {
+                                    const nextPage = Math.floor(idx / itemsPerPage) + 1;
+                                    if (nextPage !== listPage) setListPage(nextPage);
+                                    setPosterSpotlightIndex(idx);
+                                  }}
+                                  data-poster-thumb-active={isActive ? 'true' : 'false'}
+                                  aria-label={`Sorot ${item.title || `poster ${idx + 1}`}`}
+                                  className={`group shrink-0 overflow-hidden rounded-[8px] border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] ${isActive ? 'border-[#2B579A] shadow-sm dark:border-[#6FA8DC]' : 'border-gray-200 dark:border-gray-700'}`}
+                                >
+                                  <img src={projectThumbnail(item.imageUrl, 360)} alt="" aria-hidden="true" loading="lazy" decoding="async" className={`block h-28 w-auto max-w-none rounded-[7px] object-contain transition ${isActive ? 'opacity-100' : 'opacity-65 group-hover:opacity-100'}`} style={{ objectPosition: item.coverPosition || item.imagePosition || item.objectPosition || '50% 50%' }} />
+                                </button>
+                              );
+                            })}
+                          </div>
                         )}
-                        {/* Overlay judul pas di-hover, khas kartu Pinterest */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
-                          <h3 className="text-white text-[0.875em] font-semibold leading-snug line-clamp-2">
-                            {item.title}
-                          </h3>
-                        </div>
+                      </div>
+
+                      <div className="relative flex min-w-0 items-center justify-center px-12">
+                        <button type="button" onClick={() => moveSpotlight(-1)} aria-label="Poster sebelumnya" className="absolute left-0 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-[1.45em] text-gray-700 shadow-sm transition hover:-translate-x-0.5 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:border-gray-700 dark:bg-[#202020]/90 dark:text-gray-200 dark:hover:bg-[#202020] dark:focus-visible:ring-[#6FA8DC]">‹</button>
+                        <button type="button" onClick={() => setSelectedGalleryIndex(featuredIndex)} className="group flex w-full items-center justify-center rounded-[10px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]" aria-label={`Buka ${featured.title || `poster ${featuredIndex + 1}`}`}>
+                          <img src={projectThumbnail(featured.imageUrl, 1200)} alt={featured.title} loading="lazy" decoding="async" className="block max-h-[35rem] w-auto max-w-full rounded-[10px] object-contain shadow-sm transition duration-300 group-hover:scale-[1.008]" style={{ objectPosition: featured.coverPosition || featured.imagePosition || featured.objectPosition || '50% 50%' }} />
+                        </button>
+                        <button type="button" onClick={() => moveSpotlight(1)} aria-label="Poster berikutnya" className="absolute right-0 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-[1.45em] text-gray-700 shadow-sm transition hover:translate-x-0.5 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:border-gray-700 dark:bg-[#202020]/90 dark:text-gray-200 dark:hover:bg-[#202020] dark:focus-visible:ring-[#6FA8DC]">›</button>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </section>
+                );
+              })()}
+
+            </>
+          ) : (
+            <div className="space-y-6 view-reveal">
+              {hasStudioPresentation(selectedGalleryItem) ? (
+                <ProjectStudioRenderer item={selectedGalleryItem} type="Poster" onBack={goToProjectIndex} />
               ) : (
-                /* Detail — dibuka pas salah satu kartu di grid diklik */
-                <div className="space-y-6 view-reveal">
-                  <button
-                    onClick={() => setSelectedGalleryIndex(null)}
-                    className="text-[0.75em] font-semibold text-gray-600 dark:text-gray-300 hover:text-[#2B579A] dark:hover:text-[#6FA8DC] bg-gray-100 dark:bg-[#2d2d2d] px-3 py-1.5 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#161616]"
-                  >
-                    &larr; Kembali ke Poster
-                  </button>
-
-                  <div className="grid grid-cols-1 md:grid-cols-[1.3fr_1fr] gap-6 md:gap-10 items-start">
-                    <div className="w-full rounded-md overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-black/40 flex items-center justify-center">
-                      <img
-                        src={selectedGalleryItem.imageUrl}
-                        alt={selectedGalleryItem.title}
-                        loading="lazy"
-                        decoding="async"
-                        className="w-full h-auto max-h-[78vh] object-contain"
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      {selectedGalleryItem.dimensions && (
-                        <span className="text-[0.625em] font-mono uppercase bg-[#2B579A]/10 dark:bg-[#6FA8DC]/15 text-[#2B579A] dark:text-[#6FA8DC] px-2 py-0.5 rounded border border-[#2B579A]/30 dark:border-[#6FA8DC]/30 inline-block">
-                          {selectedGalleryItem.dimensions}
-                        </span>
-                      )}
-                      {selectedGalleryItem.category && (
-                        <span className="text-[0.625em] font-mono uppercase text-gray-400 tracking-widest block">
-                          {selectedGalleryItem.category}
-                        </span>
-                      )}
-
-                      <h2 className="text-[1.25em] sm:text-[1.5em] font-bold text-gray-900 dark:text-white">
-                        {selectedGalleryItem.title}
-                      </h2>
-
-                      <p className="text-[0.875em] text-gray-600 dark:text-gray-300 leading-relaxed">
-                        {selectedGalleryItem.description}
-                      </p>
-
-                      {activeGalleryItems.length > 1 && (
-                        <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                          <span className="text-[0.75em] font-mono text-gray-400">
-                            Poster {selectedGalleryIndex + 1} dari {activeGalleryItems.length}
-                          </span>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={prevGalleryItem}
-                              className="px-3 py-1.5 bg-gray-100 dark:bg-[#2d2d2d] hover:bg-gray-200 dark:hover:bg-[#383838] text-[0.75em] font-semibold rounded text-gray-800 dark:text-gray-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#161616]"
-                            >
-                              &larr; Prev
-                            </button>
-                            <button
-                              onClick={nextGalleryItem}
-                              className="px-3 py-1.5 bg-[#2B579A] hover:bg-[#1e3f73] dark:bg-[#6FA8DC] dark:hover:bg-[#5a95c9] text-[0.75em] font-semibold rounded text-white dark:text-[#1a1a1a] shadow transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#161616]"
-                            >
-                              Next &rarr;
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[1.3fr_1fr] md:gap-10">
+                  <div className="flex w-full items-start justify-center overflow-hidden">
+                    <img src={selectedGalleryItem.imageUrl} alt={selectedGalleryItem.title} loading="lazy" decoding="async" className="h-auto max-h-[78vh] max-w-full object-contain" />
+                  </div>
+                  <div className="space-y-3">
+                    <h2 className={PROJECT_DETAIL_TITLE_CLASS}>{selectedGalleryItem.title}</h2>
+                    {selectedGalleryItem.description && <RichContent value={selectedGalleryItem.description} className="text-[0.875em] leading-relaxed text-gray-600 dark:text-gray-300" />}
                   </div>
                 </div>
               )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -871,131 +1883,253 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
               Belum ada item di tab ini.
             </p>
           ) : selectedCustomIndex === null ? (
-            activeCustomType === 'writing' ? (
-              /* Layout "Tulisan (seperti Articles)" — dipilih admin lewat CMS buat tab
-                 tambahan yang konteksnya tulisan (esai, cerpen, dll), biar tampilannya
-                 SERAGAM sama tab Articles bawaan — satu komponen bareng, bukan niru-niru
-                 manual. imageUrl/description item custom disamain ke image/snippet
-                 lewat getImage/getSnippet biar kompatibel sama ArticleStyleListing. */
-              <ArticleStyleListing
-                items={activeCustomItems}
-                onOpen={(item) => setSelectedCustomIndex(activeCustomItems.indexOf(item))}
-                hintPrefix="projects-custom"
-                getImage={(item) => getProjectCover(item)}
-                getSnippet={(item) => item.description}
-                getMeta={() => null}
-              />
-            ) : (
-            /* Grid kartu — gambar (kalau ada), judul, kategori */
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
-              {activeCustomItems.map((item, idx) => (
-                <div
-                  key={item.id || idx}
-                  onClick={() => setSelectedCustomIndex(idx)}
-                  {...(item.hintEnabled !== false ? { 'data-hint-id': `projects-custom-${item.id || idx}` } : {})}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setSelectedCustomIndex(idx);
-                    }
-                  }}
-                  className="cursor-pointer group rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#161616]"
-                >
-                  <div className={`relative ${activeCustomType === 'video' ? 'aspect-video' : 'aspect-[4/3]'} overflow-hidden rounded-md border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-black/40`}>
-                    {activeCustomType === 'writing' && item.wordContent && (
-                      <span
-                        title="Ada tulisan panjang"
-                        className="absolute top-1.5 right-1.5 z-10 w-5 h-5 rounded-full bg-[#2B579A] dark:bg-[#6FA8DC] text-white dark:text-[#1a1a1a] flex items-center justify-center text-[0.625em] shadow"
-                      >
-                        📄
-                      </span>
-                    )}
-                    {getProjectCover(item) ? (
-                      <img
-                        src={projectThumbnail(getProjectCover(item), 640)}
-                        alt={item.title}
-                        loading="lazy"
-                        decoding="async"
-                        fetchPriority="low"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        style={{ objectPosition: getCoverPosition(item) }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <span className="font-mono text-[0.6875em] uppercase tracking-widest text-gray-400">{activeCustomType === 'video' ? '▶ Video' : activeCustomType === 'document' ? '▤ Document' : activeCustomType === 'link' ? '↗ Link' : 'Image'}</span>
+            <>
+              {activeCustomFamily === 'audio' ? (
+                /* AUDIO = voice-note shelf. NO thumbnail/image by design. */
+                <div className="divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+                  {activeCustomItems.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage).map((item, pageIndex) => {
+                    const idx = ((listPage - 1) * itemsPerPage) + pageIndex;
+                    const audioUrl = getItemAudio(item);
+                    return (
+                      <div key={item.id || idx} className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-3 py-4 sm:grid-cols-[2.75rem_minmax(0,1fr)_auto] sm:gap-4">
+                        <button type="button" onClick={() => setSelectedCustomIndex(idx)} className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-[0.75em] text-[#2B579A] transition hover:bg-[#2B579A] hover:text-white dark:border-gray-600 dark:text-[#6FA8DC]" aria-label={`Buka ${item.title}`}>▶</button>
+                        <button type="button" onClick={() => setSelectedCustomIndex(idx)} className="min-w-0 text-left">
+                          <h3 className="truncate text-[0.9em] font-bold text-gray-900 hover:text-[#2B579A] dark:text-white dark:hover:text-[#6FA8DC]">{item.title}</h3>
+                          <p className="mt-1 font-mono text-[0.625em] text-gray-400">{[item.runtime || item.duration, item.date || item.year].filter(Boolean).join(' · ') || 'Voice note'}</p>
+                        </button>
+                        <div className="col-span-2 hidden min-w-[9rem] items-center gap-1 sm:col-span-1 sm:flex" aria-hidden="true">
+                          {[3,6,9,5,11,7,4,10,6,8,4,9,5,7,3,6].map((h, i) => <span key={i} className="w-[2px] rounded-full bg-gray-300 dark:bg-gray-600" style={{ height: `${h}px` }} />)}
+                          {audioUrl && <span className="ml-2 font-mono text-[0.5625em] text-gray-400">VN</span>}
+                        </div>
                       </div>
-                    )}
-                    {activeCustomType === 'video' && <span className="absolute inset-0 flex items-center justify-center pointer-events-none"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-white">▶</span></span>}
-                  </div>
-                  <div className="pt-2">
-                    {item.category && (
-                      <span className="text-[0.625em] font-mono uppercase text-gray-400 tracking-wide block mb-0.5">
-                        {item.category}
-                      </span>
-                    )}
-                    <h3 className="text-[0.8125em] font-bold leading-snug text-gray-900 dark:text-white group-hover:text-[#2B579A] dark:group-hover:text-[#6FA8DC] transition-colors line-clamp-2">
-                      {item.title}
-                    </h3>
-                  </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-            )
+              ) : activeCustomFamily === 'script' ? (
+                <div className="divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+                  {activeCustomItems.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage).map((item, pageIndex) => {
+                    const idx = ((listPage - 1) * itemsPerPage) + pageIndex;
+                    return (
+                      <button key={item.id || idx} type="button" onClick={() => setSelectedCustomIndex(idx)} className="group grid w-full grid-cols-[4rem_minmax(0,1fr)] gap-4 py-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] sm:grid-cols-[5rem_minmax(0,1fr)_auto]">
+                        <div className="aspect-[3/4] overflow-hidden rounded-sm border border-[#e6e0d4] bg-[#f5f0e6] p-2 font-mono text-[0.38em] leading-relaxed text-gray-500 dark:border-gray-700 dark:bg-[#2b2925] dark:text-gray-400">
+                          FADE IN:<br/>INT. SCENE<br/><br/>DIALOG<br/>...
+                        </div>
+                        <div className="min-w-0 self-center">
+                          <h3 className="text-[0.95em] font-bold leading-snug text-gray-900 transition group-hover:text-[#2B579A] dark:text-white dark:group-hover:text-[#6FA8DC]">{item.title}</h3>
+                          <p className="mt-1.5 font-mono text-[0.625em] text-gray-400">{item.category || 'Script / Naskah'}</p>
+                        </div>
+                        <span className="hidden self-center font-mono text-[0.6875em] text-gray-400 sm:block">↗</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : activeCustomFamily === 'story' ? (
+                <div className="divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+                  {activeCustomItems.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage).map((item, pageIndex) => {
+                    const idx = ((listPage - 1) * itemsPerPage) + pageIndex;
+                    return (
+                      <button key={item.id || idx} type="button" onClick={() => setSelectedCustomIndex(idx)} className="group grid w-full grid-cols-[6rem_minmax(0,1fr)] gap-4 py-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-6">
+                        <div className="aspect-[16/9] overflow-hidden rounded-md bg-[#eeeae2] dark:bg-[#242424]">
+                          {getProjectCover(item) ? <img src={projectThumbnail(getProjectCover(item), 520)} alt={item.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025]" style={{ objectPosition: getCoverPosition(item) }} loading="lazy" decoding="async" /> : <div className="h-full w-full bg-gradient-to-br from-[#d8d2c8] to-[#f4f1ea] dark:from-[#333] dark:to-[#222]" />}
+                        </div>
+                        <div className="min-w-0 self-center">
+                          <h3 className="text-[0.95em] font-bold leading-snug text-gray-900 transition group-hover:text-[#2B579A] dark:text-white dark:group-hover:text-[#6FA8DC]">{item.title}</h3>
+                          {item.description && <p className="mt-2 line-clamp-2 text-[0.75em] leading-relaxed text-gray-500 dark:text-gray-400">{richTextToPlainText(item.description)}</p>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : activeCustomType === 'writing' ? (
+                <ArticleStyleListing
+                  items={activeCustomItems.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage)}
+                  onOpen={(item) => setSelectedCustomIndex(activeCustomItems.indexOf(item))}
+                  hintPrefix="projects-custom"
+                  getImage={(item) => getProjectCover(item)}
+                  getSnippet={(item) => item.description}
+                  getMeta={() => null}
+                />
+              ) : (
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                  {activeCustomItems.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage).map((item, pageIndex) => { const idx = ((listPage - 1) * itemsPerPage) + pageIndex; return (
+                    <button key={item.id || idx} type="button" onClick={() => setSelectedCustomIndex(idx)} className="group min-w-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]">
+                      <div className={`relative ${activeCustomType === 'video' ? 'aspect-video' : 'aspect-[4/3]'} flex items-center justify-center overflow-hidden rounded-md bg-gray-100 dark:bg-black/40`}>
+                        {getProjectCover(item) ? <img src={projectThumbnail(getProjectCover(item), 720)} alt={item.title} loading="lazy" decoding="async" className="h-full w-full object-contain transition duration-300 group-hover:scale-[1.02]" style={{ objectPosition: getCoverPosition(item) }} /> : <span className="font-mono text-[0.6875em] uppercase tracking-widest text-gray-400">Project</span>}
+                        {activeCustomType === 'video' && <span className="pointer-events-none absolute inset-0 flex items-center justify-center"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-white">▶</span></span>}
+                      </div>
+                      <div className="mt-3 flex items-start justify-between gap-3"><h3 className="min-w-0 text-[0.9em] font-bold leading-snug text-gray-900 transition group-hover:text-[#2B579A] dark:text-white dark:group-hover:text-[#6FA8DC]">{item.title}</h3><span className="shrink-0 font-mono text-[0.6875em] text-gray-400">↗</span></div>
+                    </button>
+                  );})}
+                </div>
+              )}
+              <ProjectPager page={listPage} totalPages={Math.max(1, Math.ceil(activeCustomItems.length / itemsPerPage))} onPageChange={setListPage} />
+            </>
           ) : (
             /* Detail item — dibuka pas salah satu kartu di grid diklik */
             <div className="space-y-6 view-reveal">
-              <button
-                onClick={() => setSelectedCustomIndex(null)}
-                className="text-[0.75em] font-semibold text-gray-600 dark:text-gray-300 hover:text-[#2B579A] dark:hover:text-[#6FA8DC] bg-gray-100 dark:bg-[#2d2d2d] px-3 py-1.5 rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#161616]"
-              >
-                &larr; Kembali
-              </button>
-
-              {activeCustomType === 'writing' ? (
-                <div className="flow-root">
-                  {getProjectCover(activeCustomItems[selectedCustomIndex]) && (
-                    <div className="mb-5 w-full overflow-hidden rounded-md border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-black/40 md:float-left md:mb-4 md:mr-8 md:w-[42%]">
-                      <img
-                        src={projectThumbnail(getProjectCover(activeCustomItems[selectedCustomIndex]), 960)}
-                        alt={activeCustomItems[selectedCustomIndex].title}
-                        loading="eager"
-                        decoding="async"
-                        fetchPriority="high"
-                        className="h-auto w-full object-cover"
-                        style={{ objectPosition: getCoverPosition(activeCustomItems[selectedCustomIndex]) }}
-                      />
+              {activeCustomFamily === 'audio' ? (() => {
+                const item = activeCustomItems[selectedCustomIndex];
+                const audioUrl = getItemAudio(item);
+                return (
+                  <div className="mx-auto w-full max-w-3xl border-y border-gray-200 py-8 dark:border-gray-700">
+                    <p className="font-mono text-[0.625em] uppercase tracking-[0.18em] text-gray-400">Voice note</p>
+                    <h2 className={`mt-3 ${PROJECT_DETAIL_TITLE_CLASS}`}>{item.title}</h2>
+                    {(item.runtime || item.duration || item.date || item.year) && <p className="mt-2 font-mono text-[0.6875em] text-gray-400">{[item.runtime || item.duration, item.date || item.year].filter(Boolean).join(' · ')}</p>}
+                    <div className="mt-7 rounded-xl border border-gray-200 bg-[#faf9f6] p-4 sm:p-5 dark:border-gray-700 dark:bg-[#242424]">
+                      {audioUrl ? <audio src={audioUrl} controls preload="metadata" className="w-full" /> : <p className="font-mono text-[0.6875em] text-gray-400">File voice note belum tersedia.</p>}
                     </div>
-                  )}
-                  <div className="space-y-3">
-                    {activeCustomItems[selectedCustomIndex].category && (
-                      <span className="text-[0.625em] font-mono uppercase text-gray-400 tracking-widest block">
-                        {activeCustomItems[selectedCustomIndex].category}
-                      </span>
-                    )}
-                    <h2 className="text-[1.25em] sm:text-[1.5em] font-bold text-gray-900 dark:text-white">
-                      {activeCustomItems[selectedCustomIndex].title}
-                    </h2>
-                    {activeCustomItems[selectedCustomIndex].wordContent ? (
-                      <div
-                        className={`${ARTICLE_TEXT_CLASS} space-y-4 [&_p]:mb-3`}
-                        dangerouslySetInnerHTML={{ __html: activeCustomItems[selectedCustomIndex].wordContent }}
-                      />
-                    ) : (
-                      <p className="text-[0.875em] text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-line">
-                        {activeCustomItems[selectedCustomIndex].description}
-                      </p>
-                    )}
-                    {activeCustomItems[selectedCustomIndex].url && (
-                      <a href={activeCustomItems[selectedCustomIndex].url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 mt-2 text-[0.75em] font-bold uppercase tracking-wide text-white bg-[#2B579A] dark:bg-[#6FA8DC] dark:text-[#1a1a1a] px-4 py-2 rounded-sm hover:bg-[#1e3f73] dark:hover:bg-[#5a95c9] transition-colors">
-                        {activeCustomItems[selectedCustomIndex].buttonLabel || 'Lihat'} &rarr;
-                      </a>
-                    )}
+                    {item.description && <RichContent value={item.description} className="mt-6 text-[0.875em] leading-relaxed text-gray-600 dark:text-gray-300" />}
+                    {Array.isArray(item.cmsBlocks) && item.cmsBlocks
+                      .filter((block) => block?.type === 'text' || block?.type === 'word')
+                      .map((block, i) => (
+                        <div
+                          key={block.id || i}
+                          className={`${ARTICLE_TEXT_CLASS} mt-5 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full`}
+                          dangerouslySetInnerHTML={{ __html: block.text || block.html || block.content || '' }}
+                        />
+                      ))}
                   </div>
-                </div>
-              ) : (
-              <div className="grid grid-cols-1 gap-6 md:gap-10 items-start md:grid-cols-[1.1fr_1fr]">
+                );
+              })() : activeCustomFamily === 'script' ? (() => {
+                const item = activeCustomItems[selectedCustomIndex];
+                const scriptHtml = getCustomWritingHtml(item);
+
+                return (
+                  <article className="mx-auto w-full max-w-[46rem]">
+                    <header className="mb-8 border-b border-gray-200 pb-6 text-center dark:border-gray-700">
+                      {item.category && (
+                        <p className="mb-3 font-mono text-[0.625em] uppercase tracking-[0.18em] text-gray-400">
+                          {item.category}
+                        </p>
+                      )}
+                      <h2 className={PROJECT_DETAIL_TITLE_CLASS}>
+                        {item.title}
+                      </h2>
+                      {(item.author || item.writer || item.year) && (
+                        <p className="mt-3 font-mono text-[0.6875em] text-gray-400">
+                          {[item.author || item.writer, item.year].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
+                    </header>
+
+                    <div className="mx-auto w-full min-w-0 max-w-[42rem] overflow-hidden px-1 py-2 sm:-translate-x-8 sm:px-4 sm:py-4 lg:-translate-x-14">
+                      <style>{`
+                        @media (max-width: 767px) {
+                          .screenplay-public {
+                            width: 100% !important;
+                            max-width: 100% !important;
+                            min-width: 0 !important;
+                            overflow: hidden !important;
+                            overflow-wrap: anywhere !important;
+                            word-break: normal !important;
+                            font-size: 10.5pt !important;
+                            line-height: 1.55 !important;
+                          }
+                          .screenplay-public * {
+                            box-sizing: border-box !important;
+                            max-width: 100% !important;
+                          }
+                          .screenplay-public p,
+                          .screenplay-public div,
+                          .screenplay-public blockquote,
+                          .screenplay-public h1,
+                          .screenplay-public h2,
+                          .screenplay-public h3 {
+                            width: auto !important;
+                            min-width: 0 !important;
+                            margin-left: 0 !important;
+                            margin-right: 0 !important;
+                            padding-left: 0 !important;
+                            padding-right: 0 !important;
+                            text-indent: 0 !important;
+                            white-space: normal !important;
+                          }
+                          .screenplay-public span {
+                            max-width: 100% !important;
+                            white-space: normal !important;
+                          }
+                        }
+                      `}</style>
+                      {scriptHtml ? (
+                        <div
+                          className="screenplay-public min-w-0 max-w-full break-words text-[12pt] leading-[1.5] text-[#222] [font-family:Georgia,serif] [overflow-wrap:anywhere] dark:text-[#ece8df] [&_p]:mb-4 [&_ul]:my-4 [&_ul]:list-disc [&_ul]:pl-7 [&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-7 [&_li]:mb-1 [&_h1]:mb-7 [&_h1]:text-center [&_h1]:text-[16pt] [&_h1]:font-bold [&_h2]:mb-4 [&_h2]:mt-7 [&_h2]:text-[14pt] [&_h2]:font-bold [&_h3]:mb-2 [&_h3]:mt-6 [&_h3]:text-[12pt] [&_h3]:font-bold [&_blockquote]:my-3 [&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 [&_blockquote]:pl-3 [&_blockquote]:italic"
+                          dangerouslySetInnerHTML={{ __html: scriptHtml }}
+                        />
+                      ) : (
+                        <div className="font-mono text-[0.78em] leading-[1.75] text-[#222] dark:text-[#ece8df]">
+                          <p className="font-bold uppercase">FADE IN:</p>
+                          <p className="mt-6 font-bold uppercase">INT. SCENE — DAY</p>
+                          <p className="mt-4">{richTextToPlainText(item.description) || 'Script content belum tersedia.'}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {item.description && scriptHtml && (
+                      <RichContent value={item.description} className="mx-auto mt-6 max-w-[42rem] text-[0.75em] leading-relaxed text-gray-500 dark:text-gray-400" />
+                    )}
+                  </article>
+                );
+              })() : activeCustomFamily === 'story' ? (() => {
+                const item = activeCustomItems[selectedCustomIndex];
+                const cover = getProjectCover(item);
+                const richBlocks = Array.isArray(item.cmsBlocks)
+                  ? item.cmsBlocks.filter((block) => block?.type === 'text' || block?.type === 'word')
+                  : [];
+                const hasRichBlocks = richBlocks.some((block) => (block?.text || block?.html || block?.content || '').trim());
+                const hasWordContent = Boolean((item.wordContent || '').trim());
+
+                return (
+                  <article className="mx-auto w-full max-w-[54rem]">
+                    <div className="flow-root">
+                      {cover && (
+                        <figure className="mb-5 w-full sm:float-left sm:mb-4 sm:mr-8 sm:w-[42%] md:mr-10 md:w-[40%]">
+                          <div className="aspect-[4/5] overflow-hidden rounded-md border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-black/40">
+                            <img
+                              src={projectThumbnail(cover, 960)}
+                              alt={item.title}
+                              loading="eager"
+                              decoding="async"
+                              className="h-full w-full object-cover"
+                              style={{ objectPosition: getCoverPosition(item) }}
+                            />
+                          </div>
+                        </figure>
+                      )}
+
+                      <header className={cover ? "pt-0 sm:pt-1" : ""}>
+                        {item.category && (
+                          <span className="mb-4 block font-mono text-[0.625em] uppercase tracking-widest text-gray-400">
+                            {item.category}
+                          </span>
+                        )}
+                        <h2 className={`mb-6 ${PROJECT_DETAIL_TITLE_CLASS}`}>
+                          {item.title}
+                        </h2>
+                      </header>
+
+                      <div className="min-w-0">
+                        {hasRichBlocks ? (
+                          richBlocks.map((block, i) => (
+                            <div
+                              key={block.id || i}
+                              className={`${ARTICLE_TEXT_CLASS} mb-4 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full`}
+                              dangerouslySetInnerHTML={{ __html: block.text || block.html || block.content || '' }}
+                            />
+                          ))
+                        ) : hasWordContent ? (
+                          <div
+                            className={`${ARTICLE_TEXT_CLASS} min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full`}
+                            dangerouslySetInnerHTML={{ __html: item.wordContent }}
+                          />
+                        ) : item.description ? (
+                          <RichContent value={item.description} className="text-[0.875em] leading-relaxed text-gray-600 dark:text-gray-300" />
+                        ) : null}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })() : (
+              <div className={`grid grid-cols-1 gap-6 md:gap-10 items-start ${activeCustomType === 'writing' ? 'md:grid-cols-[minmax(15rem,0.82fr)_minmax(0,1.18fr)]' : 'md:grid-cols-[1.1fr_1fr]'}`}>
                 {activeCustomType === 'video' && (() => {
                   const item = activeCustomItems[selectedCustomIndex];
                   const media = getMediaEmbed(item.mediaType, item.mediaUrl);
@@ -1020,7 +2154,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                       {activeCustomItems[selectedCustomIndex].category}
                     </span>
                   )}
-                  <h2 className="text-[1.25em] sm:text-[1.5em] font-bold text-gray-900 dark:text-white">
+                  <h2 className={PROJECT_DETAIL_TITLE_CLASS}>
                     {activeCustomItems[selectedCustomIndex].title}
                   </h2>
 
@@ -1031,9 +2165,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                       jadi konten utama (dirender full-width di bawah, lihat blok setelah
                       grid ini), biar gak dobel sama deskripsi singkat. */}
                   {(activeCustomType !== 'writing' || !activeCustomItems[selectedCustomIndex].wordContent) && (
-                    <p className="text-[0.875em] text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-line">
-                      {activeCustomItems[selectedCustomIndex].description}
-                    </p>
+                    <RichContent value={activeCustomItems[selectedCustomIndex].description} className="text-[0.875em] text-gray-600 dark:text-gray-300 leading-relaxed" />
                   )}
 
                   {(activeCustomType === 'document' ? activeCustomItems[selectedCustomIndex].fileUrl : activeCustomItems[selectedCustomIndex].url) && (
@@ -1049,8 +2181,8 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
 
                 </div>
               </div>
-              )}
 
+              )}
               {activeCustomType === 'video' && activeCustomItems[selectedCustomIndex].credits && <div className={`${ARTICLE_CONTAINER_CLASS} ${ARTICLE_TEXT_CLASS} border-t border-gray-100 pt-5 dark:border-gray-800`} dangerouslySetInnerHTML={{ __html: activeCustomItems[selectedCustomIndex].credits }} />}
 
               {/* Tulisan panjang (mis. cerpen) hasil convert dari file Word yang di-upload
@@ -1059,6 +2191,12 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                   kolom sempit). Cuma admin (password-protected) yang bisa nulis ke field
                   ini lewat CMS, jadi aman dari XSS pihak luar — sama kayak pola
                   dangerouslySetInnerHTML buat isi artikel di atas. */}
+              {activeCustomFamily !== 'story' && activeCustomType === 'writing' && getCustomWritingHtml(activeCustomItems[selectedCustomIndex]) && (
+                <div
+                  className={`${ARTICLE_CONTAINER_CLASS} ${ARTICLE_TEXT_CLASS} space-y-4 pt-2 border-t border-gray-100 dark:border-gray-800 [&_p]:mb-3`}
+                  dangerouslySetInnerHTML={{ __html: getCustomWritingHtml(activeCustomItems[selectedCustomIndex]) }}
+                />
+              )}
             </div>
           )}
         </div>
@@ -1113,7 +2251,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
             </div>
 
             <div className="p-4 space-y-3">
-              <p className="text-[0.75em] text-gray-500 dark:text-gray-400 line-clamp-2">{shareArticle.snippet}</p>
+              <p className="text-[0.75em] text-gray-500 dark:text-gray-400 line-clamp-2">{richTextToPlainText(shareArticle.snippet)}</p>
 
               {/* Tombol platform share */}
               <div className="grid grid-cols-4 gap-2">

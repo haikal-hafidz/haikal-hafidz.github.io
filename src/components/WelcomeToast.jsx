@@ -1,46 +1,45 @@
-import React, { useState, useEffect } from 'react';
-
-// Kunci sessionStorage biar notif cuma muncul SEKALI per sesi tab browser (bukan tiap
-// pindah-pindah tab Home/About/dst, dan bukan tiap refresh — tapi tetep muncul lagi
-// kalau tab/browser-nya beneran ditutup terus dibuka baru).
-const SEEN_KEY = 'portfolio_welcome_seen';
+import { useState, useEffect } from 'react';
 
 export default function WelcomeToast({ settings, isMobileLayout }) {
   const [visible, setVisible] = useState(false);
   const [closing, setClosing] = useState(false);
 
   const enabled = settings?.enabled;
-  const title = settings?.title || 'Selamat datang! 👋';
+  const title = settings?.title || 'Update terbaru';
   const message = settings?.message || '';
-  const items = Array.isArray(settings?.items)
-    ? settings.items.filter((item) => item && (String(item.title || '').trim() || String(item.description || '').trim()))
-    : [];
+  const items = Array.isArray(settings?.items) ? settings.items.filter((item) => item?.title?.trim() || item?.description?.trim()) : [];
+  const version = String(settings?.version || '').trim();
   const delaySeconds = Number.isFinite(settings?.delaySeconds) ? settings.delaySeconds : 2;
+
+  // Versi adalah identitas patch. Kalau admin lupa mengisinya, gabungan judul + pesan
+  // tetap jadi fallback agar perubahan isi otomatis dianggap sebagai patch baru.
+  const patchId = version || `${title}|${message}|${items.map((item) => `${item.title}:${item.description}`).join('|')}`;
+  const seenKey = `portfolio_patch_seen:${patchId}`;
 
   useEffect(() => {
     if (!enabled) return;
 
     let alreadySeen = false;
     try {
-      alreadySeen = sessionStorage.getItem(SEEN_KEY) === 'true';
+      alreadySeen = localStorage.getItem(seenKey) === 'true';
     } catch {
-      /* sessionStorage gak tersedia — anggap belum pernah lihat, gapapa muncul lagi */
+      /* localStorage gak tersedia — anggap belum pernah lihat, gapapa muncul lagi */
     }
     if (alreadySeen) return;
 
     const timer = setTimeout(() => {
       setVisible(true);
-      try {
-        sessionStorage.setItem(SEEN_KEY, 'true');
-      } catch {
-        /* diamkan kalau gagal nulis, gak fatal */
-      }
     }, Math.max(0, delaySeconds) * 1000);
 
     return () => clearTimeout(timer);
-  }, [enabled, delaySeconds]);
+  }, [enabled, delaySeconds, seenKey]);
 
   const handleClose = () => {
+    try {
+      localStorage.setItem(seenKey, 'true');
+    } catch {
+      /* diamkan kalau gagal nulis, gak fatal */
+    }
     setClosing(true);
     // Kasih waktu buat animasi keluar main dulu sebelum bener-bener di-unmount
     setTimeout(() => setVisible(false), 200);
@@ -80,33 +79,34 @@ export default function WelcomeToast({ settings, isMobileLayout }) {
           </svg>
         </span>
         <div className="flex-1 min-w-0">
+          {version && (
+            <span className="block mb-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#2b579a] dark:text-[#7fb0f1]">
+              Patch {version}
+            </span>
+          )}
           <h4 className="text-sm font-bold text-gray-900 dark:text-white leading-snug">
             {title}
           </h4>
-          <div className="mt-1 max-h-40 overflow-y-auto overscroll-contain pr-1">
-            {items.length > 0 ? (
-              <div className="space-y-2">
-                {items.map((item, index) => (
-                  <div key={`welcome-patch-${index}`} className="text-xs leading-relaxed">
-                    {item.title && (
-                      <div className="font-semibold text-gray-700 dark:text-gray-200">
-                        {String(index + 1).padStart(2, '0')} · {item.title}
-                      </div>
-                    )}
-                    {item.description && (
-                      <div className="text-gray-500 dark:text-gray-400">
-                        {item.description}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : message ? (
-              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                {message}
-              </p>
-            ) : null}
-          </div>
+          {items.length > 0 ? (
+            <div className="mt-2 max-h-52 space-y-2 overflow-y-auto pr-1">
+              {items.map((item, index) => (
+                <div key={`${item.title || 'patch'}-${index}`} className="border-t border-gray-100 pt-2 first:border-0 first:pt-0 dark:border-gray-700">
+                  {item.title && <p className="text-[11px] font-semibold text-gray-800 dark:text-gray-200">{item.title}</p>}
+                  {item.description && (
+                    <div
+                      className="mt-0.5 text-xs leading-relaxed text-gray-500 dark:text-gray-400 [&_p]:my-1 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-4 [&_a]:text-[#2b579a] [&_a]:underline dark:[&_a]:text-[#7fb0f1]"
+                      dangerouslySetInnerHTML={{ __html: item.description }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : message ? (
+            <div
+              className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400 [&_p]:my-1 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-4 [&_a]:text-[#2b579a] [&_a]:underline dark:[&_a]:text-[#7fb0f1]"
+              dangerouslySetInnerHTML={{ __html: message }}
+            />
+          ) : null}
         </div>
         <button
           type="button"

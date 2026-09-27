@@ -84,6 +84,30 @@ const MOBILE_BREAKPOINT_QUERY = '(max-width: 767px)';
 
 // ID baris tetap di tabel `portfolio` — kita cuma pakai 1 baris yang terus di-update.
 const PORTFOLIO_ROW_ID = 1;
+const PORTFOLIO_SESSION_CACHE_KEY = 'portfolio_live_session_cache_v1';
+const PORTFOLIO_SPLASH_SEEN_KEY = 'portfolio_splash_seen_v1';
+
+function readSessionPortfolioCache() {
+  try {
+    const raw = sessionStorage.getItem(PORTFOLIO_SESSION_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch { return null; }
+}
+
+function hasSeenPortfolioSplash() {
+  try { return sessionStorage.getItem(PORTFOLIO_SPLASH_SEEN_KEY) === '1'; }
+  catch { return false; }
+}
+
+function rememberPortfolioSession(data) {
+  try {
+    sessionStorage.setItem(PORTFOLIO_SESSION_CACHE_KEY, JSON.stringify(data));
+    sessionStorage.setItem(PORTFOLIO_SPLASH_SEEN_KEY, '1');
+  } catch { /* session cache is only a UX optimization */ }
+}
+
 
 // Default & jaring pengaman buat field `general` — SAMA PERSIS kayak yang ada di
 // CmsDashboard.jsx (DEFAULT_GENERAL / normalizeGeneral di sana). Ini WAJIB
@@ -252,7 +276,7 @@ export default function App() {
   const [desktopLeftRailStyle, setDesktopLeftRailStyle] = useState(null);
   const [railPrintedTab, setRailPrintedTab] = useState(null);
   const railPrintTimerRef = useRef(null);
-  const [portfolioData, setPortfolioData] = useState(initialPortfolioData);
+  const [portfolioData, setPortfolioData] = useState(() => readSessionPortfolioCache() || initialPortfolioData);
   const [language, setLanguage] = useState(() => {
     try { return localStorage.getItem('portfolio_language') === 'en' ? 'en' : 'id'; } catch { return 'id'; }
   });
@@ -264,7 +288,7 @@ export default function App() {
     () => localizedPortfolioData(portfolioData, language),
     [portfolioData, language]
   );
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => !hasSeenPortfolioSplash());
   const [loadError, setLoadError] = useState(null);
   const [saveError, setSaveError] = useState(null);
 
@@ -316,8 +340,8 @@ export default function App() {
   // udah kelewat. Jadi walau fetch-nya kenceng banget, tetep nunggu pesannya
   // "tersampaikan" dulu — dan walau fetch-nya lambat, teksnya juga gak keburu
   // hilang sebelum data selesai disiapin.
-  const [isDataReady, setIsDataReady] = useState(false);
-  const [isSplashDone, setIsSplashDone] = useState(false);
+  const [isDataReady, setIsDataReady] = useState(() => hasSeenPortfolioSplash());
+  const [isSplashDone, setIsSplashDone] = useState(() => hasSeenPortfolioSplash());
   useEffect(() => {
     if (isDataReady && isSplashDone) {
       setIsLoading(false);
@@ -353,7 +377,7 @@ export default function App() {
           );
           setPortfolioData(initialPortfolioData);
         } else if (data?.data && Object.keys(data.data).length > 0) {
-          setPortfolioData({
+          const normalizedLiveData = {
             ...data.data,
             home: normalizeHome(data.data.home),
             about: normalizeAbout(data.data.about),
@@ -367,7 +391,9 @@ export default function App() {
               favicon: data.data.website?.favicon || '',
               shareImage: data.data.website?.shareImage || '',
             },
-          });
+          };
+          setPortfolioData(normalizedLiveData);
+          rememberPortfolioSession(normalizedLiveData);
         } else {
           // Baris ada tapi masih kosong (baru setup) → pakai default template.
           setPortfolioData(initialPortfolioData);
@@ -400,19 +426,31 @@ export default function App() {
   // Return true/false biar CmsDashboard tau apakah save-nya berhasil.
   const savePortfolioData = async (newData) => {
     setSaveError(null);
-    const { error } = await supabase
-      .from('portfolio')
-      .update({ data: newData, updated_at: new Date().toISOString() })
-      .eq('id', PORTFOLIO_ROW_ID);
-
-    if (error) {
-      console.error('Gagal simpan ke Supabase:', error);
-      setSaveError('Gagal simpan perubahan ke server. Cek koneksi internet lo & coba lagi.');
+    if (!isSupabaseConfigured) {
+      setSaveError('Konten live belum terhubung. Isi konfigurasi Supabase sebelum menyimpan perubahan CMS.');
       return false;
     }
 
-    setPortfolioData(newData);
-    return true;
+    try {
+      const { error } = await supabase
+        .from('portfolio')
+        .update({ data: newData, updated_at: new Date().toISOString() })
+        .eq('id', PORTFOLIO_ROW_ID);
+
+      if (error) {
+        console.error('Gagal simpan ke Supabase:', error);
+        setSaveError('Gagal simpan perubahan ke server. Cek koneksi internet lo & coba lagi.');
+        return false;
+      }
+
+      setPortfolioData(newData);
+      rememberPortfolioSession(newData);
+      return true;
+    } catch (error) {
+      console.error('Gagal simpan ke Supabase (exception):', error);
+      setSaveError('Gagal simpan perubahan ke server. Cek koneksi internet lo & coba lagi.');
+      return false;
+    }
   };
 
   // Baca deep-link dari URL pas app pertama kali dibuka (mis. ?tab=Projects&article=art-1),
@@ -475,6 +513,15 @@ export default function App() {
     setWorkNavigation({ ...work, requestKey: Date.now() });
     setActiveTab(work.type === 'book' ? 'Book' : 'Projects');
   };
+
+  // Featured Works navigation is a one-shot request. Keep it alive while the visitor
+  // is on the destination page so Projects/Book can consume it, then discard it as
+  // soon as they leave. Otherwise revisiting Projects would resurrect the last work.
+  useEffect(() => {
+    if (!workNavigation) return;
+    const destinationTab = workNavigation.type === 'book' ? 'Book' : 'Projects';
+    if (activeTab !== destinationTab) setWorkNavigation(null);
+  }, [activeTab, workNavigation]);
 
   // Begitu tab/article dari deep-link kepake buat nentuin tampilan awal, langsung bersihin
   // URL-nya balik ke root (tanpa reload) pake history.replaceState. Ini SENGAJA dilakukan
@@ -785,9 +832,10 @@ export default function App() {
         return;
       }
       setDesktopLeftRailStyle({
+        position: 'fixed',
         left: outerMargin,
         width: Math.min(width, 280),
-        top: Math.ceil(pageRect.top + 28),
+        top: Math.max(18, Math.ceil(pageRect.top + 28)),
         fontFamily,
         fontSize: `${fontSize}pt`,
       });
@@ -815,7 +863,7 @@ export default function App() {
   // Sementara data masih di-fetch dari Supabase, tampilin loading simpel
   // biar gak kelihatan "flash" dari data default ke data asli.
   if (isLoading) {
-    return <DocumentLoader onFinished={() => setIsSplashDone(true)} />;
+    return <DocumentLoader onFinished={() => { try { sessionStorage.setItem(PORTFOLIO_SPLASH_SEEN_KEY, '1'); } catch {} setIsSplashDone(true); }} />;
   }
 
   const documentBody = (
@@ -914,7 +962,7 @@ export default function App() {
           </div>
         )}
 
-        {showSatpamModal && (
+        {isAdminMode && showSatpamModal && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 px-4" role="dialog" aria-modal="true" aria-labelledby="satpam-title">
             <div className="w-full max-w-sm overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#202020] shadow-2xl">
               <div className="bg-[#2B579A] px-5 py-3 text-white"><h2 id="satpam-title" className="font-mono text-sm font-bold tracking-wider">SAYA SATPAM!</h2></div>
@@ -927,6 +975,8 @@ export default function App() {
         <TitleBar 
           isAdminMode={isAdminMode}
           setIsAdminMode={handleSetIsAdminMode}
+          onEnterRecordingView={() => setIsAdminModeRaw(false)}
+          onRestoreAdminAfterRecording={() => { if (isAdminAuthed) setIsAdminModeRaw(true); }}
           darkMode={darkMode}
           setDarkMode={setDarkMode}
           isFullscreen={isFullscreen}
@@ -965,6 +1015,7 @@ export default function App() {
               <CmsDashboard 
                 data={portfolioData} 
                 onSave={handleCmsSave} 
+                onExitAdmin={() => handleSetIsAdminMode(false)}
               />
             </Suspense>
           </div>

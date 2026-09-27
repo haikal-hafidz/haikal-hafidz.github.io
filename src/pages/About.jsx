@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import InteractiveText from '../components/InteractiveText';
+import RichContent from '../components/RichContent';
 
 export default function About({ data, interactiveWords = [], onNavigate }) {
   const content = data || {};
@@ -33,7 +34,7 @@ export default function About({ data, interactiveWords = [], onNavigate }) {
           <section role="tabpanel">
             {content.headline && <h1 className="max-w-3xl text-[20pt] font-normal leading-[1.08] tracking-tight text-gray-900 dark:text-white"><InteractiveText text={content.headline} rules={interactiveWords} page="About" onNavigate={onNavigate} /></h1>}
             {(content.headline || bio) && <div className="my-7 h-px bg-gray-200 dark:bg-gray-700" />}
-            {bio && <p className="max-w-2xl text-[1.0625em] sm:text-[1.25em] leading-[1.75] text-gray-700 dark:text-gray-300 whitespace-pre-line"><InteractiveText text={bio} rules={interactiveWords} page="About" onNavigate={onNavigate} /></p>}
+            {bio && <RichContent value={bio} className="max-w-2xl text-[1.0625em] sm:text-[1.25em] leading-[1.75] text-gray-700 dark:text-gray-300" />}
             {(content.signature || content.locationLine) && <div className="mt-8 text-right font-serif italic text-[0.875em] leading-relaxed text-gray-500 dark:text-gray-400">{content.signature && <p>{content.signature}</p>}{content.locationLine && <p>{content.locationLine}</p>}</div>}
           </section>
         ) : (
@@ -42,7 +43,7 @@ export default function About({ data, interactiveWords = [], onNavigate }) {
               {bitsItems.map((item, index) => (
                 <div key={item.id || index} className="grid grid-cols-[minmax(0,0.38fr)_minmax(0,1fr)] gap-5 border-b border-gray-200 py-4 dark:border-gray-700">
                   {item.label && <p className="font-mono text-[0.625em] font-bold uppercase tracking-[0.15em] text-gray-400">{item.label}</p>}
-                  {item.value && <p className="text-[0.9375em] leading-relaxed text-gray-700 dark:text-gray-200 whitespace-pre-line"><InteractiveText text={item.value} rules={interactiveWords} page="About" onNavigate={onNavigate} /></p>}
+                  {item.value && <RichContent value={item.value} className="text-[0.9375em] leading-relaxed text-gray-700 dark:text-gray-200" />}
                 </div>
               ))}
             </div> : <p className="py-6 text-sm text-gray-400">Belum ada isi Bits & Pieces.</p>}

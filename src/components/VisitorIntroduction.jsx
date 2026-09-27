@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { normalizeVisitorIntroduction } from '../lib/visitorIntroductionData';
+import RichContent from './RichContent';
 
 function playPrinterSound(volume = 100) {
   try {
@@ -180,10 +181,10 @@ export default function VisitorIntroduction({ data, style, darkMode, soundEnable
               <div className="visitor-copy-rule" />
               <section className="visitor-copy-lead">
                 <p className="visitor-copy-kicker">{content.kicker}</p>
-                <h1 id="visitor-copy-title">{content.title}</h1>
-                <div className="visitor-copy-body">{content.body}</div>
+                <RichContent as="div" value={content.title} className="[&_p]:my-0" />
+                <RichContent value={content.body} className="visitor-copy-body" />
               </section>
-              <p className="visitor-copy-closing">{content.closing}</p>
+              <RichContent value={content.closing} className="visitor-copy-closing" />
               <div className="visitor-copy-actions">
                 <button type="button" className="is-primary" onClick={() => closeSheet()}>{content.closeLabel} ×</button>
               </div>

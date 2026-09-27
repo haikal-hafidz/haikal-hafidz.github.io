@@ -29,13 +29,28 @@ let siteName = 'Haikal A. Hafidz — Content Writer & Editor';
 let browserTitle = siteName;
 let defaultShareImage = '';
 let defaultDescription = '';
+function metaPlainText(value = '') {
+  return String(value || '')
+    .replace(/<br\s*\/?\s*>/gi, ' ')
+    .replace(/<\/p\s*>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 
 export function setSiteIdentity({ name, role, title, description, shareImage } = {}) {
   const cleanName = String(name || '').trim();
   const cleanRole = String(role || '').trim();
   siteName = [cleanName, cleanRole].filter(Boolean).join(' — ') || siteName;
   browserTitle = String(title || '').trim() || siteName;
-  defaultDescription = String(description || '').trim();
+  defaultDescription = metaPlainText(description);
   defaultShareImage = String(shareImage || '').trim();
 }
 
@@ -67,7 +82,7 @@ export function setPageMeta({ title, description, image, url } = {}) {
   // ditempelkan ke document.title saat pengunjung berpindah tab portfolio.
   const fullTitle = browserTitle;
   const resolvedImage = image || defaultShareImage;
-  const resolvedDescription = String(description || defaultDescription || '').trim();
+  const resolvedDescription = metaPlainText(description || defaultDescription || '');
   document.title = fullTitle;
 
   upsertMeta('name', 'description', resolvedDescription);

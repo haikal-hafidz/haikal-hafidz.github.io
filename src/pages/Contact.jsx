@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import InteractiveText from '../components/InteractiveText';
 import { isSupabaseConfigured, supabase } from '../lib/supabaseClient';
+import RichContent from '../components/RichContent';
 
 // Field link tombol (actionButtons/collabButtonUrl) di CMS sering diisi orang cuma alamat
 // emailnya polos (mis. "nama@gmail.com?subject=Halo") TANPA prefix "mailto:" di depan —
@@ -260,8 +261,8 @@ export default function Contact({ data, interactiveWords = [], onNavigate, railS
   return (
     <div className="w-full text-gray-900 dark:text-gray-100 select-text py-2">
       {(contactInfo.heading || contactInfo.subheading) && <header className="mb-8 border-b border-gray-200 pb-5 dark:border-gray-700">
-        {contactInfo.heading && <h1 className="text-[1.75em] font-semibold tracking-tight sm:text-[2.2em]"><InteractiveText text={contactInfo.heading} rules={interactiveWords} page="Contact" onNavigate={onNavigate} /></h1>}
-        {contactInfo.subheading && <p className="mt-2 max-w-2xl text-[0.8125em] leading-relaxed text-gray-500 dark:text-gray-400"><InteractiveText text={contactInfo.subheading} rules={interactiveWords} page="Contact" onNavigate={onNavigate} /></p>}
+        {contactInfo.heading && <RichContent value={contactInfo.heading} className="text-[1.75em] font-semibold tracking-tight sm:text-[2.2em] [&_p]:my-0" />}
+        {contactInfo.subheading && <RichContent value={contactInfo.subheading} className="mt-2 max-w-2xl text-[0.8125em] leading-relaxed text-gray-500 dark:text-gray-400" />}
       </header>}
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-12">
         <main className="min-w-0">

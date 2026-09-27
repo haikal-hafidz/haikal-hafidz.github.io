@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import RichContent from './RichContent';
 
 const PreviewImage = ({ work, className = '' }) => (
   <div aria-hidden="true" className={`overflow-hidden bg-white dark:bg-[#202020] opacity-25 grayscale pointer-events-none ${className}`}>
@@ -120,6 +121,7 @@ export default function FeaturedWorksCarousel({ featuredWorks = [], heading, onO
     <div key={`${activeWork.type}-${activeWork.sectionId || 'main'}-${activeWork.itemId}-${safeActiveIndex}`} style={{ animation: 'featured-work-fade 220ms ease-out' }}>
       <button
         type="button"
+        onPointerDown={(event) => event.stopPropagation()}
         onClick={() => {
           if (didDrag.current) {
             didDrag.current = false;
@@ -141,7 +143,7 @@ export default function FeaturedWorksCarousel({ featuredWorks = [], heading, onO
         <div className={horizontal ? '' : 'min-h-[5.75rem]'}>
           <p className="font-mono text-[0.75em] uppercase tracking-[0.16em] text-gray-600 dark:text-gray-300 mb-1.5">{activeWork.typeLabel}</p>
           <h2 className="text-[1.0625em] sm:text-[1.125em] font-semibold leading-tight text-gray-900 dark:text-white group-hover:text-[#2B579A] dark:group-hover:text-[#6FA8DC] transition-colors overflow-hidden" style={{ display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2 }}>{activeWork.title}</h2>
-          {activeWork.teaser && <p className="mt-1.5 text-[0.875em] leading-relaxed text-gray-600 dark:text-gray-300 overflow-hidden" style={{ display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2 }}>{activeWork.teaser}</p>}
+          {activeWork.teaser && <div className="mt-1.5 max-h-[3.2em] overflow-hidden"><RichContent value={activeWork.teaser} className="text-[0.875em] leading-relaxed text-gray-600 dark:text-gray-300 [&_p]:my-0" /></div>}
         </div>
       </button>
     </div>

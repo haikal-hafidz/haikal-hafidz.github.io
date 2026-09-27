@@ -3,6 +3,7 @@ import LanguageToggle from './LanguageToggle';
 
 export default function TitleBar({
   isAdminMode, setIsAdminMode,
+  onEnterRecordingView, onRestoreAdminAfterRecording,
   darkMode, setDarkMode,
   isFullscreen, onToggleFullscreen,
   onSave,
@@ -19,6 +20,24 @@ export default function TitleBar({
   const recorderRef = useRef(null);
   const streamRef = useRef(null);
   const chunksRef = useRef([]);
+  const countdownTimerRef = useRef(null);
+  const recordingStartedFromAdminRef = useRef(false);
+
+  const clearRecordingCountdown = () => {
+    if (countdownTimerRef.current) window.clearInterval(countdownTimerRef.current);
+    countdownTimerRef.current = null;
+    setCountdown(null);
+  };
+
+  const cancelRecordingCountdown = () => {
+    clearRecordingCountdown();
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    recorderRef.current = null;
+    chunksRef.current = [];
+    if (recordingStartedFromAdminRef.current) onRestoreAdminAfterRecording?.();
+    recordingStartedFromAdminRef.current = false;
+  };
 
   const stopScreenRecording = () => {
     const recorder = recorderRef.current;
@@ -31,14 +50,18 @@ export default function TitleBar({
     setRecordingPreview(null);
   };
 
-  const startScreenRecording = async () => {
+  const startScreenRecording = async (qualityOverride = null) => {
+    if (!isAdminMode) return;
+    if (isRecording || countdown !== null) return;
     if (!navigator.mediaDevices?.getDisplayMedia || typeof MediaRecorder === 'undefined') {
       window.alert('Browser ini belum mendukung screen recording. Pakai Chrome atau Edge terbaru.');
       return;
     }
     try {
       closeRecordingPreview();
-      const target = recordQuality === '720' ? { width: 1280, height: 720 } : { width: 1920, height: 1080 };
+      const requestedQuality = qualityOverride === '720' || qualityOverride === '1080' ? qualityOverride : recordQuality;
+      setRecordQuality(requestedQuality);
+      const target = requestedQuality === '720' ? { width: 1280, height: 720 } : { width: 1920, height: 1080 };
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: { width: { ideal: target.width }, height: { ideal: target.height }, frameRate: { ideal: 30, max: 30 } },
         audio: true,
@@ -63,23 +86,27 @@ export default function TitleBar({
         streamRef.current = null;
         recorderRef.current = null;
         setIsRecording(false);
+        clearRecordingCountdown();
+        if (recordingStartedFromAdminRef.current) onRestoreAdminAfterRecording?.();
+        recordingStartedFromAdminRef.current = false;
       };
       stream.getVideoTracks()[0]?.addEventListener('ended', () => {
         if (recorder.state !== 'inactive') recorder.stop();
       });
 
-      // Tutup CMS sebelum frame pertama direkam supaya hasil langsung menampilkan website publik.
-      setIsAdminMode(false);
+      // Masuk ke tampilan publik sementara TANPA logout sesi admin. Record hanya bisa
+      // dimulai dari Admin Mode, lalu CMS disembunyikan selama capture supaya hasil bersih.
+      recordingStartedFromAdminRef.current = true;
+      onEnterRecordingView?.();
       setCountdown(3);
       let remaining = 3;
-      const countdownTimer = window.setInterval(() => {
+      countdownTimerRef.current = window.setInterval(() => {
         remaining -= 1;
         if (remaining > 0) {
           setCountdown(remaining);
           return;
         }
-        window.clearInterval(countdownTimer);
-        setCountdown(null);
+        clearRecordingCountdown();
         recorder.start(1000);
         setIsRecording(true);
       }, 1000);
@@ -89,11 +116,24 @@ export default function TitleBar({
       streamRef.current = null;
       recorderRef.current = null;
       setIsRecording(false);
-      setCountdown(null);
+      clearRecordingCountdown();
+      if (recordingStartedFromAdminRef.current) onRestoreAdminAfterRecording?.();
+      recordingStartedFromAdminRef.current = false;
     }
   };
 
+  useEffect(() => {
+    const handleCmsRecordingRequest = (event) => {
+      if (!isAdminMode) return;
+      const quality = event?.detail?.quality === '720' ? '720' : '1080';
+      startScreenRecording(quality);
+    };
+    window.addEventListener('portfolio:start-recording', handleCmsRecordingRequest);
+    return () => window.removeEventListener('portfolio:start-recording', handleCmsRecordingRequest);
+  }, [isAdminMode, isRecording, countdown, recordQuality]);
+
   useEffect(() => () => {
+    if (countdownTimerRef.current) window.clearInterval(countdownTimerRef.current);
     const recorder = recorderRef.current;
     if (recorder && recorder.state !== 'inactive') recorder.stop();
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -115,19 +155,6 @@ export default function TitleBar({
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
               <span className="hidden sm:inline">Save</span>
             </button>
-            <button
-              type="button"
-              onClick={startScreenRecording}
-              className="flex items-center gap-1 rounded bg-red-600 px-2 py-0.5 text-[11px] text-white shadow-sm transition-colors hover:bg-red-500"
-              title="Rekam tampilan website"
-            >
-              <span className="h-2.5 w-2.5 rounded-full bg-white" aria-hidden="true" />
-              <span className="hidden sm:inline">Record</span>
-            </button>
-            <select value={recordQuality} onChange={(event) => setRecordQuality(event.target.value)} className="h-6 rounded border border-white/25 bg-white/10 px-1 text-[10px] text-white outline-none" title="Kualitas rekaman">
-              <option value="720" className="text-black">720p</option>
-              <option value="1080" className="text-black">1080p</option>
-            </select>
             <button className="p-1 hover:bg-white/10 rounded text-white/80 hover:text-white hidden sm:block" title="Undo">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4"></path></svg>
             </button>
@@ -203,9 +230,10 @@ export default function TitleBar({
         <button
           type="button"
           onClick={() => setIsAdminMode(!isAdminMode)}
+          disabled={isRecording || countdown !== null}
           data-hint-id="titlebar-admin"
           data-hint-surface="blue"
-          className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border text-[11px] transition-all ${
+          className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border text-[11px] transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
             isAdminMode 
               ? 'border-amber-300 bg-amber-500 text-black shadow hover:bg-amber-400' 
               : 'border-white/25 bg-white/10 text-white hover:scale-105 hover:bg-white hover:text-[#2B579A]'
@@ -230,7 +258,10 @@ export default function TitleBar({
 
       {countdown !== null && (
         <div className="fixed inset-0 z-[200] grid place-items-center bg-black/35 backdrop-blur-[2px]" aria-live="assertive">
-          <div className="grid h-28 w-28 place-items-center rounded-full border-4 border-white bg-[#2B579A] font-mono text-5xl font-bold text-white shadow-2xl">{countdown}</div>
+          <div className="flex flex-col items-center gap-4">
+            <div className="grid h-28 w-28 place-items-center rounded-full border-4 border-white bg-[#2B579A] font-mono text-5xl font-bold text-white shadow-2xl">{countdown}</div>
+            <button type="button" onClick={cancelRecordingCountdown} className="rounded-full border border-white/70 bg-black/35 px-4 py-2 text-xs font-bold uppercase tracking-wide text-white hover:bg-black/55">Cancel Recording</button>
+          </div>
         </div>
       )}
 

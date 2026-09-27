@@ -20,14 +20,14 @@ function ReorderHandle({ listKey, idx, count }) {
   const { reorderList, handleDragStart, handleDragEnd } = context;
   return (
     <div className="flex items-center gap-0.5 shrink-0">
-      <span draggable onDragStart={handleDragStart(listKey, idx)} onDragEnd={handleDragEnd} title="Seret buat urutin" className="cursor-grab active:cursor-grabbing select-none text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1 text-sm leading-none">⠿</span>
-      <button type="button" onClick={() => reorderList(listKey, idx, idx - 1)} disabled={idx === 0} title="Naikkan urutan" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-20 disabled:cursor-not-allowed text-[10px] leading-none px-1 py-0.5">▲</button>
-      <button type="button" onClick={() => reorderList(listKey, idx, idx + 1)} disabled={idx === count - 1} title="Turunkan urutan" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-20 disabled:cursor-not-allowed text-[10px] leading-none px-1 py-0.5">▼</button>
+      <span draggable onDragStart={handleDragStart(listKey, idx)} onDragEnd={handleDragEnd} title="Drag to reorder" className="cursor-grab active:cursor-grabbing select-none text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-1 text-sm leading-none">⠿</span>
+      <button type="button" onClick={() => reorderList(listKey, idx, idx - 1)} disabled={idx === 0} title="Move up" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-20 disabled:cursor-not-allowed text-[10px] leading-none px-1 py-0.5">▲</button>
+      <button type="button" onClick={() => reorderList(listKey, idx, idx + 1)} disabled={idx === count - 1} title="Move down" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-20 disabled:cursor-not-allowed text-[10px] leading-none px-1 py-0.5">▼</button>
     </div>
   );
 }
 
-function RemoveBtn({ onClick, label = 'Hapus' }) {
+function RemoveBtn({ onClick, label = 'Remove' }) {
   return <button type="button" onClick={onClick} className="text-[10px] text-red-500 hover:text-red-600 font-semibold">{label}</button>;
 }
 
@@ -64,9 +64,9 @@ function ContentCard({ cardKey, listKey, idx, count, title, subtitle, onRemove, 
       <div className="flex items-center gap-2 p-3">
         <button type="button" onClick={() => toggleContentCard(cardKey)} className="min-w-0 flex-1 text-left">
           <span className="block truncate text-xs font-bold text-gray-700 dark:text-gray-200">{title}</span>
-          {subtitle && <span className="mt-0.5 block truncate font-mono text-[10px] text-gray-400">{subtitle}</span>}
+          {subtitle && <span className="mt-0.5 block truncate font-[Arial] text-[10px] text-gray-400">{subtitle}</span>}
         </button>
-        <button type="button" onClick={() => toggleContentCard(cardKey)} className="grid h-7 w-7 place-items-center rounded text-gray-400 hover:bg-gray-100 hover:text-blue-600 dark:hover:bg-white/5" aria-label={isOpen ? 'Tutup editor' : 'Buka editor'}>{isOpen ? '⌃' : '⌄'}</button>
+        <button type="button" onClick={() => toggleContentCard(cardKey)} className="grid h-7 w-7 place-items-center rounded text-gray-400 hover:bg-gray-100 hover:text-blue-600 dark:hover:bg-white/5" aria-label={isOpen ? 'Close editor' : 'Open editor'}>{isOpen ? '⌃' : '⌄'}</button>
         {onRemove && <RemoveBtn onClick={onRemove} />}
       </div>
       {isOpen && <div className="space-y-3 border-t border-gray-200 bg-gray-50/60 p-3 dark:border-gray-700 dark:bg-[#242424]">{children}</div>}
@@ -81,21 +81,21 @@ const EXTRA_TABS = ['zine', 'miniGame', 'leaderboardSystems'];
 
 // Metadata buat kartu menu utama CMS — cukup diedit di sini kalau mau ganti label/ikon/deskripsi
 const TAB_META = {
-  home: { label: 'Home', desc: 'Nama, role & kalimat dinamis' },
-  featuredWorks: { label: 'Featured Works', desc: 'Heading dan pilihan karya pada carousel Home' },
-  visitorIntroduction: { label: 'Visitor Introduction', desc: 'Printer kiri Home dan lembar perkenalan fullscreen' },
-  about: { label: 'About', desc: 'Author’s Note dan catatan pinggir' },
-  career: { label: 'Career', desc: 'Riwayat kerja, pendidikan, pencapaian & sertifikat' },
-  book: { label: 'Book', desc: 'Buku, tulisan & karya open-source' },
-  projects: { label: 'Projects', desc: 'Artikel, Poster & tab tambahan bebas' },
+  home: { label: 'Home', desc: 'Name, role & kalimat dinamis' },
+  featuredWorks: { label: 'Featured Works', desc: 'Heading and selected work for the Home carousel' },
+  visitorIntroduction: { label: 'Visitor Introduction', desc: 'Left-side Home printer and fullscreen introduction sheet' },
+  about: { label: 'About', desc: 'Author’s Note and margin notes' },
+  career: { label: 'Career', desc: 'Work history, education, achievements & certificates' },
+  book: { label: 'Book', desc: 'Books, writing & open-source work' },
+  projects: { label: 'Projects', desc: 'Articles, posters & custom tabs' },
   contact: { label: 'Contact', desc: 'Info kontak, sosmed & tombol aksi' },
-  zine: { label: 'Wassup?', desc: 'Pengaturan menulis, menerima & moderasi kiriman' },
+  zine: { label: 'Wassup?', desc: 'Settings menulis, menerima & moderasi kiriman' },
   miniGame: { label: 'Mini Game', desc: 'Game shelf, draft The Red Pen & koreksi editorial' },
-  leaderboardSystems: { label: 'Leaderboard Systems', desc: 'Klasemen lintas Mini Game, ranking pemain & moderasi nama' },
-  navigationLabels: { label: 'Navigation & Labels', desc: 'Teks navbar atas dan Quick Views di dalam A4' },
+  leaderboardSystems: { label: 'Leaderboard Systems', desc: 'Cross-game Mini Game leaderboards, player rankings & name moderation' },
+  navigationLabels: { label: 'Navigation & Labels', desc: 'Top navbar text and Quick Views inside the A4 page' },
   interactiveWords: { label: 'Interactive Words', desc: 'Frasa klik, tujuan, warna & spellcheck underline' },
-  general: { label: 'Update Patch', desc: 'Info update patch, suara, dan pengaturan terkait pembaruan situs' },
-  websikee: { label: 'Websikee!', desc: 'Judul, deskripsi, favicon, dan gambar preview saat link dibagikan' },
+  general: { label: 'Update Patch', desc: 'Patch updates, sounds & site update settings' },
+  websikee: { label: 'Websikee!', desc: 'Title, description, favicon & social preview image' },
 };
 
 const DEV_NOTES_STORAGE_KEY = 'portfolio_cms_dev_notes';
@@ -129,7 +129,7 @@ const DEFAULT_GENERAL = {
     enabled: true,
     version: '1.0.0',
     title: 'Update terbaru',
-    message: 'Catatan perubahan terbaru portofolio akan muncul di sini.',
+    message: 'Notes perubahan terbaru portofolio akan muncul di sini.',
     items: [],
     delaySeconds: 2,
   },
@@ -213,7 +213,7 @@ const DEFAULT_RED_PEN_DRAFTS = [
     id: 'red-pen-5', label: 'Final Draft', enabled: true,
     passage: 'Fitur ini dibuat dengan tujuan untuk membantu para pengguna-pengguna dalam melakukan pengelolaan data secara lebih mudah, cepat, dan juga efisien dalam waktu yang bersamaan.',
     issues: [
-      { id: 'rp-5-1', phrase: 'dibuat dengan tujuan untuk membantu', replacement: 'membantu', explanation: 'Pembuka nominal ini dapat diganti verba langsung.' },
+      { id: 'rp-5-1', phrase: 'dibuat dengan tujuan untuk membantu', replacement: 'membantu', explanation: 'Prefix nominal ini dapat diganti verba langsung.' },
       { id: 'rp-5-2', phrase: 'para pengguna-pengguna', replacement: 'pengguna', explanation: 'Jamak ganda: “para” dan pengulangan kata tidak dipakai bersamaan.' },
       { id: 'rp-5-3', phrase: 'dalam melakukan pengelolaan', replacement: 'mengelola', explanation: 'Nominalisasi membuat kalimat lebih panjang daripada verba aktif.' },
       { id: 'rp-5-4', phrase: 'dan juga', replacement: 'dan', explanation: '“Juga” tidak diperlukan dalam deret setara ini.' },
@@ -222,10 +222,10 @@ const DEFAULT_RED_PEN_DRAFTS = [
 ];
 const DEFAULT_MINI_GAME = {
   enabled: true, menuLabel: 'Mini Game', libraryTitle: 'Choose a desk.',
-  libraryDescription: 'Pilih satu meja kerja. Setiap permainan menguji bagian berbeda dari proses mengubah gagasan mentah menjadi naskah.',
+  libraryDescription: 'Select satu meja kerja. Setiap permainan menguji bagian berbeda dari proses mengubah gagasan mentah menjadi naskah.',
   gameName: 'The Red Pen', gameCategory: 'Editorial', gameCardDescription: 'Temukan bagian yang janggal, ambigu, dan tidak efektif sebelum draft dikirim.',
   title: 'Inspect the unfinished draft.', objective: 'Lima draft belum selesai menunggu meja editor. Temukan bagian yang janggal, bertele-tele, ambigu, atau tidak efektif sebelum waktunya habis.',
-  rules: { click: 'Klik atau tap kata/frasa bermasalah.', timer: 'Tiap draft punya waktu 60 detik.', wrong: 'Pilihan salah menurunkan akurasi dan skor.', hint: 'Satu hint tersedia untuk seluruh sesi.', review: 'Seusai tiap draft, baca alasan editorialnya—waktu berhenti saat review.' },
+  rules: { click: 'Klik atau tap kata/frasa bermasalah.', timer: 'Tiap draft punya waktu 60 detik.', wrong: 'Selectan salah menurunkan akurasi dan skor.', hint: 'Satu hint tersedia untuk seluruh sesi.', review: 'Seusai tiap draft, baca alasan editorialnya—waktu berhenti saat review.' },
   startButtonLabel: 'Mulai Mengedit', secondsPerDraft: 60, draftsPerSession: 5,
   scoreSettings: { correctPoints: 100, wrongPenalty: 25, completionBonus: 100, maxTimeBonus: 100, hintPenalty: 75 },
   gradeTitles: [{ min: 90, label: 'Senior Red Pen', remark: 'Naskah sulit lolos dari mata Anda.' }, { min: 75, label: 'Sharp-eyed Editor', remark: 'Mata editorialnya tajam; tinggal menjaga konsistensi.' }, { min: 55, label: 'Promising Proofreader', remark: 'Insting editornya sudah ada, tetapi beberapa masalah masih lolos.' }, { min: 0, label: 'Draft Survivor', remark: 'Draft-nya selamat. Reputasi editornya menyusul.' }],
@@ -237,7 +237,7 @@ const HANGMAN_PRESET = {
   gameType: 'hangman', enabled: true, showInLibrary: true, gameName: 'The Hangman', gameCategory: 'Kosakata',
   gameCardDescription: 'Tebak kata dari petunjuk yang tersedia sebelum Hangman selesai digambar.', title: 'Jaga kata tetap hidup.',
   objective: 'Lima belas kata menunggu untuk ditebak. Gunakan petunjuk yang tersedia dan temukan setiap kata sebelum waktu habis—atau Hangman selesai digambar.',
-  rules: { click: 'Pilih huruf A–Z untuk menebak kata berdasarkan petunjuk singkat.', timer: 'Setiap kata memberi enam kesempatan salah: kepala, badan, tangan kanan, tangan kiri, kaki kanan, lalu kaki kiri.', wrong: 'Tebakan benar membuka semua kemunculan huruf yang sama. Huruf yang sudah dipilih tidak dapat digunakan kembali.', hint: 'Berhasil menebak kata akan mengosongkan Hangman dan membawa Anda ke kata berikutnya. Selesaikan 15 kata dalam 10 menit.', review: 'Kesalahan keenam atau waktu 00:00 mengakhiri permainan.' },
+  rules: { click: 'Select huruf A–Z untuk menebak kata berdasarkan petunjuk singkat.', timer: 'Setiap kata memberi enam kesempatan salah: kepala, badan, tangan kanan, tangan kiri, kaki kanan, lalu kaki kiri.', wrong: 'Tebakan benar membuka semua kemunculan huruf yang sama. Huruf yang sudah dipilih tidak dapat digunakan kembali.', hint: 'Berhasil menebak kata akan mengosongkan Hangman dan membawa Anda ke kata berikutnya. Selesaikan 15 kata dalam 10 menit.', review: 'Kesalahan keenam atau waktu 00:00 mengakhiri permainan.' },
   startButtonLabel: 'Mulai Menggantung', secondsPerDraft: 600, draftsPerSession: 15,
   gradeTitles: [{ min: 15, label: 'Master Wordsmith', remark: 'Lima belas kata masuk. Tidak satu pun berhasil menggantung Anda.' }, { min: 10, label: 'Seasoned Linguist', remark: 'Kosakata Anda cukup tajam untuk membuat tali kehilangan pekerjaan.' }, { min: 5, label: 'Vocabulary Scout', remark: 'Sudah menemukan jalurnya. Beberapa kata masih bersembunyi.' }, { min: 0, label: 'Word Rookie', remark: 'Untuk sekarang, alfabet masih memegang kendali.' }],
   resultEyebrow: 'Laporan akhir',
@@ -247,24 +247,24 @@ const HANGMAN_PRESET = {
   hangmanTimeoutMessage: 'Waktu habis. Kata-kata menang kali ini.',
   hangmanPodiumFirst: 'Selamat. Kosa Kata Anda Menyelamatkan Nyawa.',
   hangmanPodiumSecond: 'Runner Up. Banyak Kata, Kurang Tahta.',
-  hangmanPodiumThird: 'Peringkat Tiga. Setidaknya Bukan yang Digantung.',
+  hangmanPodiumThird: 'Peringkat Tiga. Setidaknya Openn yang Digantung.',
   hangmanRankPrefix: 'Anda berada di peringkat',
   hangmanRankPlayersSuffix: 'pemain',
   hangmanSolvedLabel: 'Terjawab',
   hangmanAccuracyLabel: 'Akurasi',
   hangmanWrongLettersLabel: 'Huruf salah',
   hangmanNamePrompt: 'Masukkan nama / alias untuk masuk klasemen',
-  hangmanNamePlaceholder: 'Nama / alias',
+  hangmanNamePlaceholder: 'Name / alias',
   hangmanSaveScoreLabel: 'Simpan Skor',
   hangmanSavingLabel: 'Menyimpan…',
   hangmanYourRankLabel: 'Peringkatmu',
   hangmanBestScoreLabel: 'Skor terbaik tersimpan',
   hangmanLeaderboardTitle: 'Klasemen',
-  hangmanLeaderboardCloseLabel: 'Tutup ×',
-  hangmanLeaderboardEmptyLabel: 'Belum ada penghuni klasemen.',
+  hangmanLeaderboardCloseLabel: 'Close ×',
+  hangmanLeaderboardEmptyLabel: 'None yet penghuni klasemen.',
   hangmanYouLabel: 'Kamu',
-  hangmanClueLabel: 'Petunjuk',
-  hangmanChooseLetterLabel: 'Pilih satu huruf',
+  hangmanClueLabel: 'Instructions',
+  hangmanChooseLetterLabel: 'Select satu huruf',
   hangmanRemainingLabel: 'Kesempatan tersisa',
   hangmanWordCompleteLabel: 'Kata selesai',
   hangmanDeathRevealLabel: 'Enam kesalahan · jawaban dibuka',
@@ -316,7 +316,7 @@ const PLAGIARISM_POLICE_PRESET = {
   "title": "Kemiripan belum tentu kejahatan.",
   "objective": "Periksa 12 kasus penggunaan sumber. Tentukan putusan yang tepat, lalu buktikan alasan di balik keputusan Anda.",
   "rules": {
-    "click": "Bandingkan Sumber Asli dengan Teks Penulis pada setiap kasus.",
+    "click": "Bandingkan Sumber Asli dengan Teks Author pada setiap kasus.",
     "timer": "Tentukan satu putusan: Orisinal, Parafrase Etis, Parafrase Terlalu Dekat, atau Plagiarisme.",
     "wrong": "Buktikan putusan dengan memilih alasan yang relevan dan menandai bagian teks jika diperlukan.",
     "hint": "Setiap sesi terdiri dari 12 kasus. Ketepatan putusan dan pembuktian dinilai secara terpisah.",
@@ -358,7 +358,7 @@ const PLAGIARISM_POLICE_PRESET = {
     "plagiarism": "Plagiarisme"
   },
   "evidenceLabels": {
-    "wording": "Pilihan Kata",
+    "wording": "Selectan Kata",
     "structure": "Struktur",
     "idea": "Gagasan",
     "attribution": "Atribusi"
@@ -366,11 +366,11 @@ const PLAGIARISM_POLICE_PRESET = {
   "copy": {
     "caseLabel": "Kasus",
     "sourceLabel": "Sumber Asli",
-    "writerLabel": "Teks Penulis",
+    "writerLabel": "Teks Author",
     "verdictPrompt": "Jatuhkan Putusan",
     "temporaryVerdict": "Putusan Sementara",
     "changeVerdict": "Ubah Putusan",
-    "evidenceTypeLabel": "Jenis Bukti",
+    "evidenceTypeLabel": "Type Bukti",
     "submitEvidence": "Ajukan Bukti",
     "nextCase": "Kasus Berikutnya →",
     "seeResult": "Lihat Laporan Akhir →",
@@ -388,16 +388,16 @@ const PLAGIARISM_POLICE_PRESET = {
     "timeLabel": "Waktu Investigasi",
     "scoreLabel": "Skor Akhir",
     "namePrompt": "Catat Identitas Investigator",
-    "namePlaceholder": "Nama / alias",
+    "namePlaceholder": "Name / alias",
     "saveLabel": "Simpan Hasil",
     "savingLabel": "Menyimpan…",
     "rankLabel": "Peringkat Anda",
     "leaderboardLabel": "Lihat Klasemen",
     "leaderboardTitle": "Klasemen",
-    "closeLabel": "Tutup ×",
+    "closeLabel": "Close ×",
     "leaderboardError": "Klasemen belum dapat dimuat.",
     "saveError": "Skor belum dapat disimpan.",
-    "nameError": "Nama / alias minimal 2 karakter."
+    "nameError": "Name / alias minimal 2 karakter."
   },
   "podium": {
     "first": "Selamat. Bahkan sumbernya mengakui Anda.",
@@ -663,8 +663,8 @@ const PLAGIARISM_POLICE_PRESET = {
       "label": "Keputusan Konsumen",
       "enabled": true,
       "difficulty": "Dasar",
-      "source": "Konsumen sering menggunakan ulasan sebagai petunjuk ketika menghadapi ketidakpastian sebelum membeli. Informasi sosial dapat mengurangi persepsi risiko.",
-      "writerText": "Konsumen sering menggunakan ulasan sebagai petunjuk ketika menghadapi ketidakpastian sebelum membeli. Informasi sosial dapat mengurangi persepsi risiko. Karena itu ulasan penting bagi toko daring.",
+      "source": "Konsumen sering menggunakan ulasan sebagai petunjuk ketika menghadapi ketidakpastian sebelum membeli. Information sosial dapat mengurangi persepsi risiko.",
+      "writerText": "Konsumen sering menggunakan ulasan sebagai petunjuk ketika menghadapi ketidakpastian sebelum membeli. Information sosial dapat mengurangi persepsi risiko. Karena itu ulasan penting bagi toko daring.",
       "correctVerdict": "plagiarism",
       "correctEvidenceTypes": [
         "wording",
@@ -677,7 +677,7 @@ const PLAGIARISM_POLICE_PRESET = {
         },
         {
           "id": "c6-2",
-          "text": "ketika menghadapi ketidakpastian sebelum membeli. Informasi"
+          "text": "ketika menghadapi ketidakpastian sebelum membeli. Information"
         },
         {
           "id": "c6-3",
@@ -758,7 +758,7 @@ const PLAGIARISM_POLICE_PRESET = {
         "r7-1",
         "r7-2"
       ],
-      "report": "Informasi sumber direstrukturisasi dan sumber disebut dengan jelas."
+      "report": "Information sumber direstrukturisasi dan sumber disebut dengan jelas."
     },
     {
       "id": "pp-08",
@@ -1065,7 +1065,7 @@ const PLAGIARISM_POLICE_PRESET = {
     },
     {
       "id": "pp-14",
-      "label": "Pilihan Berlebihan",
+      "label": "Selectan Berlebihan",
       "enabled": true,
       "difficulty": "Menengah",
       "source": "Terlalu banyak pilihan dapat meningkatkan beban kognitif dan membuat proses memilih terasa lebih sulit.",
@@ -1265,7 +1265,7 @@ const PLAGIARISM_POLICE_PRESET = {
         }
       ],
       "correctReasonIds": [],
-      "report": "Bagian sumber dipotong dan disusun ulang, tetapi wording serta struktur inti tetap diambil tanpa atribusi."
+      "report": "Section sumber dipotong dan disusun ulang, tetapi wording serta struktur inti tetap diambil tanpa atribusi."
     },
     {
       "id": "pp-18",
@@ -1316,7 +1316,7 @@ const PLAGIARISM_POLICE_PRESET = {
         "r18-1",
         "r18-2"
       ],
-      "report": "Informasi sumber disintesis menjadi penjelasan baru dan sumber tetap disebut."
+      "report": "Information sumber disintesis menjadi penjelasan baru dan sumber tetap disebut."
     },
     {
       "id": "pp-19",
@@ -1675,7 +1675,7 @@ const PLAGIARISM_POLICE_PRESET = {
     },
     {
       "id": "pp-26",
-      "label": "Arsitektur Pilihan",
+      "label": "Arsitektur Selectan",
       "enabled": true,
       "difficulty": "Lanjut",
       "source": "Arsitektur pilihan mengacu pada cara penyajian opsi yang dapat memengaruhi keputusan tanpa menghapus kebebasan memilih.",
@@ -1726,7 +1726,7 @@ const PLAGIARISM_POLICE_PRESET = {
     },
     {
       "id": "pp-27",
-      "label": "Bahasa Internet",
+      "label": "Language Internet",
       "enabled": true,
       "difficulty": "Lanjut",
       "source": "Komunikasi daring melahirkan bentuk bahasa yang menyesuaikan keterbatasan dan kebiasaan medium digital.",
@@ -1931,6 +1931,3045 @@ const PLAGIARISM_POLICE_PRESET = {
   ],
   "drafts": []
 };
+const HEADLINE_HOOK_CMS_PRESET = {
+  "id": "headline-hook",
+  "gameType": "headlineHook",
+  "enabled": true,
+  "showInLibrary": true,
+  "gameName": "Headline Hook",
+  "gameCategory": "Copywriting",
+  "gameCardDescription": "Pilih headline yang menarik tanpa mengorbankan kejelasan, relevansi, atau kejujuran.",
+  "title": "Tarik perhatian. Jangan tarik kebohongan.",
+  "objective": "Hadapi 10 brief. Pilih headline yang paling kuat untuk audiens dan tujuan yang diberikan. Setiap pilihan dinilai dari kejelasan, relevansi, dan daya tarik.",
+  "rules": [
+    "Baca brief: jenis konten, target pembaca, dan tujuan tulisan.",
+    "Pilih satu dari empat headline. Tidak semua headline yang paling heboh adalah yang paling kuat.",
+    "Nilai dibagi menjadi Kejelasan 35, Relevansi 35, dan Daya Tarik 30.",
+    "Headline yang menyesatkan, terlalu mutlak, atau menjanjikan terlalu banyak dapat kehilangan kualitas meski terdengar menarik.",
+    "Selesaikan 10 brief. Setelah setiap pilihan, baca Headline Report sebelum lanjut."
+  ],
+  "startButtonLabel": "Mulai Mengait",
+  "casesPerSession": 10,
+  "scoreMaxPerCase": 100,
+  "briefLabel": "BRIEF",
+  "contentTypeLabel": "JENIS KONTEN",
+  "audienceLabel": "TARGET PEMBACA",
+  "goalLabel": "TUJUAN",
+  "chooseLabel": "PILIH HEADLINE",
+  "submitLabel": "Kunci Headline",
+  "reportLabel": "HEADLINE REPORT",
+  "clarityLabel": "Kejelasan",
+  "relevanceLabel": "Relevansi",
+  "hookLabel": "Daya Tarik",
+  "riskLabel": "Catatan Risiko",
+  "cleanRiskLabel": "Tidak ada risiko editorial utama.",
+  "nextLabel": "Brief Berikutnya",
+  "resultEyebrow": "LAPORAN HEADLINE AKHIR",
+  "replayLabel": "Main Lagi",
+  "gradeTitles": [
+    {
+      "min": 900,
+      "label": "Hook Architect",
+      "remark": "Anda tahu kapan harus menarik perhatian—dan kapan harus menahan diri."
+    },
+    {
+      "min": 750,
+      "label": "Headline Editor",
+      "remark": "Headline Anda sudah punya arah, ritme, dan alasan untuk diklik."
+    },
+    {
+      "min": 550,
+      "label": "Copy Scout",
+      "remark": "Instingnya ada. Sekarang tinggal membedakan hook yang tajam dari hook yang berisik."
+    },
+    {
+      "min": 0,
+      "label": "First Draft",
+      "remark": "Belum semua headline perlu diterbitkan. Untungnya, ini masih draft."
+    }
+  ],
+  "scoreLabel": "Skor Akhir",
+  "averageLabel": "Rata-rata",
+  "bestDimensionLabel": "Dimensi Terkuat",
+  "cases": [
+    {
+      "id": "headline-01",
+      "label": "Tidur dan Produktivitas",
+      "contentType": "Artikel populer",
+      "audience": "Pekerja muda",
+      "goal": "Mendorong pembaca membuka artikel tanpa menjanjikan hasil berlebihan",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Kurang Tidur Bisa Mengacaukan Fokus Kerja Anda",
+          "clarity": 31,
+          "relevance": 32,
+          "hook": 25,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Rahasia Produktivitas yang Tidak Ingin Diketahui Bos Anda",
+          "clarity": 18,
+          "relevance": 16,
+          "hook": 30,
+          "risks": [
+            "Sensational"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Tidur Lebih Lama, Karier Langsung Melejit",
+          "clarity": 12,
+          "relevance": 10,
+          "hook": 28,
+          "risks": [
+            "Overpromise"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Mengapa Fokus Kerja Sering Memburuk Setelah Kurang Tidur",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 24,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-02",
+      "label": "Belanja Impulsif",
+      "contentType": "Artikel consumer behavior",
+      "audience": "Pembeli daring",
+      "goal": "Menjelaskan pemicu keputusan impulsif",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Kenapa Tombol Beli Sekarang Sulit Diabaikan?",
+          "clarity": 32,
+          "relevance": 33,
+          "hook": 29,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Anda Selama Ini Ditipu Toko Online",
+          "clarity": 16,
+          "relevance": 15,
+          "hook": 28,
+          "risks": [
+            "Misleading"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Satu Trik yang Membuat Semua Orang Boros",
+          "clarity": 15,
+          "relevance": 18,
+          "hook": 30,
+          "risks": [
+            "Overgeneral"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Bagaimana Desain Toko Daring Mendorong Belanja Impulsif",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 23,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-03",
+      "label": "Ruang Hijau",
+      "contentType": "Artikel gaya hidup",
+      "audience": "Warga kota",
+      "goal": "Mengundang pembaca memahami hubungan ruang hijau dan kesejahteraan",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Apa yang Berubah Saat Kota Punya Lebih Banyak Ruang Hijau?",
+          "clarity": 34,
+          "relevance": 34,
+          "hook": 28,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Taman Kota Menyembuhkan Semua Masalah Mental",
+          "clarity": 12,
+          "relevance": 12,
+          "hook": 29,
+          "risks": [
+            "Overclaim"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Kota Tanpa Pohon Adalah Kota Gagal",
+          "clarity": 18,
+          "relevance": 18,
+          "hook": 25,
+          "risks": [
+            "Loaded"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Ruang Hijau dan Kesejahteraan: Hubungan yang Perlu Dipahami",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 20,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-04",
+      "label": "AI dan Menulis",
+      "contentType": "Esai teknologi",
+      "audience": "Penulis pemula",
+      "goal": "Membahas AI sebagai alat tanpa menghapus peran penulis",
+      "options": [
+        {
+          "id": "h1",
+          "text": "AI Bisa Menulis. Lalu Penulis Ngapain?",
+          "clarity": 33,
+          "relevance": 34,
+          "hook": 30,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Penulis Akan Punah Karena AI",
+          "clarity": 15,
+          "relevance": 14,
+          "hook": 30,
+          "risks": [
+            "Overclaim"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Cara AI Menggantikan Kreativitas Manusia",
+          "clarity": 17,
+          "relevance": 18,
+          "hook": 24,
+          "risks": [
+            "Misleading"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Ketika AI Masuk ke Meja Kerja Penulis",
+          "clarity": 35,
+          "relevance": 34,
+          "hook": 25,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-05",
+      "label": "Kesepian",
+      "contentType": "Artikel psikologi populer",
+      "audience": "Mahasiswa",
+      "goal": "Membuka pembahasan bahwa kesepian tidak selalu terlihat",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Kesepian Tidak Selalu Datang Saat Kita Sendiri",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 28,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Tanda Rahasia Semua Orang Kesepian",
+          "clarity": 20,
+          "relevance": 18,
+          "hook": 27,
+          "risks": [
+            "Overgeneral"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Kalau Punya Teman, Mustahil Kesepian",
+          "clarity": 8,
+          "relevance": 8,
+          "hook": 18,
+          "risks": [
+            "False"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Mengapa Kesepian Bisa Muncul di Tengah Keramaian",
+          "clarity": 34,
+          "relevance": 35,
+          "hook": 27,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-06",
+      "label": "Nostalgia",
+      "contentType": "Feature budaya",
+      "audience": "Pembaca umum",
+      "goal": "Menjelaskan kenapa benda lama terasa emosional",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Kenapa Lagu Lama Bisa Membawa Kita Pulang?",
+          "clarity": 34,
+          "relevance": 34,
+          "hook": 30,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Nostalgia Adalah Bukti Anda Tidak Bisa Move On",
+          "clarity": 16,
+          "relevance": 14,
+          "hook": 28,
+          "risks": [
+            "Loaded"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Semua Kenangan Lama Lebih Indah",
+          "clarity": 14,
+          "relevance": 15,
+          "hook": 24,
+          "risks": [
+            "Overgeneral"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Mengapa Benda dan Lagu Lama Terasa Begitu Personal",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 24,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-07",
+      "label": "Dark Pattern",
+      "contentType": "Artikel edukasi digital",
+      "audience": "Pengguna aplikasi",
+      "goal": "Membantu pembaca mengenali desain manipulatif",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Saat Tombol di Layar Diam-diam Mengarahkan Pilihan Anda",
+          "clarity": 34,
+          "relevance": 35,
+          "hook": 29,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Aplikasi Anda Sedang Mengendalikan Pikiran",
+          "clarity": 15,
+          "relevance": 17,
+          "hook": 30,
+          "risks": [
+            "Overclaim"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Semua Desainer Aplikasi Memanipulasi Pengguna",
+          "clarity": 10,
+          "relevance": 10,
+          "hook": 25,
+          "risks": [
+            "Overgeneral"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Dark Pattern: Ketika Desain Mendorong Pilihan yang Tidak Anda Inginkan",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 23,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-08",
+      "label": "Burnout",
+      "contentType": "Artikel kerja",
+      "audience": "Pekerja awal karier",
+      "goal": "Membedakan lelah biasa dan burnout tanpa diagnosis",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Lelah atau Burnout? Kenali Perbedaannya Tanpa Mendiagnosis Diri",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 27,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Kalau Malas Kerja, Anda Pasti Burnout",
+          "clarity": 8,
+          "relevance": 10,
+          "hook": 20,
+          "risks": [
+            "False"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Tes 30 Detik untuk Membuktikan Anda Burnout",
+          "clarity": 14,
+          "relevance": 13,
+          "hook": 30,
+          "risks": [
+            "Medical overclaim"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Burnout Bukan Sekadar Lelah Setelah Hari yang Panjang",
+          "clarity": 34,
+          "relevance": 35,
+          "hook": 27,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-09",
+      "label": "Algoritma",
+      "contentType": "Artikel media",
+      "audience": "Pengguna media sosial",
+      "goal": "Menjelaskan pengaruh rekomendasi terhadap apa yang dilihat",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Siapa yang Memilih Isi Feed Anda?",
+          "clarity": 33,
+          "relevance": 34,
+          "hook": 30,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Algoritma Tahu Segalanya Tentang Anda",
+          "clarity": 18,
+          "relevance": 16,
+          "hook": 29,
+          "risks": [
+            "Overclaim"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Media Sosial Mengontrol Semua yang Anda Pikirkan",
+          "clarity": 10,
+          "relevance": 10,
+          "hook": 28,
+          "risks": [
+            "Overclaim"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Bagaimana Sistem Rekomendasi Membentuk Apa yang Muncul di Feed",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 23,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-10",
+      "label": "Kopi",
+      "contentType": "Feature ringan",
+      "audience": "Pekerja kreatif",
+      "goal": "Membahas ritual kopi sebagai kebiasaan, bukan klaim kesehatan",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Kenapa Secangkir Kopi Bisa Terasa Seperti Tombol Mulai?",
+          "clarity": 34,
+          "relevance": 34,
+          "hook": 30,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Kopi Terbukti Membuat Semua Orang Lebih Kreatif",
+          "clarity": 12,
+          "relevance": 13,
+          "hook": 28,
+          "risks": [
+            "Overclaim"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Minum Kopi dan Ide Akan Datang Sendiri",
+          "clarity": 10,
+          "relevance": 12,
+          "hook": 27,
+          "risks": [
+            "Overpromise"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Ritual Kopi dan Cara Kita Memulai Hari Kerja",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 22,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-11",
+      "label": "Pilihan Berlebihan",
+      "contentType": "Artikel consumer behavior",
+      "audience": "Pembeli digital",
+      "goal": "Menjelaskan choice overload",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Terlalu Banyak Pilihan Bisa Membuat Kita Tidak Memilih Apa-apa",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 27,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "100 Pilihan Akan Menghancurkan Otak Anda",
+          "clarity": 11,
+          "relevance": 12,
+          "hook": 29,
+          "risks": [
+            "Sensational"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Semakin Banyak Produk, Semakin Buruk Tokonya",
+          "clarity": 15,
+          "relevance": 15,
+          "hook": 22,
+          "risks": [
+            "Overgeneral"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Ketika Banyak Pilihan Justru Membuat Keputusan Lebih Sulit",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 24,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-12",
+      "label": "Empati",
+      "contentType": "Artikel komunikasi",
+      "audience": "Tim kerja",
+      "goal": "Membedakan mendengar dan langsung memberi solusi",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Kadang Orang Tidak Butuh Solusi. Mereka Butuh Didengar.",
+          "clarity": 34,
+          "relevance": 35,
+          "hook": 30,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Satu Kalimat Ini Akan Membuat Semua Orang Menyukai Anda",
+          "clarity": 13,
+          "relevance": 12,
+          "hook": 30,
+          "risks": [
+            "Overpromise"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Berhenti Memberi Nasihat Selamanya",
+          "clarity": 17,
+          "relevance": 18,
+          "hook": 25,
+          "risks": [
+            "Absolute"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Mendengar Sebelum Menjawab: Bagian Kecil dari Empati",
+          "clarity": 35,
+          "relevance": 34,
+          "hook": 22,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-13",
+      "label": "Bahasa Internet",
+      "contentType": "Feature budaya",
+      "audience": "Pengguna internet",
+      "goal": "Membahas perubahan bahasa secara netral",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Bahasa Internet Tidak Rusak. Ia Sedang Bergerak.",
+          "clarity": 33,
+          "relevance": 34,
+          "hook": 30,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Gen Z Menghancurkan Bahasa Indonesia",
+          "clarity": 10,
+          "relevance": 12,
+          "hook": 29,
+          "risks": [
+            "Loaded"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Singkatan Online Membuat Kita Makin Bodoh",
+          "clarity": 12,
+          "relevance": 13,
+          "hook": 26,
+          "risks": [
+            "Unsupported"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Dari WKWK ke Istilah Baru: Bagaimana Internet Mengubah Bahasa",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 25,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-14",
+      "label": "Kerja Remote",
+      "contentType": "Artikel kerja",
+      "audience": "Pekerja hybrid",
+      "goal": "Membahas trade-off fokus dan isolasi",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Kerja dari Rumah Memberi Fokus—dan Tantangan yang Berbeda",
+          "clarity": 34,
+          "relevance": 35,
+          "hook": 25,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Remote Work Adalah Cara Kerja Paling Sempurna",
+          "clarity": 12,
+          "relevance": 15,
+          "hook": 26,
+          "risks": [
+            "Absolute"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Kantor Sudah Tidak Berguna",
+          "clarity": 11,
+          "relevance": 12,
+          "hook": 25,
+          "risks": [
+            "Loaded"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Apa yang Kita Dapat dan Kehilangan Saat Bekerja dari Rumah",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 29,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-15",
+      "label": "Musik dan Emosi",
+      "contentType": "Artikel budaya",
+      "audience": "Pendengar musik",
+      "goal": "Mengundang pembaca mengeksplorasi hubungan musik dan memori",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Kenapa Satu Lagu Bisa Mengubah Suasana dalam Hitungan Detik?",
+          "clarity": 34,
+          "relevance": 34,
+          "hook": 30,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Lagu Sedih Selalu Membuat Depresi",
+          "clarity": 8,
+          "relevance": 9,
+          "hook": 23,
+          "risks": [
+            "False"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Musik Bisa Menyembuhkan Semua Luka",
+          "clarity": 10,
+          "relevance": 10,
+          "hook": 28,
+          "risks": [
+            "Overclaim"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Musik, Memori, dan Emosi yang Datang Bersamaan",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 23,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-16",
+      "label": "Efek Halo",
+      "contentType": "Artikel psikologi populer",
+      "audience": "Pembaca umum",
+      "goal": "Memperkenalkan bias penilaian",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Saat Satu Kesan Baik Mewarnai Semua Penilaian Kita",
+          "clarity": 34,
+          "relevance": 35,
+          "hook": 28,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Orang Menarik Selalu Dipercaya",
+          "clarity": 12,
+          "relevance": 15,
+          "hook": 24,
+          "risks": [
+            "Overgeneral"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Otak Anda Tidak Pernah Menilai dengan Benar",
+          "clarity": 14,
+          "relevance": 13,
+          "hook": 29,
+          "risks": [
+            "Absolute"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Efek Halo: Mengapa Satu Kesan Bisa Memengaruhi Penilaian Lain",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 22,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-17",
+      "label": "Apathy",
+      "contentType": "Esai reflektif",
+      "audience": "Pembaca muda",
+      "goal": "Membahas ketidakpedulian tanpa menghakimi",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Ketika Tidak Peduli Terasa Lebih Mudah daripada Memilih",
+          "clarity": 34,
+          "relevance": 34,
+          "hook": 30,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Orang Apatis Adalah Masalah Masyarakat",
+          "clarity": 18,
+          "relevance": 18,
+          "hook": 25,
+          "risks": [
+            "Loaded"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Kalau Diam, Berarti Anda Tidak Punya Empati",
+          "clarity": 10,
+          "relevance": 11,
+          "hook": 22,
+          "risks": [
+            "False"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Apathy dan Jarak yang Kita Buat dari Masalah",
+          "clarity": 35,
+          "relevance": 34,
+          "hook": 21,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-18",
+      "label": "Kepercayaan Konsumen",
+      "contentType": "Artikel brand",
+      "audience": "Pemilik bisnis kecil",
+      "goal": "Menjelaskan trust tanpa formula instan",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Kepercayaan Pelanggan Dibangun Sebelum Tombol Beli Ditekan",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 27,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "3 Trik yang Dijamin Membuat Pelanggan Percaya",
+          "clarity": 15,
+          "relevance": 16,
+          "hook": 30,
+          "risks": [
+            "Guarantee"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Brand Besar Selalu Lebih Dipercaya",
+          "clarity": 13,
+          "relevance": 14,
+          "hook": 20,
+          "risks": [
+            "Overgeneral"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Apa yang Membuat Konsumen Merasa Aman Memilih Sebuah Brand",
+          "clarity": 34,
+          "relevance": 35,
+          "hook": 27,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-19",
+      "label": "Parasocial",
+      "contentType": "Artikel media",
+      "audience": "Penggemar kreator",
+      "goal": "Menjelaskan kedekatan satu arah tanpa menghakimi",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Merasa Dekat dengan Kreator yang Tidak Mengenal Kita",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 27,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Fans Parasocial Pasti Kesepian",
+          "clarity": 12,
+          "relevance": 13,
+          "hook": 23,
+          "risks": [
+            "Stigma"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Influencer Memanipulasi Semua Pengikutnya",
+          "clarity": 11,
+          "relevance": 12,
+          "hook": 27,
+          "risks": [
+            "Overgeneral"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Hubungan Parasosial: Kedekatan yang Berjalan Satu Arah",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 22,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-20",
+      "label": "Kreativitas",
+      "contentType": "Artikel kerja kreatif",
+      "audience": "Kreator pemula",
+      "goal": "Membongkar mitos inspirasi instan",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Kreativitas Tidak Selalu Datang Saat Kita Menunggunya",
+          "clarity": 34,
+          "relevance": 35,
+          "hook": 27,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Rahasia Menjadi Kreatif dalam Lima Menit",
+          "clarity": 14,
+          "relevance": 15,
+          "hook": 30,
+          "risks": [
+            "Overpromise"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Orang Kreatif Terlahir Berbeda",
+          "clarity": 10,
+          "relevance": 12,
+          "hook": 22,
+          "risks": [
+            "False"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Ide Bagus Sering Dimulai dari Draft yang Biasa Saja",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 28,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-21",
+      "label": "Memori Kolektif",
+      "contentType": "Feature sejarah budaya",
+      "audience": "Pembaca umum",
+      "goal": "Menjelaskan bagaimana kelompok mengingat peristiwa",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Siapa yang Menentukan Apa yang Kita Ingat Bersama?",
+          "clarity": 33,
+          "relevance": 34,
+          "hook": 30,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Sejarah yang Anda Tahu Semuanya Salah",
+          "clarity": 13,
+          "relevance": 12,
+          "hook": 29,
+          "risks": [
+            "Sensational"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Masyarakat Selalu Mengingat Masa Lalu dengan Keliru",
+          "clarity": 12,
+          "relevance": 13,
+          "hook": 22,
+          "risks": [
+            "Absolute"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Memori Kolektif dan Cara Sebuah Kelompok Mengingat Masa Lalu",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 22,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-22",
+      "label": "Arsitektur Pilihan",
+      "contentType": "Artikel UX",
+      "audience": "Desainer junior",
+      "goal": "Menjelaskan bahwa urutan pilihan memengaruhi keputusan",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Urutan Pilihan Bisa Mengubah Apa yang Kita Pilih",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 26,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Desainer Bisa Mengendalikan Keputusan Siapa Pun",
+          "clarity": 13,
+          "relevance": 14,
+          "hook": 28,
+          "risks": [
+            "Overclaim"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "UX Adalah Manipulasi",
+          "clarity": 12,
+          "relevance": 12,
+          "hook": 24,
+          "risks": [
+            "Loaded"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Arsitektur Pilihan: Saat Susunan Opsi Ikut Membentuk Keputusan",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 23,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-23",
+      "label": "Subteks",
+      "contentType": "Artikel menulis",
+      "audience": "Penulis pemula",
+      "goal": "Menjelaskan makna implisit dalam dialog",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Yang Tidak Diucapkan Kadang Justru Menggerakkan Dialog",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 28,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Dialog Bagus Tidak Pernah Mengatakan Maksudnya",
+          "clarity": 17,
+          "relevance": 18,
+          "hook": 24,
+          "risks": [
+            "Absolute"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Satu Teknik Ini Membuat Dialog Anda Sempurna",
+          "clarity": 12,
+          "relevance": 14,
+          "hook": 30,
+          "risks": [
+            "Overpromise"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Subteks: Makna yang Hidup di Bawah Kalimat",
+          "clarity": 35,
+          "relevance": 34,
+          "hook": 24,
+          "risks": []
+        }
+      ]
+    },
+    {
+      "id": "headline-24",
+      "label": "Satir",
+      "contentType": "Artikel budaya",
+      "audience": "Pembaca umum",
+      "goal": "Menjelaskan satir tanpa menyamakannya dengan semua humor",
+      "options": [
+        {
+          "id": "h1",
+          "text": "Saat Lelucon Dipakai untuk Menyenggol Sesuatu yang Serius",
+          "clarity": 34,
+          "relevance": 35,
+          "hook": 29,
+          "risks": []
+        },
+        {
+          "id": "h2",
+          "text": "Semua Humor Politik Adalah Satir",
+          "clarity": 14,
+          "relevance": 16,
+          "hook": 21,
+          "risks": [
+            "Overgeneral"
+          ]
+        },
+        {
+          "id": "h3",
+          "text": "Satir Selalu Lebih Cerdas dari Komedi Biasa",
+          "clarity": 12,
+          "relevance": 13,
+          "hook": 24,
+          "risks": [
+            "Loaded"
+          ]
+        },
+        {
+          "id": "h4",
+          "text": "Satir: Ketika Humor Membawa Kritik di Dalamnya",
+          "clarity": 35,
+          "relevance": 35,
+          "hook": 23,
+          "risks": []
+        }
+      ]
+    }
+  ]
+};
+
+const TONE_SWITCHER_CMS_PRESET = {
+  "id": "tone-switcher",
+  "gameType": "toneSwitcher",
+  "enabled": true,
+  "showInLibrary": true,
+  "gameName": "Tone Switcher",
+  "gameCategory": "Style & Audience",
+  "gameCardDescription": "Sesuaikan satu pesan untuk audiens, kanal, dan nada yang berbeda tanpa mengubah maksudnya.",
+  "title": "Pesannya sama. Cara mengatakannya belum tentu.",
+  "objective": "Hadapi 10 situasi komunikasi. Baca pesan dasar, audiens, kanal, dan nada yang diminta, lalu pilih versi yang paling tepat tanpa mengubah maksud utama.",
+  "rules": [
+    "Baca konteks: pesan dasar, kanal, target pembaca, dan nada yang diminta.",
+    "Pilih satu dari empat versi. Fokus pada cara menyampaikan, bukan mengganti fakta atau maksud.",
+    "Setiap pilihan dinilai dari Kesesuaian Nada 40, Kesesuaian Audiens 35, dan Kejelasan 25.",
+    "Versi yang terdengar menarik tetap dapat kehilangan nilai jika terlalu formal, terlalu santai, terlalu agresif, atau mengubah makna.",
+    "Selesaikan 10 situasi. Setelah memilih, baca Tone Report sebelum melanjutkan."
+  ],
+  "startButtonLabel": "Mulai Mengganti Nada",
+  "casesPerSession": 10,
+  "contextLabel": "KONTEKS",
+  "channelLabel": "KANAL",
+  "audienceLabel": "TARGET PEMBACA",
+  "toneLabel": "NADA",
+  "sourceLabel": "PESAN DASAR",
+  "chooseLabel": "PILIH VERSI",
+  "submitLabel": "Kunci Nada",
+  "reportLabel": "TONE REPORT",
+  "toneFitLabel": "Kesesuaian Nada",
+  "audienceFitLabel": "Kesesuaian Audiens",
+  "clarityLabel": "Kejelasan",
+  "nextLabel": "Situasi Berikutnya",
+  "resultEyebrow": "LAPORAN TONE AKHIR",
+  "scoreLabel": "Skor Akhir",
+  "bestDimensionLabel": "Dimensi Terkuat",
+  "replayLabel": "Main Lagi",
+  "gradeTitles": [
+    {
+      "min": 900,
+      "label": "Voice Director",
+      "remark": "Anda bisa mengubah suara tanpa membuat pesannya kehilangan identitas."
+    },
+    {
+      "min": 750,
+      "label": "Tone Editor",
+      "remark": "Anda tahu kapan sebuah pesan perlu dilunakkan, ditegaskan, atau dibuat lebih dekat."
+    },
+    {
+      "min": 550,
+      "label": "Style Scout",
+      "remark": "Arah nadanya mulai terbaca. Beberapa pesan masih memakai baju yang salah."
+    },
+    {
+      "min": 0,
+      "label": "Wrong Room",
+      "remark": "Pesannya sampai. Hanya saja, kadang seperti dikirim ke ruangan yang berbeda."
+    }
+  ],
+  "cases": [
+    {
+      "id": "tone-01",
+      "label": "Permintaan revisi",
+      "channel": "Email kerja",
+      "audience": "Atasan",
+      "targetTone": "Profesional",
+      "source": "Tolong revisi bagian pembuka ini sebelum pukul tiga.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Bagian pembukanya perlu disesuaikan. Mohon revisinya sebelum pukul tiga.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Bro, pembukanya aneh. Benerin sebelum jam tiga ya.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Dengan hormat, saya memohon kesediaan Anda untuk melakukan revisi terhadap bagian pembuka sebelum pukul tiga.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Pembukanya salah. Revisi sekarang.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-02",
+      "label": "Promo produk",
+      "channel": "Instagram",
+      "audience": "Calon pelanggan",
+      "targetTone": "Persuasif",
+      "source": "Produk ini dibuat untuk meja kerja kecil dan mudah disimpan.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Meja sempit? Produk ini tetap punya tempat—ringkas, praktis, dan mudah disimpan.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Produk ini memiliki dimensi yang relatif ringkas untuk kebutuhan penyimpanan.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "WOI MEJA KECIL WAJIB BELI INI SEKARANG!!!",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Produk ini cocok. Beli.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-03",
+      "label": "Gangguan layanan",
+      "channel": "Notifikasi aplikasi",
+      "audience": "Pengguna aktif",
+      "targetTone": "Empatik",
+      "source": "Layanan sedang mengalami gangguan dan tim sedang memperbaikinya.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Kami tahu ini mengganggu. Tim kami sedang memperbaiki layanan dan akan memberi kabar begitu kembali normal.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Terjadi gangguan layanan. Mohon menunggu proses perbaikan.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Santai aja, servernya lagi ngambek dikit.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Layanan gagal. Tunggu.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-04",
+      "label": "Pengingat tugas",
+      "channel": "Chat tim",
+      "audience": "Rekan kerja",
+      "targetTone": "Santai",
+      "source": "Batas pengumpulan materi adalah sore ini.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Heads up, materi kita ditunggu sore ini ya. Kalau ada yang nyangkut, kabarin.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Dengan ini kami mengingatkan bahwa batas pengumpulan materi adalah sore hari ini.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "CEPET KIRIM MATERINYA, SORE INI DEADLINE!",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Deadline sore ini.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-05",
+      "label": "Kebijakan privasi",
+      "channel": "Pusat bantuan",
+      "audience": "Pengguna umum",
+      "targetTone": "Informatif",
+      "source": "Aplikasi menyimpan preferensi bahasa agar pilihan pengguna tetap sama pada kunjungan berikutnya.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Kami menyimpan preferensi bahasa Anda agar pilihan yang sama tetap digunakan saat Anda kembali.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Tenang, kami cuma inget bahasa favoritmu biar besok nggak mulai dari nol.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Aplikasi ini mengingat semuanya tentang Anda.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Preferensi disimpan.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-06",
+      "label": "Penolakan kandidat",
+      "channel": "Email rekrutmen",
+      "audience": "Pelamar",
+      "targetTone": "Empatik",
+      "source": "Pelamar tidak dilanjutkan ke tahap berikutnya.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Terima kasih sudah meluangkan waktu untuk mengikuti proses kami. Untuk posisi ini, kami belum melanjutkan aplikasi Anda ke tahap berikutnya.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Anda tidak lolos. Semoga sukses.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Sayangnya, dengan segala hormat dan pertimbangan mendalam, kami harus menyampaikan keputusan yang tidak mudah ini.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Yah, belum rezeki. Coba lagi nanti.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-07",
+      "label": "Peluncuran fitur",
+      "channel": "Product update",
+      "audience": "Pengguna lama",
+      "targetTone": "Antusias",
+      "source": "Fitur pencarian kini mendukung filter berdasarkan tanggal.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Sekarang pencarian bisa dipersempit berdasarkan tanggal—lebih cepat menemukan yang benar-benar Anda cari.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Telah ditambahkan dukungan filter tanggal pada fungsi pencarian.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "GILA! FILTER TANGGAL AKHIRNYA TURUN!!!",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Ada filter tanggal.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-08",
+      "label": "Instruksi reset password",
+      "channel": "Help center",
+      "audience": "Pengguna bermasalah",
+      "targetTone": "Instruktif",
+      "source": "Pengguna perlu membuka email reset lalu membuat kata sandi baru.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Buka email reset yang kami kirim, pilih tautannya, lalu buat kata sandi baru.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Kami menyarankan agar pengguna terlebih dahulu mengakses korespondensi elektronik terkait pengaturan ulang.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Cek email, pencet link, beresin password. Gampang.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Reset password melalui email.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-09",
+      "label": "Permintaan maaf",
+      "channel": "Email pelanggan",
+      "audience": "Pelanggan kecewa",
+      "targetTone": "Empatik",
+      "source": "Pesanan tiba dua hari terlambat.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Maaf pesanan Anda tiba dua hari lebih lambat dari jadwal. Kami memahami keterlambatan ini merepotkan.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Pesanan terlambat dua hari karena kendala operasional.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Ya ampun, telat dua hari doang kok.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Pesanan terlambat. Maaf.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-10",
+      "label": "CTA newsletter",
+      "channel": "Landing page",
+      "audience": "Pembaca artikel",
+      "targetTone": "Persuasif",
+      "source": "Newsletter berisi satu rangkuman ide setiap Jumat.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Satu ide penting setiap Jumat, langsung ke inbox Anda. Bergabunglah dengan newsletter.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Newsletter dikirim pada hari Jumat dan berisi rangkuman ide.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "DAFTAR SEKARANG ATAU KETINGGALAN SELAMANYA!",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Daftar newsletter.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-11",
+      "label": "Feedback desain",
+      "channel": "Komentar kerja",
+      "audience": "Desainer",
+      "targetTone": "Konstruktif",
+      "source": "Kontras tombol utama terlalu rendah.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Arah visualnya sudah jelas. Untuk tombol utama, coba naikkan kontrasnya agar tindakan utama lebih mudah ditemukan.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Kontras tombol tidak memenuhi kebutuhan. Perbaiki.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Tombolnya nyaris nggak kelihatan, bro.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Desainnya jelek karena tombolnya redup.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-12",
+      "label": "Pengumuman kantor",
+      "channel": "Slack",
+      "audience": "Tim internal",
+      "targetTone": "Santai",
+      "source": "Rapat mingguan dipindahkan dari Senin ke Selasa.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Rapat mingguan geser ke Selasa ya, jamnya tetap sama. Sampai ketemu!",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Dengan ini diberitahukan bahwa rapat mingguan dipindahkan ke hari Selasa.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "BREAKING NEWS: Senin kita bebas rapat!!!",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Rapat Selasa.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-13",
+      "label": "Hasil survei",
+      "channel": "Laporan",
+      "audience": "Manajemen",
+      "targetTone": "Analitis",
+      "source": "68% responden menyebut kecepatan sebagai alasan utama memilih layanan.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Sebanyak 68% responden menempatkan kecepatan sebagai alasan utama memilih layanan, menjadikannya faktor yang paling sering disebut.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Mayoritas banget orang suka karena cepat.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Kecepatan jelas membuktikan layanan ini paling unggul.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "68% bilang cepat.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-14",
+      "label": "Bio kreator",
+      "channel": "Portfolio",
+      "audience": "Calon klien",
+      "targetTone": "Profesional",
+      "source": "Penulis berfokus pada konten, editing, dan strategi kreatif.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Saya menulis dan menyunting konten, lalu membantu mengubah gagasan menjadi arah komunikasi yang lebih jelas.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Saya adalah individu profesional yang memiliki kompetensi dalam berbagai aspek penulisan.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Gue bisa nulis apa aja, gas aja.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Penulis. Editor. Strategi.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-15",
+      "label": "FAQ refund",
+      "channel": "Help center",
+      "audience": "Pelanggan",
+      "targetTone": "Informatif",
+      "source": "Refund diproses 5–7 hari kerja setelah disetujui.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Setelah disetujui, refund biasanya diproses dalam 5–7 hari kerja.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Duit balik sekitar semingguan, santai.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Refund akan segera diterima.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Refund: 5–7 hari.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-16",
+      "label": "Ajakan donasi",
+      "channel": "Campaign page",
+      "audience": "Donatur potensial",
+      "targetTone": "Persuasif",
+      "source": "Donasi mendukung penyediaan buku untuk perpustakaan komunitas.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Satu kontribusi membantu menambah buku yang bisa dibaca bersama di perpustakaan komunitas.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Donasi akan dialokasikan untuk pengadaan koleksi literatur.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Kalau peduli pendidikan, masa nggak donasi?",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Donasi buku sekarang.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-17",
+      "label": "Peringatan keamanan",
+      "channel": "Email keamanan",
+      "audience": "Pemilik akun",
+      "targetTone": "Tegas",
+      "source": "Terdeteksi login baru dari perangkat yang tidak dikenal.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Kami mendeteksi login dari perangkat baru. Jika ini bukan Anda, amankan akun sekarang.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Kayaknya ada yang masuk akunmu. Cek deh.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Dengan hormat kami informasikan adanya aktivitas autentikasi baru.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "LOGIN ASING!!! PANIK SEKARANG!!!",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-18",
+      "label": "Caption acara",
+      "channel": "Instagram",
+      "audience": "Mahasiswa",
+      "targetTone": "Antusias",
+      "source": "Workshop menulis dibuka Sabtu pukul 10.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Sabtu, jam 10: meja kosong, ide berantakan, dan kita mulai menulis. Sampai ketemu di workshop!",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Workshop penulisan akan diselenggarakan Sabtu pukul 10.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Workshop Sabtu. Datang.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "ACARA PALING GILA TAHUN INI!!!",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-19",
+      "label": "Penjelasan error",
+      "channel": "Aplikasi",
+      "audience": "Pengguna umum",
+      "targetTone": "Instruktif",
+      "source": "Unggahan gagal karena ukuran file melebihi 10 MB.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "File belum bisa diunggah karena ukurannya lebih dari 10 MB. Pilih file yang lebih kecil lalu coba lagi.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Upload error: payload exceeds maximum size.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Waduh kegedean filenya. Kecilin dong.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Gagal.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-20",
+      "label": "Undangan wawancara",
+      "channel": "Email rekrutmen",
+      "audience": "Kandidat",
+      "targetTone": "Profesional",
+      "source": "Kandidat diundang wawancara daring Kamis pukul 14.00.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Kami ingin mengundang Anda ke wawancara daring pada Kamis pukul 14.00. Silakan konfirmasi apakah waktunya sesuai.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Hei, Kamis jam dua bisa ngobrol bentar nggak?",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Dengan segala hormat, kami bermaksud mengajukan permohonan kehadiran Anda.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Interview Kamis 14.00.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-21",
+      "label": "Update proyek",
+      "channel": "Email klien",
+      "audience": "Klien",
+      "targetTone": "Transparan",
+      "source": "Proyek mundur satu hari karena revisi data.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Jadwal proyek bergeser satu hari karena kami perlu merevisi data sebelum melanjutkan. Target terbaru kami adalah Jumat.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Ada sedikit delay, tapi aman kok.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Proyek terlambat karena data bermasalah.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Mohon dimaklumi bahwa terdapat penyesuaian temporal.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-22",
+      "label": "Onboarding",
+      "channel": "Aplikasi",
+      "audience": "Pengguna baru",
+      "targetTone": "Ramah",
+      "source": "Pengguna perlu memilih tiga topik agar rekomendasi awal lebih relevan.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Pilih tiga topik yang Anda suka. Kami akan memakainya untuk menyiapkan rekomendasi awal.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Silakan melakukan seleksi terhadap tiga kategori preferensi.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Pilih tiga aja, nanti aplikasinya ngerti sendiri.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "PILIH TOPIK SEKARANG!",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-23",
+      "label": "Kritik artikel",
+      "channel": "Editorial note",
+      "audience": "Penulis",
+      "targetTone": "Konstruktif",
+      "source": "Paragraf kedua mengulang gagasan dari pembuka.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Gagasan di paragraf kedua sudah muncul di pembuka. Coba gunakan ruang ini untuk membawa pembaca satu langkah lebih jauh.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Paragraf dua repetitif dan tidak efisien.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Ini ngulang banget. Hapus aja.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Paragraf kedua salah.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    },
+    {
+      "id": "tone-24",
+      "label": "Pesan komunitas",
+      "channel": "Forum",
+      "audience": "Anggota baru",
+      "targetTone": "Ramah",
+      "source": "Anggota baru diminta membaca aturan sebelum memposting.",
+      "options": [
+        {
+          "id": "t1",
+          "text": "Selamat datang! Sebelum ikut ngobrol, luangkan sebentar untuk membaca aturan komunitas supaya ruang ini tetap nyaman buat semua.",
+          "toneFit": 38,
+          "audienceFit": 34,
+          "clarity": 28
+        },
+        {
+          "id": "t2",
+          "text": "Pengguna diwajibkan mempelajari ketentuan sebelum melakukan publikasi.",
+          "toneFit": 27,
+          "audienceFit": 24,
+          "clarity": 22
+        },
+        {
+          "id": "t3",
+          "text": "Baca aturan dulu, jangan bikin rusuh.",
+          "toneFit": 18,
+          "audienceFit": 18,
+          "clarity": 18
+        },
+        {
+          "id": "t4",
+          "text": "Aturan ada. Baca.",
+          "toneFit": 12,
+          "audienceFit": 16,
+          "clarity": 14
+        }
+      ]
+    }
+  ]
+};
+
+const LOGICAL_LEAP_CMS_PRESET = {
+  "id": "logical-leap",
+  "gameType": "logicalLeap",
+  "enabled": true,
+  "showInLibrary": true,
+  "gameName": "The Logical Leap",
+  "gameCategory": "Critical Thinking",
+  "gameCardDescription": "Temukan lompatan logika, asumsi tersembunyi, dan kesimpulan yang bergerak lebih jauh daripada buktinya.",
+  "title": "Jangan biarkan kesimpulan melompat sendirian.",
+  "objective": "Hadapi 10 argumen. Pilih respons yang paling tepat untuk menguji apakah kesimpulan benar-benar didukung oleh alasan dan bukti yang diberikan.",
+  "rules": [
+    "Baca argumen sampai selesai. Cari hubungan antara bukti, asumsi, dan kesimpulannya.",
+    "Pilih satu dari empat respons. Tugas Anda bukan setuju atau tidak setuju, tetapi menilai cara kesimpulan dibangun.",
+    "Setiap pilihan dinilai dari Logika 40, Penggunaan Bukti 35, dan Presisi 25.",
+    "Waspadai korelasi yang dianggap sebab, generalisasi, pilihan palsu, serangan pribadi, bukti yang dipilih sebagian, dan lompatan lain.",
+    "Selesaikan 10 argumen. Setelah setiap jawaban, baca Logic Report sebelum melanjutkan."
+  ],
+  "startButtonLabel": "Mulai Menguji",
+  "casesPerSession": 10,
+  "caseLabel": "ARGUMEN",
+  "statementLabel": "PERNYYATAAN",
+  "chooseLabel": "PILIH ANALISIS",
+  "submitLabel": "Kunci Analisis",
+  "reportLabel": "LOGIC REPORT",
+  "logicLabel": "Logika",
+  "evidenceLabel": "Penggunaan Bukti",
+  "precisionLabel": "Presisi",
+  "conceptLabel": "Pola yang Diuji",
+  "nextLabel": "Argumen Berikutnya",
+  "resultEyebrow": "LAPORAN LOGIKA AKHIR",
+  "scoreLabel": "Skor Akhir",
+  "bestDimensionLabel": "Dimensi Terkuat",
+  "replayLabel": "Main Lagi",
+  "gradeTitles": [
+    {
+      "min": 900,
+      "label": "Reasoning Architect",
+      "remark": "Anda tidak hanya melihat kesimpulan—Anda memeriksa jembatan yang dipakai untuk sampai ke sana."
+    },
+    {
+      "min": 750,
+      "label": "Logic Editor",
+      "remark": "Sebagian besar lompatan logika tertangkap sebelum sempat menyamar sebagai kesimpulan."
+    },
+    {
+      "min": 550,
+      "label": "Assumption Hunter",
+      "remark": "Anda mulai melihat asumsi yang bersembunyi di antara bukti dan kesimpulan."
+    },
+    {
+      "min": 0,
+      "label": "Leap Survivor",
+      "remark": "Beberapa kesimpulan masih berhasil melompat melewati pagar. Setidaknya sekarang pagarnya terlihat."
+    }
+  ],
+  "cases": [
+    {
+      "id": "logic-01",
+      "label": "Korelasi Bukan Sebab",
+      "statement": "Survei menunjukkan orang yang rutin membawa payung lebih sering melihat hujan.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Karena membawa payung membuat hujan turun.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Ada hubungan, tetapi data ini tidak menunjukkan bahwa payung menyebabkan hujan.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Orang yang melihat hujan pasti selalu membawa payung.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Survei membuktikan payung memengaruhi cuaca.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "correlation"
+    },
+    {
+      "id": "logic-02",
+      "label": "Sampel Terlalu Sempit",
+      "statement": "Sebuah kafe bertanya kepada 20 pelanggan tetap dan 19 orang menyukai menu barunya.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Menu baru pasti disukai seluruh kota.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Hasil ini menggambarkan pelanggan tetap yang ditanya, bukan otomatis seluruh kota.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Karena 19 orang suka, riset tambahan tidak diperlukan.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Satu orang yang tidak suka dapat diabaikan.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "sample"
+    },
+    {
+      "id": "logic-03",
+      "label": "Dikotomi Palsu",
+      "statement": "Jika tim tidak bekerja dari kantor setiap hari, berarti mereka tidak serius bekerja.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Hanya ada dua pilihan: kantor penuh atau tidak serius.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Keseriusan kerja tidak hanya ditentukan oleh lokasi; ada kemungkinan lain di antara dua pilihan itu.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Kerja remote selalu lebih baik.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Semua kantor membuat orang produktif.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "false_dilemma"
+    },
+    {
+      "id": "logic-04",
+      "label": "Generalisasi Terburu-buru",
+      "statement": "Dua aplikasi buatan startup lokal yang saya coba sering crash. Startup lokal memang tidak bisa membuat aplikasi bagus.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Kesimpulannya terlalu luas dari dua contoh.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Dua pengalaman tidak cukup untuk menyimpulkan kualitas seluruh startup lokal.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Aplikasi lokal seharusnya dilarang.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Crash membuktikan perusahaan tidak kompeten.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "generalization"
+    },
+    {
+      "id": "logic-05",
+      "label": "Serangan Pribadi",
+      "statement": "Usulan Rina tentang jadwal fleksibel tidak perlu dipertimbangkan karena dia sendiri sering terlambat.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Riwayat Rina otomatis membatalkan argumennya.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Kebiasaan Rina dapat dibahas terpisah, tetapi tidak membuktikan usulannya salah.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Jadwal fleksibel pasti benar.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Orang terlambat tidak boleh memberi usulan.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "ad_hominem"
+    },
+    {
+      "id": "logic-06",
+      "label": "Bandwagon",
+      "statement": "Semua orang di timeline saya membeli produk itu, jadi produknya pasti berkualitas tinggi.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Popularitas adalah bukti kualitas.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Banyak orang membeli tidak otomatis membuktikan kualitas; perlu bukti tentang produknya.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Timeline selalu mewakili seluruh konsumen.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Produk populer tidak pernah buruk.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "bandwagon"
+    },
+    {
+      "id": "logic-07",
+      "label": "Post Hoc",
+      "statement": "Setelah kantor mengganti logo, penjualan naik. Logo baru jelas menyebabkan kenaikan penjualan.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Urutan waktu saja cukup membuktikan sebab.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Kenaikan terjadi setelah pergantian logo, tetapi faktor lain perlu diperiksa sebelum menyimpulkan sebab.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Logo tidak pernah memengaruhi penjualan.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Penjualan naik berarti desainnya bagus.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "post_hoc"
+    },
+    {
+      "id": "logic-08",
+      "label": "Cherry Picking",
+      "statement": "Brand menampilkan tiga ulasan bintang lima dan menyimpulkan semua pelanggan puas, tanpa menyebut ratusan ulasan lain.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Tiga ulasan terbaik cukup mewakili semuanya.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Kesimpulan mengabaikan data lain yang relevan; keseluruhan distribusi ulasan perlu dilihat.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Ulasan positif selalu palsu.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Semua pelanggan sebenarnya tidak puas.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "cherry_pick"
+    },
+    {
+      "id": "logic-09",
+      "label": "Appeal to Authority",
+      "statement": "Seorang aktor terkenal mengatakan suplemen X meningkatkan fokus, jadi klaim itu pasti benar.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Ketenaran membuat klaim menjadi bukti.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Pendapat figur terkenal bukan pengganti bukti yang relevan, terutama di luar keahliannya.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Aktor selalu salah tentang kesehatan.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Suplemen pasti tidak bekerja.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "authority"
+    },
+    {
+      "id": "logic-10",
+      "label": "Slippery Slope",
+      "statement": "Kalau sekali saja mengizinkan kerja dari rumah, sebentar lagi kantor akan kosong dan perusahaan pasti runtuh.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Satu perubahan pasti berakhir pada hasil ekstrem.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Rangkaian akibat itu perlu bukti; satu kebijakan tidak otomatis menghasilkan seluruh konsekuensi tersebut.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Kerja dari rumah tidak punya risiko.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Perusahaan yang punya kantor pasti aman.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "slippery"
+    },
+    {
+      "id": "logic-11",
+      "label": "Survivorship Bias",
+      "statement": "Kita hanya perlu meniru pengusaha sukses yang putus kuliah. Mereka membuktikan kuliah tidak penting.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Kasus sukses yang terlihat mewakili semua orang yang mengambil jalan sama.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Kesimpulan mengabaikan orang dengan pilihan serupa yang tidak mencapai hasil yang sama.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Kuliah selalu menjamin sukses.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Semua pengusaha sukses putus kuliah.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "survivorship"
+    },
+    {
+      "id": "logic-12",
+      "label": "Anekdot",
+      "statement": "Teman saya tidur empat jam tiap malam dan tetap produktif, berarti empat jam tidur cukup untuk semua orang.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Pengalaman satu orang berlaku universal.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Satu pengalaman pribadi tidak cukup untuk menetapkan kebutuhan tidur semua orang.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Teman itu pasti berbohong.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Tidur tidak berhubungan dengan produktivitas.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "anecdote"
+    },
+    {
+      "id": "logic-13",
+      "label": "Circular Reasoning",
+      "statement": "Artikel ini dapat dipercaya karena ditulis oleh sumber terpercaya. Kita tahu sumbernya terpercaya karena artikelnya dapat dipercaya.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Kesimpulan dipakai untuk membuktikan premisnya sendiri.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Alasannya berputar; dibutuhkan dasar independen untuk menilai kredibilitas sumber.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Artikel pasti salah.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Semua sumber harus dipercaya.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "circular"
+    },
+    {
+      "id": "logic-14",
+      "label": "Straw Man",
+      "statement": "Dani mengusulkan mengurangi rapat mingguan. Responsnya: 'Dani ingin tim berhenti berkomunikasi.'",
+      "options": [
+        {
+          "id": "a",
+          "text": "Usulan Dani telah diringkas secara akurat.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Respons mengubah usulan mengurangi rapat menjadi menghentikan komunikasi, lalu menyerang versi yang lebih ekstrem itu.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Semua rapat tidak berguna.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Komunikasi hanya bisa dilakukan lewat rapat.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "strawman"
+    },
+    {
+      "id": "logic-15",
+      "label": "Base Rate",
+      "statement": "Tes mendeteksi kondisi langka dengan akurasi tinggi. Seseorang positif lalu langsung menyimpulkan peluang ia memiliki kondisi itu hampir 100%.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Akurasi tes sama dengan probabilitas setelah hasil positif.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Untuk kondisi langka, tingkat kejadian dasar juga perlu dipertimbangkan sebelum menafsirkan hasil positif.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Tes akurat tidak berguna.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Hasil positif selalu salah.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "base_rate"
+    },
+    {
+      "id": "logic-16",
+      "label": "Confounding",
+      "statement": "Kota dengan lebih banyak toko es krim juga mencatat lebih banyak kasus sengatan matahari. Jadi toko es krim menyebabkan sengatan matahari.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Dua variabel bergerak bersama berarti salah satunya penyebab.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Faktor ketiga seperti cuaca panas dapat meningkatkan pembelian es krim sekaligus paparan matahari.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Es krim mencegah sengatan.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Toko harus ditutup.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "confound"
+    },
+    {
+      "id": "logic-17",
+      "label": "Loaded Question",
+      "statement": "Apakah Anda sudah berhenti mengabaikan pelanggan yang komplain?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Pertanyaan netral karena hanya meminta jawaban ya atau tidak.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Pertanyaan sudah mengasumsikan bahwa orang tersebut sebelumnya mengabaikan pelanggan.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Semua pertanyaan ya/tidak manipulatif.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Pelanggan pasti diabaikan.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "loaded"
+    },
+    {
+      "id": "logic-18",
+      "label": "Appeal to Emotion",
+      "statement": "Iklan berkata, 'Kalau Anda benar-benar menyayangi keluarga, Anda pasti membeli produk ini.'",
+      "options": [
+        {
+          "id": "a",
+          "text": "Rasa sayang membuktikan kualitas produk.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Pesan menekan emosi sebagai alasan membeli tanpa menunjukkan bahwa produk memang memenuhi klaimnya.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Produk keluarga selalu buruk.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Emosi tidak boleh dipakai dalam komunikasi.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "emotion"
+    },
+    {
+      "id": "logic-19",
+      "label": "False Equivalence",
+      "statement": "Dua artikel sama-sama memiliki satu typo, jadi keduanya sama buruk meskipun salah satunya juga memuat data palsu.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Setiap kesalahan punya bobot yang sama.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Kesalahan kecil dan pemalsuan data berbeda tingkat serta dampaknya; menyamakannya menghapus perbedaan penting.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Typo tidak pernah penting.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Data palsu sama dengan typo.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "equivalence"
+    },
+    {
+      "id": "logic-20",
+      "label": "Moving Goalposts",
+      "statement": "Setelah bukti A diberikan, seseorang meminta bukti B. Setelah B diberikan, ia berkata baru akan percaya jika ada C, tanpa alasan mengapa standar berubah.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Standar bukti boleh berubah tanpa penjelasan.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Kriteria penerimaan terus dipindahkan setelah syarat sebelumnya terpenuhi.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Semua permintaan bukti tambahan salah.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Bukti pertama selalu cukup.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "goalposts"
+    },
+    {
+      "id": "logic-21",
+      "label": "Selection Bias",
+      "statement": "Survei kepuasan hanya dikirim kepada pengguna yang baru memberi rating lima bintang.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Sampel dipilih dengan cara yang cenderung menghasilkan jawaban positif.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Hasil survei berisiko bias karena kesempatan ikut tidak diberikan secara seimbang kepada populasi pengguna.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Pengguna bintang lima tidak boleh disurvei.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Semua survei kepuasan bias.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "selection"
+    },
+    {
+      "id": "logic-22",
+      "label": "Appeal to Tradition",
+      "statement": "Kita harus mempertahankan proses ini karena sudah dilakukan dengan cara yang sama selama dua puluh tahun.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Lama digunakan berarti paling efektif.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Usia sebuah praktik tidak membuktikan efektivitasnya; hasil dan alternatif tetap perlu dievaluasi.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Tradisi selalu buruk.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Semua proses lama harus diganti.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "tradition"
+    },
+    {
+      "id": "logic-23",
+      "label": "No True Scotsman",
+      "statement": "Tidak ada penulis sungguhan yang memakai AI. Kalau ada penulis yang memakai AI, berarti dia bukan penulis sungguhan.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Definisi kelompok diubah untuk mengeluarkan contoh yang menentang klaim.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Klaim melindungi dirinya sendiri dengan mendefinisikan ulang siapa yang boleh disebut penulis.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "AI selalu membuat tulisan buruk.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Penulis sungguhan harus menulis tangan.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "scotsman"
+    },
+    {
+      "id": "logic-24",
+      "label": "Hasty Causation",
+      "statement": "Engagement turun pada minggu ketika tim mengubah warna tombol. Berarti warna tombol adalah penyebabnya.",
+      "options": [
+        {
+          "id": "a",
+          "text": "Satu perubahan bersamaan cukup menetapkan penyebab.",
+          "logic": 18,
+          "evidence": 16,
+          "precision": 16
+        },
+        {
+          "id": "b",
+          "text": "Perubahan warna mungkin relevan, tetapi data lain dan eksperimen diperlukan sebelum menetapkan sebab.",
+          "logic": 40,
+          "evidence": 35,
+          "precision": 25
+        },
+        {
+          "id": "c",
+          "text": "Warna tidak pernah memengaruhi engagement.",
+          "logic": 14,
+          "evidence": 15,
+          "precision": 15
+        },
+        {
+          "id": "d",
+          "text": "Engagement hanya dipengaruhi desain.",
+          "logic": 12,
+          "evidence": 13,
+          "precision": 15
+        }
+      ],
+      "concept": "causation"
+    }
+  ]
+};
 
 const emptyMiniGameSlot = (position = 2, existing = {}) => ({
   ...existing,
@@ -1947,7 +4986,7 @@ const emptyMiniGameSlot = (position = 2, existing = {}) => ({
   gameCardDescription: existing.gameCardDescription || '',
   title: existing.title || '',
   objective: existing.objective || '',
-  rules: { click: '', timer: '', wrong: '', hint: '', review: '', ...(existing.rules || {}) },
+  rules: Array.isArray(existing.rules) ? [...existing.rules] : { click: '', timer: '', wrong: '', hint: '', review: '', ...(existing.rules || {}) },
   startButtonLabel: existing.startButtonLabel || '',
   secondsPerDraft: Number(existing.secondsPerDraft) || 60,
   draftsPerSession: Number(existing.draftsPerSession) || 5,
@@ -2018,8 +5057,27 @@ const normalizeMiniGameData = (raw) => ({
   scoreSettings: { ...DEFAULT_MINI_GAME.scoreSettings, ...(raw?.scoreSettings || {}) },
   gradeTitles: Array.isArray(raw?.gradeTitles) && raw.gradeTitles.length ? raw.gradeTitles : DEFAULT_MINI_GAME.gradeTitles,
   gameSlots: (() => {
-    const slots = Array.isArray(raw?.gameSlots) ? raw.gameSlots.map((slot, index) => { const isHangman = slot?.gameType === 'hangman' || String(slot?.gameName || '').trim().toLowerCase() === 'the hangman'; const isPlagiarism = slot?.gameType === 'plagiarismPolice' || String(slot?.gameName || '').trim().toLowerCase() === 'plagiarism police'; const base = isHangman ? HANGMAN_PRESET : isPlagiarism ? PLAGIARISM_POLICE_PRESET : {}; return emptyMiniGameSlot(index + 2, { ...base, ...slot, id: slot.id, illustration: slot.illustration || '' }); }) : [];
-    if (!slots.some((slot) => slot.gameType === 'plagiarismPolice' || String(slot.gameName || '').trim().toLowerCase() === 'plagiarism police')) slots.push(emptyMiniGameSlot(slots.length + 2, { ...PLAGIARISM_POLICE_PRESET, id: 'plagiarism-police' }));
+    const slots = Array.isArray(raw?.gameSlots) ? raw.gameSlots.map((slot, index) => {
+      const type = slot?.gameType || '';
+      const name = String(slot?.gameName || '').trim().toLowerCase();
+      const base =
+        type === 'hangman' || name === 'the hangman' ? HANGMAN_PRESET :
+        type === 'plagiarismPolice' || name === 'plagiarism police' ? PLAGIARISM_POLICE_PRESET :
+        type === 'headlineHook' || name === 'headline hook' ? HEADLINE_HOOK_CMS_PRESET :
+        type === 'toneSwitcher' || name === 'tone switcher' ? TONE_SWITCHER_CMS_PRESET :
+        type === 'logicalLeap' || name === 'the logical leap' ? LOGICAL_LEAP_CMS_PRESET :
+        {};
+      return emptyMiniGameSlot(index + 2, { ...base, ...slot, id: slot.id, illustration: slot.illustration || '' });
+    }) : [];
+    const ensureSlot = (preset) => {
+      if (!slots.some((slot) => slot.gameType === preset.gameType)) {
+        slots.push(emptyMiniGameSlot(slots.length + 2, preset));
+      }
+    };
+    ensureSlot({ ...PLAGIARISM_POLICE_PRESET, id: 'plagiarism-police' });
+    ensureSlot(HEADLINE_HOOK_CMS_PRESET);
+    ensureSlot(TONE_SWITCHER_CMS_PRESET);
+    ensureSlot(LOGICAL_LEAP_CMS_PRESET);
     return slots;
   })(),
   drafts: Array.isArray(raw?.drafts) ? raw.drafts.map((draft) => ({ ...draft, issues: Array.isArray(draft?.issues) ? draft.issues : [] })) : DEFAULT_RED_PEN_DRAFTS,
@@ -2062,7 +5120,7 @@ const redPenDraftErrors = (draft) => {
 const hangmanWordErrors = (draft) => {
   const errors = [];
   if (!String(draft?.label || '').trim()) errors.push('Kata masih kosong.');
-  if (!String(draft?.passage || '').trim()) errors.push('Petunjuk masih kosong.');
+  if (!String(draft?.passage || '').trim()) errors.push('Instructions masih kosong.');
   return errors;
 };
 
@@ -2141,13 +5199,13 @@ const normalizeContactData = (raw) => ({
   actionButtons: Array.isArray(raw?.actionButtons) ? raw.actionButtons : [],
 });
 
-// Kategori Career SEKARANG bebas ditambah/dihapus/diubah namanya lewat CMS (gak lagi
+// Category Career SEKARANG bebas ditambah/dihapus/diubah namanya lewat CMS (gak lagi
 // di-hardcode Professional/School/College). Tiap kategori punya `type`:
-//  - 'career': format lama — Posisi @ Instansi, periode, pop-up detail instansi.
+//  - 'career': format lama — Position @ Instansi, periode, pop-up detail instansi.
 //  - 'credential': format baru — nama pencapaian/sertifikat, penyelenggara, tanggal,
 //    gambar bukti, link verifikasi (buat Achievements/Certificates/dll).
 const CAREER_TYPE_LABEL = {
-  career: 'Riwayat (Posisi @ Instansi)',
+  career: 'Riwayat (Position @ Instansi)',
   credential: 'Pencapaian / Sertifikat',
 };
 
@@ -2225,6 +5283,7 @@ function normalizeCareerData(raw) {
       credentialsHeading: careerData.credentialsHeading ?? '',
       credentialsSubheading: careerData.credentialsSubheading ?? '',
       credentialsBackLabel: careerData.credentialsBackLabel ?? '',
+      backLabel: careerData.backLabel ?? '',
       categories: professionalFirst(careerData.categories.map((cat) => ({
         id: cat.id || emptyCareerCategory().id,
         name: cat.name || '',
@@ -2259,6 +5318,7 @@ function normalizeCareerData(raw) {
     credentialsHeading: careerData.credentialsHeading ?? '',
     credentialsSubheading: careerData.credentialsSubheading ?? '',
     credentialsBackLabel: careerData.credentialsBackLabel ?? '',
+    backLabel: careerData.backLabel ?? '',
     categories: professionalFirst([
       legacyToCategory(careerData.professional, 'professional', 'Professional'),
       legacyToCategory(careerData.college, 'college', 'College'),
@@ -2269,18 +5329,19 @@ function normalizeCareerData(raw) {
 // Sama kayak career: jaga-jaga data books di Supabase masih array polos yang lama,
 // padahal format baru butuh { heading, subheading, items }.
 function normalizeBooksData(raw) {
-  if (Array.isArray(raw)) return { heading: '', subheading: '', worksTabLabel: 'My Books', readingTabLabel: 'Books I Read', items: raw, readingItems: [] };
+  if (Array.isArray(raw)) return { heading: '', subheading: '', worksTabLabel: 'My Books', readingTabLabel: 'Books I Read', backLabel: 'Back', items: raw, readingItems: [] };
   if (raw && typeof raw === 'object') {
     return {
       heading: raw.heading ?? '',
       subheading: raw.subheading ?? '',
       worksTabLabel: raw.worksTabLabel === undefined ? 'My Books' : raw.worksTabLabel,
       readingTabLabel: raw.readingTabLabel === undefined ? 'Books I Read' : raw.readingTabLabel,
+      backLabel: raw.backLabel === undefined ? 'Back' : raw.backLabel,
       items: Array.isArray(raw.items) ? raw.items : [],
       readingItems: Array.isArray(raw.readingItems) ? raw.readingItems : [],
     };
   }
-  return { heading: '', subheading: '', worksTabLabel: 'My Books', readingTabLabel: 'Books I Read', items: [], readingItems: [] };
+  return { heading: '', subheading: '', worksTabLabel: 'My Books', readingTabLabel: 'Books I Read', backLabel: 'Back', items: [], readingItems: [] };
 }
 
 const emptyBook = () => ({
@@ -2341,7 +5402,7 @@ const emptyPosterItem = () => ({
 const emptyDirectingItem = () => ({
   id: `film-${Date.now()}`,
   title: '', premise: '', role: 'Director', year: '', runtime: '',
-  mediaType: 'youtube', mediaUrl: '', posterImage: '',
+  mediaType: 'youtube', mediaUrl: '', posterImage: '', videoRatio: 'auto', videoSnippets: [],
   contribution: '', credits: '', externalLabel: '', externalUrl: '', hintEnabled: true,
 });
 
@@ -2389,7 +5450,7 @@ const emptyCustomSection = (label = '') => ({
 
 // Jaga-jaga: data projects di Supabase bisa aja masih format lama:
 //  - projects.posters: array polos (format paling lama)
-//  - projects.gallery: { poster: [...], photo: [...] } (format sebelum ada Sub Bab)
+//  - projects.gallery: { poster: [...], photo: [...] } (format senone yet Sub Bab)
 //  - projects.poster.subBabs: array sub bab, tiap sub bab punya items sendiri
 //    (format saat Poster masih dikelompokkan per Sub Bab — fitur ini udah dihapus)
 // Semua itu dimigrasiin otomatis jadi format baru: projects.poster.items (array
@@ -2442,7 +5503,7 @@ function normalizeProjectsData(raw) {
           id: s.id || emptyCustomSection().id,
           label: s.label || '',
           description: s.description ?? '',
-          contentType: ['writing', 'video', 'image', 'document', 'link'].includes(s.contentType)
+          contentType: ['writing', 'video', 'image', 'document', 'link', 'audio'].includes(s.contentType)
             ? s.contentType
             : (s.layout === 'articles' ? 'writing' : 'image'),
           layout: s.layout === 'articles' ? 'articles' : 'gallery',
@@ -2461,7 +5522,7 @@ function Field({ label, children, sourceValue, cmsLanguage = 'id', translatable 
       {cmsLanguage === 'en' && translatable && sourceText.trim() && (
         <div
           data-id-source-reference="true"
-          className="mb-1 rounded border border-dashed border-gray-200 bg-gray-50 px-2 py-1 font-mono text-[10px] leading-relaxed text-gray-500 dark:border-gray-700 dark:bg-[#252525] dark:text-gray-400"
+          className="mb-1 rounded border border-dashed border-gray-200 bg-gray-50 px-2 py-1 font-[Arial] text-[10px] leading-relaxed text-gray-500 dark:border-gray-700 dark:bg-[#252525] dark:text-gray-400"
         >
           ID · {sourceText}
         </div>
@@ -2472,6 +5533,178 @@ function Field({ label, children, sourceValue, cmsLanguage = 'id', translatable 
 }
 const inputCls = "w-full px-3 py-2 text-xs bg-gray-50 dark:bg-[#2d2d2d] border border-gray-200 dark:border-gray-700 rounded";
 const inputClsSm = "w-full px-3 py-1.5 text-xs bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 rounded";
+
+function ImageUploadNote({ profile = 'default' }) {
+  const notes = {
+    default: 'automatic WebP · max. side 1600 px · target ≤ 700 KB',
+    article: 'Article image · automatic WebP · max. side 1600 px · target ≤ 500 KB',
+    poster: 'Poster/karya visual · automatic WebP · maks. sisi 2000 px · target ≤ 700 KB',
+    video: 'Thumbnail video · automatic WebP · max. side 1600 px · target ≤ 500 KB',
+    book: 'Cover/gambar buku · automatic WebP · max. side 1600 px · target ≤ 500 KB',
+    profile: 'Foto profil · automatic WebP · maks. sisi 1200 px · target ≤ 300 KB',
+  };
+  return (
+    <div className="mt-2 rounded-md border border-blue-100 bg-blue-50/60 px-3 py-2 font-[Arial] text-[10px] leading-relaxed text-gray-600 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-gray-400">
+      <span className="font-bold text-blue-700 dark:text-blue-300">IMAGE GUARD · </span>
+      {notes[profile] || notes.default}
+      <span className="block mt-0.5">Large files will be resized and compressed before upload to keep the website lightweight.</span>
+    </div>
+  );
+}
+
+function ImageDropzone({
+  value = '',
+  onChange,
+  profile = 'default',
+  disabled = false,
+  label = 'Drop image here or click to browse',
+}) {
+  const [dragging, setDragging] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
+  const inputRef = React.useRef(null);
+
+  const handleFile = async (file) => {
+    if (!file || disabled || uploading) return;
+    if (!file.type?.startsWith('image/')) {
+      dispatchCmsNotice('The file must be an image.');
+      return;
+    }
+    setUploading(true);
+    const url = await uploadImageToStorage(file, profile);
+    setUploading(false);
+    if (url) onChange?.(url);
+  };
+
+  return (
+    <div className="space-y-2">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        disabled={disabled || uploading}
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          await handleFile(file);
+          e.target.value = '';
+        }}
+      />
+
+      <button
+        type="button"
+        disabled={disabled || uploading}
+        onClick={() => inputRef.current?.click()}
+        onDragEnter={(e) => { e.preventDefault(); if (!disabled) setDragging(true); }}
+        onDragOver={(e) => { e.preventDefault(); if (!disabled) setDragging(true); }}
+        onDragLeave={(e) => { e.preventDefault(); setDragging(false); }}
+        onDrop={async (e) => {
+          e.preventDefault();
+          setDragging(false);
+          await handleFile(e.dataTransfer.files?.[0]);
+        }}
+        className={`w-full min-h-[86px] rounded-lg border border-dashed px-4 py-3 text-left transition ${
+          dragging
+            ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30'
+            : 'border-gray-300 bg-gray-50/60 hover:border-blue-400 hover:bg-blue-50/40 dark:border-gray-700 dark:bg-[#1e1e1e] dark:hover:border-blue-700'
+        } disabled:cursor-not-allowed disabled:opacity-60`}
+      >
+        <div className="flex items-center gap-3">
+          {value ? (
+            <img src={value} alt="" className="h-14 w-20 shrink-0 rounded-md border border-gray-200 object-cover dark:border-gray-700" />
+          ) : (
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-lg dark:border-gray-700 dark:bg-[#242424]">
+              ▧
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-gray-800 dark:text-gray-100">
+              {uploading ? 'Uploading & optimizing…' : value ? 'Drop foto baru atau klik untuk replace' : label}
+            </p>
+            <p className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">
+              JPG, PNG, WebP · drag & drop or browse
+            </p>
+          </div>
+        </div>
+      </button>
+
+      {value && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="min-w-0 truncate text-[10px] text-gray-400">{value}</p>
+          <button
+            type="button"
+            onClick={() => onChange?.('')}
+            className="shrink-0 text-[10px] font-semibold text-red-500 hover:underline"
+          >
+            Remove
+          </button>
+        </div>
+      )}
+
+      <ImageUploadNote profile={profile} />
+    </div>
+  );
+}
+
+function GalleryDropzone({ items = [], onChange, profile = 'poster', disabled = false }) {
+  const [dragging, setDragging] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
+  const inputRef = React.useRef(null);
+  const safeItems = Array.isArray(items) ? items : [];
+
+  const handleFiles = async (fileList) => {
+    const files = Array.from(fileList || []).filter((file) => file?.type?.startsWith('image/'));
+    if (!files.length || disabled || uploading) return;
+    setUploading(true);
+    try {
+      const uploaded = [];
+      for (const file of files) {
+        const url = await uploadImageToStorage(file, profile);
+        if (url) uploaded.push(url);
+      }
+      if (uploaded.length) onChange?.([...safeItems, ...uploaded]);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const moveItem = (from, to) => {
+    if (to < 0 || to >= safeItems.length) return;
+    const next = [...safeItems];
+    const [picked] = next.splice(from, 1);
+    next.splice(to, 0, picked);
+    onChange?.(next);
+  };
+
+  return (
+    <div className="space-y-3">
+      <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" disabled={disabled || uploading}
+        onChange={async (e) => { await handleFiles(e.target.files); e.target.value = ''; }} />
+      <button type="button" disabled={disabled || uploading} onClick={() => inputRef.current?.click()}
+        onDragEnter={(e) => { e.preventDefault(); if (!disabled) setDragging(true); }}
+        onDragOver={(e) => { e.preventDefault(); if (!disabled) setDragging(true); }}
+        onDragLeave={(e) => { e.preventDefault(); setDragging(false); }}
+        onDrop={async (e) => { e.preventDefault(); setDragging(false); await handleFiles(e.dataTransfer.files); }}
+        className={`w-full min-h-[110px] rounded-xl border-2 border-dashed px-5 py-4 text-center transition ${dragging ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' : 'border-gray-300 bg-gray-50/60 hover:border-blue-400 hover:bg-blue-50/40 dark:border-gray-700 dark:bg-[#1e1e1e]'} disabled:cursor-not-allowed disabled:opacity-60`}>
+        <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-sm text-blue-600 dark:border-gray-700 dark:bg-[#242424]">▦</div>
+        <p className="font-[Arial] text-[10px] font-bold uppercase tracking-[0.12em] text-gray-700 dark:text-gray-200">{uploading ? 'Uploading & optimizing…' : 'Drop images here or click to browse'}</p>
+        <p className="mt-1 text-[9px] text-gray-400">Select multiple JPG, PNG, or WebP files · drag & drop or browse</p>
+      </button>
+      {!!safeItems.length && <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        {safeItems.map((url, imageIdx) => <div key={`${url}-${imageIdx}`} className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-[#242424]">
+          <img src={url} alt="" className="h-28 w-full object-cover" />
+          <div className="flex items-center justify-between gap-1 p-2">
+            <div className="flex gap-1">
+              <button type="button" disabled={imageIdx === 0} onClick={() => moveItem(imageIdx, imageIdx - 1)} className="rounded border px-2 py-1 text-[9px] disabled:opacity-30">←</button>
+              <button type="button" disabled={imageIdx === safeItems.length - 1} onClick={() => moveItem(imageIdx, imageIdx + 1)} className="rounded border px-2 py-1 text-[9px] disabled:opacity-30">→</button>
+            </div>
+            <button type="button" onClick={() => onChange?.(safeItems.filter((_, i) => i !== imageIdx))} className="text-[9px] font-semibold text-red-500">Remove</button>
+          </div>
+        </div>)}
+      </div>}
+      <ImageUploadNote profile={profile} />
+    </div>
+  );
+}
 
 // Tetap di module scope supaya tombol toolbar tidak dianggap sebagai tipe komponen
 // baru setiap RichTextEditor merender ulang (misalnya saat URL link sedang diketik).
@@ -2499,20 +5732,74 @@ function ToolbarBtn({ onClick, title, children }) {
 // awal terus (masalah klasik contentEditable yang dikontrol React). Makanya, tiap
 // pindah/tambah artikel, pasang prop `key` yang beda (pake id artikelnya) di tempat
 // manggil <RichTextEditor> ini, biar React bikin instance baru yang initial value-nya bener.
-function RichTextEditor({ initialValue, onChange, placeholder }) {
+function RichTextEditor({ initialValue, onChange, placeholder, compact = false, fieldMode = false }) {
   const ref = useRef(null);
   const savedSelection = useRef(null);
+  const historyRef = useRef([]);
+  const historyIndexRef = useRef(-1);
   const [linkUrl, setLinkUrl] = useState('');
+  const [editorFont, setEditorFont] = useState('Georgia, serif');
+  const [editorFontSize, setEditorFontSize] = useState('12pt');
+  const [editorLineHeight, setEditorLineHeight] = useState('1.5');
+  const [activeFormat, setActiveFormat] = useState({
+    block: 'p', bold: false, italic: false, underline: false, strike: false,
+  });
 
   useEffect(() => {
-    if (ref.current) ref.current.innerHTML = initialValue || '';
+    if (ref.current) {
+      ref.current.innerHTML = initialValue || '';
+      ref.current.style.fontFamily = 'Georgia, serif';
+      ref.current.style.fontSize = '12pt';
+      ref.current.style.lineHeight = '1.5';
+      historyRef.current = [ref.current.innerHTML];
+      historyIndexRef.current = 0;
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const syncActiveFormat = () => {
+    const selection = window.getSelection();
+    if (!selection?.rangeCount || !ref.current?.contains(selection.anchorNode)) return;
+
+    let node = selection.anchorNode;
+    if (node?.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    const block = node?.closest?.('p,h1,h2,h3,blockquote');
+    const blockTag = block && ref.current.contains(block) ? block.tagName.toLowerCase() : 'p';
+
+    setActiveFormat({
+      block: ['p', 'h1', 'h2', 'h3', 'blockquote'].includes(blockTag) ? blockTag : 'p',
+      bold: document.queryCommandState('bold'),
+      italic: document.queryCommandState('italic'),
+      underline: document.queryCommandState('underline'),
+      strike: document.queryCommandState('strikeThrough'),
+    });
+
+    // Keep Font + Size honest: read the actual computed style at the caret.
+    // This fixes the ribbon saying 12 pt while the selected text is visibly larger.
+    const styleNode = node && ref.current.contains(node) ? node : ref.current;
+    if (styleNode) {
+      const computed = window.getComputedStyle(styleNode);
+      const family = (computed.fontFamily || '').toLowerCase();
+      if (family.includes('courier')) setEditorFont("'Courier New', Courier, monospace");
+      else if (family.includes('garamond')) setEditorFont("Garamond, 'Times New Roman', serif");
+      else if (family.includes('arial')) setEditorFont('Arial, sans-serif');
+      else if (family.includes('times new roman')) setEditorFont("'Times New Roman', serif");
+      else if (family.includes('georgia')) setEditorFont('Georgia, serif');
+      else if (family.includes('monospace')) setEditorFont('monospace');
+
+      const px = parseFloat(computed.fontSize || '');
+      if (Number.isFinite(px)) {
+        const pt = Math.round(px * 72 / 96);
+        if (pt >= 8 && pt <= 20) setEditorFontSize(`${pt}pt`);
+      }
+    }
+  };
 
   const rememberSelection = () => {
     const selection = window.getSelection();
     if (selection?.rangeCount && ref.current?.contains(selection.anchorNode)) {
       savedSelection.current = selection.getRangeAt(0).cloneRange();
+      syncActiveFormat();
     }
   };
 
@@ -2523,12 +5810,156 @@ function RichTextEditor({ initialValue, onChange, placeholder }) {
     selection.addRange(savedSelection.current);
   };
 
+  const pushHistory = (html = ref.current?.innerHTML || '') => {
+    const current = historyRef.current[historyIndexRef.current];
+    if (current === html) return;
+    historyRef.current = historyRef.current.slice(0, historyIndexRef.current + 1);
+    historyRef.current.push(html);
+    if (historyRef.current.length > 100) historyRef.current.shift();
+    historyIndexRef.current = historyRef.current.length - 1;
+  };
+
+  const restoreHistory = (direction) => {
+    const next = historyIndexRef.current + direction;
+    if (next < 0 || next >= historyRef.current.length || !ref.current) return;
+    historyIndexRef.current = next;
+    ref.current.innerHTML = historyRef.current[next];
+    onChange(ref.current.innerHTML);
+    ref.current.focus();
+    savedSelection.current = null;
+    syncActiveFormat();
+  };
+
   const exec = (command, arg = null) => {
     restoreSelection();
     document.execCommand(command, false, arg);
     ref.current?.focus();
     rememberSelection();
     onChange(ref.current.innerHTML);
+    pushHistory();
+  };
+
+  const applyBlockFormat = (tagName) => {
+    restoreSelection();
+    const selection = window.getSelection();
+    if (!selection?.rangeCount || !ref.current?.contains(selection.anchorNode)) return;
+
+    const range = selection.getRangeAt(0);
+    const normalizedTag = String(tagName || 'p').toLowerCase();
+    const allowedTags = new Set(['p', 'h1', 'h2', 'h3', 'blockquote']);
+    const nextTag = allowedTags.has(normalizedTag) ? normalizedTag : 'p';
+
+    // Native formatBlock is inconsistent across browsers when a selection spans
+    // multiple paragraphs. Apply the requested block tag to every touched block
+    // so the CMS never silently formats only the first/last line.
+    const walker = document.createTreeWalker(
+      ref.current,
+      NodeFilter.SHOW_ELEMENT,
+      {
+        acceptNode(node) {
+          if (!['P', 'DIV', 'H1', 'H2', 'H3', 'BLOCKQUOTE'].includes(node.tagName)) {
+            return NodeFilter.FILTER_SKIP;
+          }
+          try {
+            return range.intersectsNode(node)
+              ? NodeFilter.FILTER_ACCEPT
+              : NodeFilter.FILTER_REJECT;
+          } catch {
+            return NodeFilter.FILTER_REJECT;
+          }
+        },
+      }
+    );
+
+    const touched = [];
+    let node = walker.nextNode();
+    while (node) {
+      // Ignore a parent block when one of its direct/indirect block children is
+      // also selected; this prevents nested replacements.
+      if (!touched.some((existing) => existing.contains(node))) touched.push(node);
+      node = walker.nextNode();
+    }
+
+    const deepest = touched.filter(
+      (candidate) => !touched.some((other) => other !== candidate && candidate.contains(other))
+    );
+
+    if (deepest.length <= 1) {
+      document.execCommand('formatBlock', false, nextTag);
+    } else {
+      deepest.forEach((block) => {
+        if (block.tagName.toLowerCase() === nextTag) return;
+        const replacement = document.createElement(nextTag);
+        Array.from(block.attributes || []).forEach((attr) => {
+          if (attr.name !== 'id') replacement.setAttribute(attr.name, attr.value);
+        });
+        while (block.firstChild) replacement.appendChild(block.firstChild);
+        block.replaceWith(replacement);
+      });
+    }
+
+    ref.current?.focus();
+    rememberSelection();
+    onChange(ref.current.innerHTML);
+    pushHistory();
+  };
+
+  const handleListToggle = (listTag) => {
+    restoreSelection();
+    const selection = window.getSelection();
+    if (!selection?.rangeCount || !ref.current) return;
+
+    const range = selection.getRangeAt(0);
+    if (!ref.current.contains(range.commonAncestorContainer)) return;
+
+    const wantedTag = listTag === 'ol' ? 'OL' : 'UL';
+    let anchor = selection.anchorNode;
+    if (anchor?.nodeType === Node.TEXT_NODE) anchor = anchor.parentElement;
+    const currentList = anchor?.closest?.('ul,ol');
+
+    // If the caret/selection is already inside the same list type, toggling the
+    // button must return the touched list items to ordinary paragraphs. Doing
+    // this ourselves avoids the browser leaving nested DIV/LI fragments behind.
+    if (currentList && ref.current.contains(currentList) && currentList.tagName === wantedTag) {
+      const fragment = document.createDocumentFragment();
+      Array.from(currentList.children).forEach((child) => {
+        if (child.tagName !== 'LI') return;
+        const p = document.createElement('p');
+        while (child.firstChild) p.appendChild(child.firstChild);
+        fragment.appendChild(p);
+      });
+      currentList.replaceWith(fragment);
+    } else if (currentList && ref.current.contains(currentList)) {
+      // Switching bullet <-> numbered list keeps the exact LI contents and only
+      // changes the list container.
+      const replacement = document.createElement(listTag);
+      Array.from(currentList.attributes || []).forEach((attr) => replacement.setAttribute(attr.name, attr.value));
+      while (currentList.firstChild) replacement.appendChild(currentList.firstChild);
+      currentList.replaceWith(replacement);
+    } else {
+      // Native insertion is reliable for creating a list from normal paragraphs;
+      // normalization below removes browser-specific wrapper junk afterwards.
+      document.execCommand(listTag === 'ol' ? 'insertOrderedList' : 'insertUnorderedList', false);
+    }
+
+    // Normalize only direct editor children. This prevents empty DIV/BR wrappers
+    // produced by contentEditable from accumulating every time a list is toggled.
+    Array.from(ref.current.children).forEach((child) => {
+      if (child.tagName === 'DIV' && !child.querySelector('ul,ol')) {
+        const p = document.createElement('p');
+        while (child.firstChild) p.appendChild(child.firstChild);
+        child.replaceWith(p);
+      }
+      if ((child.tagName === 'UL' || child.tagName === 'OL') && child.children.length === 0) {
+        child.remove();
+      }
+    });
+
+    ref.current.focus();
+    savedSelection.current = null;
+    onChange(ref.current.innerHTML);
+    pushHistory();
+    syncActiveFormat();
   };
 
   const handleLink = () => {
@@ -2538,27 +5969,172 @@ function RichTextEditor({ initialValue, onChange, placeholder }) {
     setLinkUrl('');
   };
 
+  const applyInlineStyle = (styleName, value) => {
+    restoreSelection();
+    const selection = window.getSelection();
+    if (!selection?.rangeCount || selection.isCollapsed || !ref.current) return;
+    const range = selection.getRangeAt(0);
+    if (!ref.current.contains(range.commonAncestorContainer)) return;
+
+    // Browser editing commands handle selections that cross several inline nodes
+    // much more safely than surroundContents/extractContents. styleWithCSS keeps
+    // the result as inline CSS spans, which our public renderer already preserves.
+    ref.current.focus();
+    document.execCommand('styleWithCSS', false, true);
+    if (styleName === 'fontFamily') {
+      document.execCommand('fontName', false, value.split(',')[0].replace(/["']/g, '').trim());
+    } else if (styleName === 'fontSize') {
+      // Never wrap the whole Range in one span. A selection can cross paragraphs,
+      // existing spans, italics, etc.; an outer span also loses against an old
+      // inner font-size. Instead, style every selected TEXT slice directly.
+      const selectedRange = range.cloneRange();
+      const walker = document.createTreeWalker(
+        ref.current,
+        NodeFilter.SHOW_TEXT,
+        {
+          acceptNode(textNode) {
+            if (!textNode.nodeValue) return NodeFilter.FILTER_REJECT;
+            try {
+              return selectedRange.intersectsNode(textNode)
+                ? NodeFilter.FILTER_ACCEPT
+                : NodeFilter.FILTER_REJECT;
+            } catch {
+              return NodeFilter.FILTER_REJECT;
+            }
+          },
+        }
+      );
+
+      const textNodes = [];
+      let textNode = walker.nextNode();
+      while (textNode) {
+        textNodes.push(textNode);
+        textNode = walker.nextNode();
+      }
+
+      textNodes.forEach((originalNode) => {
+        if (!originalNode.parentNode) return;
+
+        const start = originalNode === selectedRange.startContainer
+          ? selectedRange.startOffset
+          : 0;
+        const end = originalNode === selectedRange.endContainer
+          ? selectedRange.endOffset
+          : originalNode.nodeValue.length;
+
+        if (start >= end) return;
+
+        // Split from the end first so offsets stay valid.
+        let chosen = originalNode;
+        if (end < chosen.nodeValue.length) chosen.splitText(end);
+        if (start > 0) chosen = chosen.splitText(start);
+
+        const span = document.createElement('span');
+        span.style.fontSize = value;
+        chosen.parentNode.insertBefore(span, chosen);
+        span.appendChild(chosen);
+      });
+
+      // Important: old V15.9/V15.10 experiments may have left nested legacy
+      // <font size="7"> or inline font-size wrappers. The new innermost spans
+      // above intentionally override those artifacts without touching text
+      // outside the user's selection.
+      savedSelection.current = null;
+      selection.removeAllRanges();
+      ref.current.focus();
+    }
+
+    if (styleName !== 'fontSize') savedSelection.current = null;
+    onChange(ref.current.innerHTML);
+    pushHistory();
+    syncActiveFormat();
+  };
+
+  const applyBlockStyle = (styleName, value) => {
+    restoreSelection();
+    const selection = window.getSelection();
+    if (!selection?.rangeCount) return;
+    let node = selection.anchorNode;
+    if (node?.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    const block = node?.closest?.('p,h1,h2,h3,blockquote,li,div');
+    if (!block || !ref.current?.contains(block)) return;
+    block.style[styleName] = value;
+    ref.current?.focus();
+    rememberSelection();
+    onChange(ref.current.innerHTML);
+    pushHistory();
+  };
+
+  // Document-level typography controls. These are intentionally different from
+  // Bold/Italic/etc: Font, body size, and line spacing are writing-workspace
+  // defaults, so changing them updates the whole Text block and keeps the
+  // chosen values visible in the ribbon instead of snapping back to placeholders.
+  const applyTypography = (styleName, value) => {
+    restoreSelection();
+    const selection = window.getSelection();
+    const hasRange = selection?.rangeCount && !selection.isCollapsed && ref.current?.contains(selection.getRangeAt(0).commonAncestorContainer);
+
+    if (hasRange) {
+      applyInlineStyle(styleName, value);
+      return;
+    }
+
+    // No text selection: set the typing style at the caret. Do NOT resize/re-font
+    // the entire editor, because that is what made unrelated paragraphs change.
+    if (!ref.current) return;
+    ref.current.focus();
+    document.execCommand('styleWithCSS', false, true);
+    if (styleName === 'fontFamily') {
+      document.execCommand('fontName', false, value.split(',')[0].replace(/["']/g, '').trim());
+    } else if (styleName === 'fontSize') {
+      // Font size is selection-based. With only a caret, do not mutate the
+      // document or inject hidden browser font-size state.
+      setEditorFontSize(value);
+    }
+    rememberSelection();
+  };
+
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-[#1e1e1e] overflow-hidden">
-      <div className="flex flex-wrap items-center gap-0.5 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#2d2d2d] px-1 py-1">
-        <select onMouseDown={(e) => { rememberSelection(); e.stopPropagation(); }} onChange={(e) => { exec('formatBlock', e.target.value); e.target.value = 'p'; }} defaultValue="p" title="Text style" className="mr-1 rounded border border-gray-300 bg-white px-1.5 py-1 text-[10px] dark:border-gray-600 dark:bg-[#1e1e1e]">
+    <div className="border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-[#1e1e1e] overflow-visible">
+      <div className="sticky top-0 z-30 flex flex-wrap items-center gap-0.5 rounded-t border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#2d2d2d] px-1 py-1 shadow-sm">
+        <select
+          onMouseDown={(e) => { rememberSelection(); e.stopPropagation(); }}
+          onChange={(e) => applyBlockFormat(e.target.value)}
+          value={activeFormat.block}
+          title="Text style — applies to every selected paragraph"
+          className="mr-1 rounded border border-gray-300 bg-white px-1.5 py-1 text-[10px] dark:border-gray-600 dark:bg-[#1e1e1e]"
+        >
           <option value="p">Normal</option><option value="h1">Heading 1</option><option value="h2">Heading 2</option><option value="h3">Heading 3</option><option value="blockquote">Quote</option>
         </select>
-        <ToolbarBtn onClick={() => exec('bold')} title="Bold"><span className="font-bold">B</span></ToolbarBtn>
-        <ToolbarBtn onClick={() => exec('italic')} title="Italic"><span className="italic">I</span></ToolbarBtn>
-        <ToolbarBtn onClick={() => exec('underline')} title="Underline"><span className="underline">U</span></ToolbarBtn>
-        <ToolbarBtn onClick={() => exec('strikeThrough')} title="Strikethrough"><span className="line-through">S</span></ToolbarBtn>
+        <span className={activeFormat.bold ? 'rounded bg-[#2B579A]/15 ring-1 ring-[#2B579A]/30 dark:bg-[#6FA8DC]/15' : ''}><ToolbarBtn onClick={() => exec('bold')} title="Bold"><span className="font-bold">B</span></ToolbarBtn></span>
+        <span className={activeFormat.italic ? 'rounded bg-[#2B579A]/15 ring-1 ring-[#2B579A]/30 dark:bg-[#6FA8DC]/15' : ''}><ToolbarBtn onClick={() => exec('italic')} title="Italic"><span className="italic">I</span></ToolbarBtn></span>
+        <span className={activeFormat.underline ? 'rounded bg-[#2B579A]/15 ring-1 ring-[#2B579A]/30 dark:bg-[#6FA8DC]/15' : ''}><ToolbarBtn onClick={() => exec('underline')} title="Underline"><span className="underline">U</span></ToolbarBtn></span>
+        <span className={activeFormat.strike ? 'rounded bg-[#2B579A]/15 ring-1 ring-[#2B579A]/30 dark:bg-[#6FA8DC]/15' : ''}><ToolbarBtn onClick={() => exec('strikeThrough')} title="Strikethrough"><span className="line-through">S</span></ToolbarBtn></span>
+        <select onMouseDown={(e) => { rememberSelection(); e.stopPropagation(); }} onChange={(e) => { const value = e.target.value; setEditorFont(value); applyTypography('fontFamily', value); }} value={editorFont} title="Font family — selected text / typing position" className="rounded border border-gray-300 bg-white px-1.5 py-1 text-[10px] dark:border-gray-600 dark:bg-[#1e1e1e]">
+          <option value="Georgia, serif">Georgia</option><option value="Garamond, 'Times New Roman', serif">Garamond</option><option value="Arial, sans-serif">Arial</option><option value="'Times New Roman', serif">Times New Roman</option><option value="'Courier New', Courier, monospace">Courier New</option><option value="monospace">Monospace</option>
+        </select>
+        <select onMouseDown={(e) => { rememberSelection(); e.stopPropagation(); }} onChange={(e) => { const value = e.target.value; setEditorFontSize(value); applyTypography('fontSize', value); }} value={editorFontSize} title="Font size — selected text / typing position (8–20 pt)" className="rounded border border-gray-300 bg-white px-1.5 py-1 text-[10px] dark:border-gray-600 dark:bg-[#1e1e1e]">
+          {Array.from({ length: 13 }, (_, index) => index + 8).map((size) => (
+            <option key={size} value={`${size}pt`}>{size} pt</option>
+          ))}
+        </select>
+        <select onMouseDown={(e) => { rememberSelection(); e.stopPropagation(); }} onChange={(e) => { const value = e.target.value; setEditorLineHeight(value); applyBlockStyle('lineHeight', value); }} value={editorLineHeight} title="Line spacing — whole Text block" className="rounded border border-gray-300 bg-white px-1.5 py-1 text-[10px] dark:border-gray-600 dark:bg-[#1e1e1e]">
+          <option value="1">1.0</option><option value="1.15">1.15</option><option value="1.5">1.5</option><option value="2">2.0</option>
+        </select>
+        <select onMouseDown={(e) => { rememberSelection(); e.stopPropagation(); }} onChange={(e) => { if (e.target.value) applyBlockStyle('marginBottom', e.target.value); e.target.value = ''; }} defaultValue="" title="Spacing after paragraph" className="rounded border border-gray-300 bg-white px-1.5 py-1 text-[10px] dark:border-gray-600 dark:bg-[#1e1e1e]">
+          <option value="" disabled>Space</option><option value="0">0</option><option value="0.5em">S</option><option value="1em">M</option><option value="1.5em">L</option>
+        </select>
         <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
-        <ToolbarBtn onClick={() => exec('insertUnorderedList')} title="Bullet List">• List</ToolbarBtn>
-        <ToolbarBtn onClick={() => exec('insertOrderedList')} title="Numbered List">1. List</ToolbarBtn>
+        <ToolbarBtn onClick={() => handleListToggle('ul')} title="Bullet List">• List</ToolbarBtn>
+        <ToolbarBtn onClick={() => handleListToggle('ol')} title="Numbered List">1. List</ToolbarBtn>
         <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
         <ToolbarBtn onClick={() => exec('justifyLeft')} title="Rata kiri">≡←</ToolbarBtn>
         <ToolbarBtn onClick={() => exec('justifyCenter')} title="Rata tengah">≡</ToolbarBtn>
         <ToolbarBtn onClick={() => exec('justifyRight')} title="Rata kanan">→≡</ToolbarBtn>
         <ToolbarBtn onClick={() => exec('justifyFull')} title="Justify">☰</ToolbarBtn>
         <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
-        <ToolbarBtn onClick={() => exec('undo')} title="Undo">↶</ToolbarBtn>
-        <ToolbarBtn onClick={() => exec('redo')} title="Redo">↷</ToolbarBtn>
+        <ToolbarBtn onClick={() => restoreHistory(-1)} title="Undo">↶</ToolbarBtn>
+        <ToolbarBtn onClick={() => restoreHistory(1)} title="Redo">↷</ToolbarBtn>
         <input value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)} onMouseDown={(event) => { const selection = window.getSelection(); if (selection?.rangeCount) savedSelection.current = selection.getRangeAt(0).cloneRange(); event.stopPropagation(); }} placeholder="https://..." className="ml-1 w-28 rounded border border-gray-300 bg-white px-1.5 py-1 text-[10px] dark:border-gray-600 dark:bg-[#1e1e1e]" />
         <ToolbarBtn onClick={handleLink} title="Insert Link">🔗 Link</ToolbarBtn>
         <ToolbarBtn onClick={() => exec('removeFormat')} title="Clear Formatting">Clear</ToolbarBtn>
@@ -2569,9 +6145,10 @@ function RichTextEditor({ initialValue, onChange, placeholder }) {
         suppressContentEditableWarning
         onMouseUp={rememberSelection}
         onKeyUp={rememberSelection}
-        onInput={(e) => onChange(e.currentTarget.innerHTML)}
+        onFocus={syncActiveFormat}
+        onInput={(e) => { onChange(e.currentTarget.innerHTML); pushHistory(e.currentTarget.innerHTML); syncActiveFormat(); }}
         data-placeholder={placeholder}
-        className="min-h-[140px] px-3 py-2 text-xs leading-relaxed focus:outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400"
+        className={`${fieldMode ? 'min-h-[96px] max-h-[320px] overflow-y-auto' : compact ? 'min-h-[260px] sm:min-h-[340px] max-h-[70vh] overflow-y-auto' : 'min-h-[260px] sm:min-h-[340px]'} overflow-x-auto px-4 py-4 text-[12pt] leading-[1.5] [font-family:Georgia,serif] focus:outline-none empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400 [&_h1]:my-4 [&_h1]:text-[16pt] [&_h1]:font-bold [&_h1]:leading-tight [&_h2]:my-3 [&_h2]:text-[14pt] [&_h2]:font-bold [&_h2]:leading-tight [&_h3]:my-2 [&_h3]:text-[12pt] [&_h3]:font-bold [&_h3]:leading-snug [&_p]:my-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_blockquote]:my-3 [&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-gray-600 dark:[&_blockquote]:border-gray-600 dark:[&_blockquote]:text-gray-300`}
       />
     </div>
   );
@@ -2597,7 +6174,7 @@ const getProjectCoverGuide = (contentType = 'writing') => PROJECT_COVER_GUIDES[c
 async function validateProjectCover(file, contentType = 'writing') {
   const guide = getProjectCoverGuide(contentType);
   if (!file || !['image/jpeg', 'image/webp'].includes(file.type)) {
-    dispatchCmsNotice('Cover ditolak. Format Projects hanya WebP atau JPG.');
+    dispatchCmsNotice('Cover rejected. Projects accepts WebP or JPG only.');
     return false;
   }
   if (file.size > guide.maxBytes) {
@@ -2620,7 +6197,7 @@ async function validateProjectCover(file, contentType = 'writing') {
       image.src = url;
     });
     if (!dimensions || dimensions.width !== guide.width || dimensions.height !== guide.height) {
-      dispatchCmsNotice(`Cover ditolak karena ukuran pixel tidak sesuai. Patokan: ${guide.text}`);
+      dispatchCmsNotice(`Cover rejected because its pixel dimensions do not match the guide. Reference: ${guide.text}`);
       return false;
     }
   }
@@ -2631,20 +6208,25 @@ function ProjectCoverHint({ contentType = 'writing' }) {
   return <p className="mt-1 text-[10px] leading-relaxed text-gray-400">Cover: {getProjectCoverGuide(contentType).text}</p>;
 }
 
-const CMS_IMAGE_MAX_EDGE = 2048;
-const CMS_IMAGE_WEBP_QUALITY = 0.84;
+const CMS_IMAGE_PROFILES = {
+  default: { maxEdge: 1600, quality: 0.82, maxBytes: 700 * 1024 },
+  article: { maxEdge: 1600, quality: 0.82, maxBytes: 500 * 1024 },
+  poster: { maxEdge: 2000, quality: 0.90, maxBytes: 700 * 1024 },
+  video: { maxEdge: 1600, quality: 0.82, maxBytes: 500 * 1024 },
+  book: { maxEdge: 1600, quality: 0.86, maxBytes: 500 * 1024 },
+  profile: { maxEdge: 1200, quality: 0.84, maxBytes: 300 * 1024 },
+};
 
-async function optimizeCmsImage(file) {
+async function optimizeCmsImage(file, profileName = 'default') {
   if (!file?.type?.startsWith('image/')) return file;
   if (file.type === 'image/svg+xml' || file.type === 'image/gif') return file;
+
+  const profile = CMS_IMAGE_PROFILES[profileName] || CMS_IMAGE_PROFILES.default;
 
   try {
     const bitmap = await createImageBitmap(file);
     const longestEdge = Math.max(bitmap.width, bitmap.height);
-    const scale = longestEdge > CMS_IMAGE_MAX_EDGE
-      ? CMS_IMAGE_MAX_EDGE / longestEdge
-      : 1;
-
+    const scale = longestEdge > profile.maxEdge ? profile.maxEdge / longestEdge : 1;
     const width = Math.max(1, Math.round(bitmap.width * scale));
     const height = Math.max(1, Math.round(bitmap.height * scale));
     const canvas = document.createElement('canvas');
@@ -2657,14 +6239,23 @@ async function optimizeCmsImage(file) {
       return file;
     }
 
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
     context.drawImage(bitmap, 0, 0, width, height);
     bitmap.close?.();
 
-    const blob = await new Promise((resolve) => {
-      canvas.toBlob(resolve, 'image/webp', CMS_IMAGE_WEBP_QUALITY);
-    });
+    let quality = profile.quality;
+    let blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', quality));
+    while (blob && blob.size > profile.maxBytes && quality > 0.64) {
+      quality = Math.max(0.64, quality - 0.06);
+      blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', quality));
+    }
 
-    if (!blob || blob.size >= file.size) return file;
+    if (!blob) return file;
+    if (blob.size > profile.maxBytes) {
+      dispatchCmsNotice(`Image is still too large after optimization (${Math.round(blob.size / 1024)} KB). Crop or resize the source first.`);
+      return null;
+    }
 
     const baseName = file.name.replace(/\.[^/.]+$/, '') || 'image';
     return new File([blob], `${baseName}.webp`, {
@@ -2677,13 +6268,13 @@ async function optimizeCmsImage(file) {
   }
 }
 
-async function uploadImageToStorage(file) {
+async function uploadImageToStorage(file, profileName = 'default') {
   if (!file) return null;
 
   // Hanya display image yang dioptimalkan. PDF/DOC/DOCX/PPT dan file non-image
-  // melewati fungsi ini tanpa perubahan. SVG/GIF juga dipertahankan agar sifat
-  // vector/animasi tidak rusak.
-  const uploadFile = await optimizeCmsImage(file);
+  // tetap lewat tanpa konversi; SVG/GIF dipertahankan agar vector/animasi tidak rusak.
+  const uploadFile = await optimizeCmsImage(file, profileName);
+  if (!uploadFile) return null;
   const fileExt = uploadFile.name.split('.').pop();
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
 
@@ -2696,11 +6287,47 @@ async function uploadImageToStorage(file) {
 
   if (error) {
     console.error('Gagal upload gambar:', error);
-    dispatchCmsNotice('Upload gambar gagal, mang. Cek koneksi internet atau coba lagi.');
+    dispatchCmsNotice('Image upload failed. Check your connection and try again.');
     return null;
   }
 
   const { data } = supabase.storage.from(IMAGES_BUCKET).getPublicUrl(fileName);
+  return data.publicUrl;
+}
+
+async function uploadAudioToStorage(file) {
+  if (!file) return null;
+
+  const AUDIO_BUCKET = 'Audio';
+  const maxBytes = 20 * 1024 * 1024;
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const allowedExt = ['mp3', 'm4a', 'wav', 'ogg', 'aac'];
+
+  if (!allowedExt.includes(ext)) {
+    dispatchCmsNotice('Unsupported audio format. Use MP3, M4A, WAV, OGG, or AAC.');
+    return null;
+  }
+
+  if (file.size > maxBytes) {
+    dispatchCmsNotice('Audio terlalu besar. Maksimal 20 MB.');
+    return null;
+  }
+
+  const fileName = `audio-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error } = await supabase.storage
+    .from(AUDIO_BUCKET)
+    .upload(fileName, file, {
+      contentType: file.type || (ext === 'mp3' ? 'audio/mpeg' : undefined),
+      cacheControl: '31536000',
+    });
+
+  if (error) {
+    console.error('Gagal upload audio:', error);
+    dispatchCmsNotice('Audio upload failed. Check your connection or try another file.');
+    return null;
+  }
+
+  const { data } = supabase.storage.from(AUDIO_BUCKET).getPublicUrl(fileName);
   return data.publicUrl;
 }
 
@@ -2721,7 +6348,7 @@ async function uploadWebsiteSharePreview(file) {
 
   if (error) {
     console.error('Gagal memperbarui share preview:', error);
-    dispatchCmsNotice('Share Preview gagal diperbarui. Upload lama tetap aman; cek izin UPDATE/UPSERT bucket Supabase.');
+    dispatchCmsNotice('Share Preview could not be updated. The previous upload is still safe; check Supabase bucket UPDATE/UPSERT permissions.');
     return null;
   }
 
@@ -2744,7 +6371,7 @@ async function uploadWebsiteFavicon(file) {
 
   if (error) {
     console.error('Gagal memperbarui favicon:', error);
-    dispatchCmsNotice('Favicon gagal diperbarui. Favicon lama tetap aman; cek izin UPDATE/UPSERT bucket Supabase.');
+    dispatchCmsNotice('Favicon could not be updated. The previous favicon is still safe; check Supabase bucket UPDATE/UPSERT permissions.');
     return null;
   }
 
@@ -2753,7 +6380,7 @@ async function uploadWebsiteFavicon(file) {
 }
 
 // Convert file .docx (Word) yang di-upload admin jadi HTML, dipakai buat isi cerpen/tulisan
-// panjang di Tab Tambahan Projects. Jalan di browser (client-side), gak lewat server —
+// panjang di Tab Addan Projects. Jalan di browser (client-side), gak lewat server —
 // mammoth baca ArrayBuffer file-nya langsung terus keluarin HTML (paragraf, bold/italic,
 // heading, list dasar ikut kebawa; format kompleks kayak gambar/tabel di dalam docx-nya
 // gak didukung mammoth, bakal di-skip). Hasil HTML ini yang DISIMPEN ke data (bukan file
@@ -2770,7 +6397,7 @@ async function convertWordFileToHtml(file) {
     return result.value; // string HTML
   } catch (err) {
     console.error('Gagal convert file Word:', err);
-    dispatchCmsNotice('Gagal baca file Word ini, mang. Pastiin formatnya .docx (bukan .doc lama) dan coba lagi.');
+    dispatchCmsNotice('Could not read this Word file. Make sure it is .docx (not legacy .doc) and try again.');
     return null;
   }
 }
@@ -2790,7 +6417,7 @@ function EnglishTranslationEditor({ source, rootPath, allowedPaths, translations
   };
 
   if (!rows.length) {
-    return <div className="rounded-lg border border-dashed border-gray-300 p-5 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">Bagian ini tidak punya copy teks yang perlu diterjemahkan.</div>;
+    return <div className="rounded-lg border border-dashed border-gray-300 p-5 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">This section has no text copy that needs translation.</div>;
   }
 
   return (
@@ -2799,9 +6426,9 @@ function EnglishTranslationEditor({ source, rootPath, allowedPaths, translations
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-bold text-blue-700 dark:text-blue-300">English copy</h2>
-            <p className="mt-1 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">Hanya copy English yang diedit di mode ini. Field kosong otomatis fallback ke versi Indonesia; struktur, gambar, urutan, toggle, dan data teknis tetap satu sumber.</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">Only the English copy is edited in this mode. Empty fields automatically fall back to the Indonesian version; structure, images, order, toggles, and technical data remain shared.</p>
           </div>
-          <span className="rounded-full bg-white px-2.5 py-1 font-mono text-[10px] font-bold text-blue-700 shadow-sm dark:bg-[#252525] dark:text-blue-300">{completed}/{rows.length} translated</span>
+          <span className="rounded-full bg-white px-2.5 py-1 font-[Arial] text-[10px] font-bold text-blue-700 shadow-sm dark:bg-[#252525] dark:text-blue-300">{completed}/{rows.length} translated</span>
         </div>
       </div>
 
@@ -2813,27 +6440,26 @@ function EnglishTranslationEditor({ source, rootPath, allowedPaths, translations
             <div key={row.path} className="rounded-lg border border-gray-200 bg-gray-50/70 p-3 dark:border-gray-700 dark:bg-[#282828]">
               <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
                 <label className="text-xs font-bold text-gray-700 dark:text-gray-200">{humanize(row.path)}</label>
-                <span className="max-w-full truncate font-mono text-[9px] text-gray-400" title={row.path}>{row.path}</span>
+                <span className="max-w-full truncate font-[Arial] text-[9px] text-gray-400" title={row.path}>{row.path}</span>
               </div>
               <p className="mb-2 whitespace-pre-wrap text-[11px] leading-relaxed text-gray-500 dark:text-gray-400"><span className="font-semibold">ID:</span> {row.source}</p>
               {longText ? (
-                <textarea
-                  value={value}
-                  onChange={(event) => onChange(row.path, event.target.value)}
-                  rows={Math.min(8, Math.max(3, Math.ceil((value || row.source).length / 90)))}
-                  placeholder="Tulis versi English di sini…"
-                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-blue-500 dark:border-gray-600 dark:bg-[#1e1e1e] dark:text-gray-100"
+                <RichTextEditor
+                  fieldMode
+                  initialValue={value}
+                  onChange={(html) => onChange(row.path, html)}
+                  placeholder="Write the English version here…"
                 />
               ) : (
                 <input
                   type="text"
                   value={value}
                   onChange={(event) => onChange(row.path, event.target.value)}
-                  placeholder="Tulis versi English di sini…"
+                  placeholder="Write the English version here…"
                   className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 outline-none focus:border-blue-500 dark:border-gray-600 dark:bg-[#1e1e1e] dark:text-gray-100"
                 />
               )}
-              {!value.trim() && <p className="mt-1.5 text-[10px] text-amber-600 dark:text-amber-400">Belum diterjemahkan — public EN masih memakai copy Indonesia.</p>}
+              {!value.trim() && <p className="mt-1.5 text-[10px] text-amber-600 dark:text-amber-400">Not translated yet — the public EN version is still using the Indonesian copy.</p>}
             </div>
           );
         })}
@@ -2842,7 +6468,46 @@ function EnglishTranslationEditor({ source, rootPath, allowedPaths, translations
   );
 }
 
-export default function CmsDashboard({ data, onSave }) {
+
+const CmsMenuIllustration = ({ type }) => {
+  const common = {
+    width: 52,
+    height: 52,
+    viewBox: '0 0 52 52',
+    fill: 'none',
+    xmlns: 'http://www.w3.org/2000/svg',
+    'aria-hidden': true,
+  };
+  const stroke = 'currentColor';
+  const icons = {
+    main: <><rect x="9" y="11" width="34" height="30" rx="3" stroke={stroke} strokeWidth="1.7"/><path d="M15 18h22M15 24h15M15 30h19M15 36h11" stroke={stroke} strokeWidth="1.7" strokeLinecap="round"/></>,
+    side: <><rect x="10" y="9" width="32" height="34" rx="3" stroke={stroke} strokeWidth="1.7"/><path d="M18 9v34M23 17h12M23 23h9M23 31h12M23 37h7" stroke={stroke} strokeWidth="1.7" strokeLinecap="round"/></>,
+    extra: <><path d="M18 19h16a8 8 0 0 1 7.7 5.8l2.1 7.5a5 5 0 0 1-8.2 5l-4.1-3.6h-11l-4.1 3.6a5 5 0 0 1-8.2-5l2.1-7.5A8 8 0 0 1 18 19Z" stroke={stroke} strokeWidth="1.7"/><path d="M17 26v7M13.5 29.5h7M34 27.5h.01M38 31.5h.01" stroke={stroke} strokeWidth="2" strokeLinecap="round"/></>,
+    websikee: <><rect x="7" y="10" width="38" height="32" rx="4" stroke={stroke} strokeWidth="1.7"/><path d="M7 18h38" stroke={stroke} strokeWidth="1.7"/><circle cx="12" cy="14" r="1" fill="currentColor"/><circle cx="16" cy="14" r="1" fill="currentColor"/><path d="M19 32c3.5-7 10.5-7 14 0M26 23v14" stroke={stroke} strokeWidth="1.7" strokeLinecap="round"/></>,
+    home: <><path d="m9 25 17-14 17 14" stroke={stroke} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M13 23v19h26V23M22 42V31h8v11" stroke={stroke} strokeWidth="1.7" strokeLinejoin="round"/></>,
+    about: <><circle cx="26" cy="19" r="8" stroke={stroke} strokeWidth="1.7"/><path d="M12 42c1.5-8 7-12 14-12s12.5 4 14 12" stroke={stroke} strokeWidth="1.7" strokeLinecap="round"/></>,
+    projects: <><rect x="9" y="14" width="27" height="30" rx="3" stroke={stroke} strokeWidth="1.7"/><path d="M16 9h27v30" stroke={stroke} strokeWidth="1.7" strokeLinecap="round"/><path d="M15 22h15M15 28h15M15 34h10" stroke={stroke} strokeWidth="1.7" strokeLinecap="round"/></>,
+    career: <><rect x="8" y="17" width="36" height="25" rx="3" stroke={stroke} strokeWidth="1.7"/><path d="M20 17v-5h12v5M8 27h36M22 27v4h8v-4" stroke={stroke} strokeWidth="1.7" strokeLinejoin="round"/></>,
+    book: <><path d="M7 13c8-2 14 0 19 4v28c-5-4-11-6-19-4V13ZM45 13c-8-2-14 0-19 4v28c5-4 11-6 19-4V13Z" stroke={stroke} strokeWidth="1.7" strokeLinejoin="round"/></>,
+    contact: <><rect x="7" y="13" width="38" height="27" rx="3" stroke={stroke} strokeWidth="1.7"/><path d="m9 16 17 13 17-13" stroke={stroke} strokeWidth="1.7" strokeLinejoin="round"/></>,
+    featuredWorks: <><rect x="8" y="10" width="36" height="32" rx="3" stroke={stroke} strokeWidth="1.7"/><path d="m13 36 9-9 6 6 5-5 6 8" stroke={stroke} strokeWidth="1.7" strokeLinejoin="round"/><circle cx="33" cy="19" r="4" stroke={stroke} strokeWidth="1.7"/></>,
+    visitorIntroduction: <><path d="M14 8h24v12H14zM10 20h32v18H10zM15 38h22v7H15z" stroke={stroke} strokeWidth="1.7" strokeLinejoin="round"/><path d="M16 26h20M16 31h13" stroke={stroke} strokeWidth="1.7" strokeLinecap="round"/></>,
+    navigationLabels: <><path d="M8 15h36M8 26h36M8 37h36" stroke={stroke} strokeWidth="1.7" strokeLinecap="round"/><circle cx="16" cy="15" r="3" fill="currentColor"/><circle cx="34" cy="26" r="3" fill="currentColor"/><circle cx="23" cy="37" r="3" fill="currentColor"/></>,
+    interactiveWords: <><path d="M9 14h34M9 25h23M9 36h29" stroke={stroke} strokeWidth="1.7" strokeLinecap="round"/><path d="M13 18c2 2 4-2 6 0s4-2 6 0M13 40c2 2 4-2 6 0s4-2 6 0" stroke={stroke} strokeWidth="1.5" strokeLinecap="round"/></>,
+    general: <><path d="M26 7v8M26 37v8M7 26h8M37 26h8M12.6 12.6l5.7 5.7M33.7 33.7l5.7 5.7M39.4 12.6l-5.7 5.7M18.3 33.7l-5.7 5.7" stroke={stroke} strokeWidth="1.7" strokeLinecap="round"/><circle cx="26" cy="26" r="8" stroke={stroke} strokeWidth="1.7"/></>,
+    zine: <><path d="M10 12h32v28H10z" stroke={stroke} strokeWidth="1.7"/><path d="M15 18h22M15 24h14M15 30h19M15 36h10" stroke={stroke} strokeWidth="1.7" strokeLinecap="round"/></>,
+    miniGame: <><path d="M18 19h16a8 8 0 0 1 7.7 5.8l2.1 7.5a5 5 0 0 1-8.2 5l-4.1-3.6h-11l-4.1 3.6a5 5 0 0 1-8.2-5l2.1-7.5A8 8 0 0 1 18 19Z" stroke={stroke} strokeWidth="1.7"/><path d="M17 26v7M13.5 29.5h7M34 27.5h.01M38 31.5h.01" stroke={stroke} strokeWidth="2" strokeLinecap="round"/></>,
+    leaderboardSystems: <><path d="M10 43V28h8v15M22 43V18h8v25M34 43V10h8v33" stroke={stroke} strokeWidth="1.7" strokeLinejoin="round"/><path d="M7 43h38" stroke={stroke} strokeWidth="1.7" strokeLinecap="round"/></>,
+  };
+  return <svg {...common}>{icons[type] || icons.projects}</svg>;
+};
+
+export default function CmsDashboard({ data, onSave, onExitAdmin }) {
+  const [showAdminWelcome, setShowAdminWelcome] = useState(true);
+  const [recordQuality, setRecordQuality] = useState('1080');
+  const requestWebsiteRecording = () => {
+    window.dispatchEvent(new CustomEvent('portfolio:start-recording', { detail: { quality: recordQuality } }));
+  };
   // Salinan lokal yang bisa diedit bebas — baru dikirim ke portfolioData asli pas Save ditekan.
   const [sourceFormData, setSourceFormData] = useState(() => {
     const cloned = JSON.parse(JSON.stringify(data));
@@ -3015,10 +6680,12 @@ export default function CmsDashboard({ data, onSave }) {
     setCmsLanguage('id');
   }, [activeTab]);
   // Sub-tab DI DALAM panel "Projects": 'articles' | 'poster' | 'custom'. Dipisah biar
-  // admin gak harus scroll ngelewatin Articles+Poster+Tab Tambahan sekaligus dalam 1
+  // admin gak harus scroll ngelewatin Articles+Poster+Tab Addan sekaligus dalam 1
   // halaman panjang — cuma 1 section yang di-render/kelihatan dalam satu waktu, mirip
   // nav Articles/Poster di halaman publiknya sendiri.
-  const [activeProjectsSubTab, setActiveProjectsSubTab] = useState('articles');
+  const [activeProjectsSubTab, setActiveProjectsSubTab] = useState('menu');
+  const [activeProjectItem, setActiveProjectItem] = useState(null);
+  const [expandedUniversalBlockIds, setExpandedUniversalBlockIds] = useState(() => new Set());
   // Artikel mana yang lagi "dibuka" buat diedit penuh (judul, gambar, isi lengkap, dst).
   // null = semua artikel collapsed (cuma judul + tombol Edit doang). Sengaja dibikin
   // begini biar admin gak usah scroll ngelewatin artikel lain yang isinya panjang cuma
@@ -3041,7 +6708,7 @@ export default function CmsDashboard({ data, onSave }) {
     // pada commit yang sama supaya field yang baru mount tidak kehilangan catatan Indonesia.
     bumpCmsDomRevision();
   };
-  // Kategori Career mana yang lagi ditampilin (id kategori) — sama konsepnya kayak
+  // Category Career mana yang lagi ditampilin (id kategori) — sama konsepnya kayak
   // activeProjectsSubTab: cuma 1 kategori yang keliatan isinya dalam satu waktu, sisanya
   // disembunyiin di balik pill tab. null = fallback ke kategori pertama (lihat currentCareerCatIdx
   // di render). Direset ke null kalau kategori yang lagi aktif dihapus.
@@ -3165,7 +6832,7 @@ export default function CmsDashboard({ data, onSave }) {
 
   const archiveInboxZine = async (entry) => {
     if (!entry || entry.status === 'pending') return;
-    if (!window.confirm(`Hapus Submission #${entry.id} dari history CMS? Kiriman Approved tetap tersedia di fitur Menerima.`)) return;
+    if (!window.confirm(`Remove Submission #${entry.id} dari history CMS? Kiriman Approved tetap tersedia di fitur Menerima.`)) return;
     setModeratingZineId(entry.id);
     setZineInboxError('');
     try {
@@ -3219,21 +6886,27 @@ export default function CmsDashboard({ data, onSave }) {
       },
       website: { ...normalizeWebsite(sourceFormData.website) },
     };
-    // Catatan Website adalah admin-local note: jangan pernah kirim ke row portfolio
+    // Notes Website adalah admin-local note: jangan pernah kirim ke row portfolio
     // yang memang dibaca publik oleh website.
     delete cleanData.website.devNotes;
     delete cleanData.odds;
     delete cleanData.quotes;
-    const success = await onSave(cleanData);
-    setIsSaving(false);
-    if (success === false) {
+    try {
+      const success = await onSave(cleanData);
+      if (success === false) {
+        setNotice('Gagal simpan perubahan. Cek koneksi internet lo dan coba lagi.');
+        return;
+      }
+      // Berhasil disimpan — balik ke menu pilih tab, TETEP di dalem admin mode.
+      // Keluar dari admin mode sepenuhnya cuma lewat tombol "Exit Admin" di TitleBar.
+      if (activeTab === 'websikee') setCmsSection(null);
+      setActiveTab(null);
+    } catch (error) {
+      console.error('CMS save failed:', error);
       setNotice('Gagal simpan perubahan. Cek koneksi internet lo dan coba lagi.');
-      return;
+    } finally {
+      setIsSaving(false);
     }
-    // Berhasil disimpan — balik ke menu pilih tab, TETEP di dalem admin mode.
-    // Keluar dari admin mode sepenuhnya cuma lewat tombol "Exit Admin" di TitleBar.
-    if (activeTab === 'websikee') setCmsSection(null);
-    setActiveTab(null);
   };
 
   const handleCancel = () => setShowCancelConfirm(true);
@@ -3352,21 +7025,23 @@ export default function CmsDashboard({ data, onSave }) {
     try {
       payload = JSON.parse(miniGameAutofillText);
     } catch {
-      setMiniGameAutofillNotice(cmsCopy('JSON belum valid. Periksa koma, tanda kutip, atau kurungnya.', 'The JSON is not valid yet. Check commas, quotation marks, and brackets.'));
+      setMiniGameAutofillNotice(cmsCopy('The JSON is not valid yet. Check commas, quotation marks, and brackets.', 'The JSON is not valid yet. Check commas, quotation marks, and brackets.'));
       return;
     }
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-      setMiniGameAutofillNotice(cmsCopy('Isi Otomatis harus berupa satu object JSON.', 'Autofill must contain one JSON object.'));
+      setMiniGameAutofillNotice(cmsCopy('Autofill must contain one JSON object.', 'Autofill must contain one JSON object.'));
       return;
     }
 
-    const allowed = new Set(['gameName','gameCategory','gameCardDescription','title','objective','rules','startButtonLabel','secondsPerDraft','draftsPerSession','gradeTitles','resultEyebrow','replayLabel','projectsCtaLabel','contactCtaLabel','drafts','cases','casesPerSession','verdictPoints','evidencePoints','perfectBonus','verdictLabels','evidenceLabels','copy','podium']);
+    const allowed = new Set(['gameName','gameCategory','gameCardDescription','title','objective','rules','startButtonLabel','secondsPerDraft','draftsPerSession','gradeTitles','resultEyebrow','replayLabel','projectsCtaLabel','contactCtaLabel','drafts','cases','casesPerSession','verdictPoints','evidencePoints','perfectBonus','verdictLabels','evidenceLabels','copy','podium','audienceFitLabel','audienceLabel','averageLabel','bestDimensionLabel','briefLabel','caseLabel','channelLabel','chooseLabel','clarityLabel','cleanRiskLabel','conceptLabel','contentTypeLabel','contextLabel','enabled','evidenceLabel','goalLabel','hookLabel','logicLabel','nextLabel','precisionLabel','relevanceLabel','reportLabel','riskLabel','scoreLabel','scoreMaxPerCase','showInLibrary','sourceLabel','statementLabel','submitLabel','toneFitLabel','toneLabel']);
     updateEditingMiniGame((game) => {
       const next = { ...game };
       Object.entries(payload).forEach(([key, value]) => {
         if (!allowed.has(key)) return;
-        if (key === 'rules' && value && typeof value === 'object' && !Array.isArray(value)) {
-          next.rules = { ...game.rules, ...value };
+        if (key === 'rules' && Array.isArray(value)) {
+          next.rules = [...value];
+        } else if (key === 'rules' && value && typeof value === 'object') {
+          next.rules = { ...(Array.isArray(game.rules) ? {} : game.rules), ...value };
         } else if (key === 'gradeTitles' && Array.isArray(value)) {
           next.gradeTitles = value.map((item) => ({ min: Math.max(0, Number(item?.min) || 0), label: String(item?.label || ''), remark: String(item?.remark || '') }));
         } else if (key === 'drafts' && Array.isArray(value)) {
@@ -3383,18 +7058,25 @@ export default function CmsDashboard({ data, onSave }) {
       });
       return next;
     });
-    setMiniGameAutofillNotice(cmsCopy('Isi otomatis sudah masuk ke formulir. Periksa dulu, lalu Save.', 'Autofill has been applied to the form. Review it, then Save.'));
+    setMiniGameAutofillNotice(cmsCopy('Autofill has been applied to the form. Review it, then Save.', 'Autofill has been applied to the form. Review it, then Save.'));
     bumpCmsDomRevision();
   };
   const addMiniGameSlot = () => setFormData((previous) => {
     const slots = previous.miniGame.gameSlots || [];
-    const hasHangman = slots.some((slot) => slot.gameType === 'hangman' || String(slot.gameName || '').trim().toLowerCase() === 'the hangman');
-    const hasPlagiarism = slots.some((slot) => slot.gameType === 'plagiarismPolice' || String(slot.gameName || '').trim().toLowerCase() === 'plagiarism police');
-    const next = !hasHangman
-      ? emptyMiniGameSlot(slots.length + 2, HANGMAN_PRESET)
-      : !hasPlagiarism
-        ? emptyMiniGameSlot(slots.length + 2, PLAGIARISM_POLICE_PRESET)
-        : emptyMiniGameSlot(slots.length + 2);
+    const presets = [
+      HANGMAN_PRESET,
+      PLAGIARISM_POLICE_PRESET,
+      HEADLINE_HOOK_CMS_PRESET,
+      TONE_SWITCHER_CMS_PRESET,
+      LOGICAL_LEAP_CMS_PRESET,
+    ];
+    const nextPreset = presets.find((preset) => !slots.some((slot) =>
+      slot.gameType === preset.gameType ||
+      String(slot.gameName || '').trim().toLowerCase() === String(preset.gameName || '').trim().toLowerCase()
+    ));
+    const next = nextPreset
+      ? emptyMiniGameSlot(slots.length + 2, nextPreset)
+      : emptyMiniGameSlot(slots.length + 2);
     return { ...previous, miniGame: { ...previous.miniGame, gameSlots: [...slots, next] } };
   });
   const removeMiniGameSlot = (index) => setFormData((previous) => ({
@@ -3562,7 +7244,7 @@ export default function CmsDashboard({ data, onSave }) {
   }));
 
   /* ============ CAREER ============ */
-  // Judul & sub-judul di layar menu utama halaman Career
+  // Title & sub-judul di layar menu utama halaman Career
   const setCareerHeading = (field, value) =>
     setFormData((p) => ({ ...p, career: { ...p.career, [field]: value } }));
 
@@ -3594,11 +7276,11 @@ export default function CmsDashboard({ data, onSave }) {
     }));
   };
 
-  // Nama kategori yang tampil di kartu menu (bebas diganti, mis. "Professional" -> "Kerja")
+  // Name kategori yang tampil di kartu menu (bebas diganti, mis. "Professional" -> "Kerja")
   const setCareerCategoryName = (catIdx, value) =>
     updateCareerCategory(catIdx, (cat) => ({ ...cat, name: value }));
 
-  // Tipe kartu kategori: 'career' (Posisi @ Instansi) atau 'credential' (Pencapaian/Sertifikat).
+  // Tipe kartu kategori: 'career' (Position @ Instansi) atau 'credential' (Pencapaian/Sertifikat).
   // Ganti tipe TIDAK ngubah item yang udah ada (field yang gak relevan cuma gak dipakai di
   // tampilan publik) — biar aman kalau kepencet gak sengaja, tapi sebaiknya diisi ulang.
   const setCareerCategoryType = (catIdx, value) =>
@@ -3643,7 +7325,7 @@ export default function CmsDashboard({ data, onSave }) {
   };
 
   /* ============ BOOKS ============ */
-  // Judul & sub-judul di halaman Book (di atas rak buku)
+  // Title & sub-judul di halaman Book (di atas rak buku)
   const setBooksHeading = (field, value) =>
     setFormData((p) => ({ ...p, books: { ...p.books, [field]: value } }));
 
@@ -3747,7 +7429,7 @@ export default function CmsDashboard({ data, onSave }) {
     }));
 
   /* ============ PROJECTS: TAB TAMBAHAN (CUSTOM SECTIONS) ============ */
-  // Nama tab-nya sendiri bebas ditentuin (mis. "Dummy Projects", "Eksperimen", dll).
+  // Tab Name-nya sendiri bebas ditentuin (mis. "Dummy Projects", "Eksperimen", dll).
   // Tiap custom section dapet pill nav sendiri (sejajar Articles/Poster) — begitu
   // ditambah, langsung pindah ke pill barunya biar bisa langsung diedit namanya,
   // gak numpuk collapsed di dalam 1 wrapper tab generik lagi.
@@ -3763,7 +7445,7 @@ export default function CmsDashboard({ data, onSave }) {
   const removeCustomSection = (sectionIdx) => {
     const removedId = formData.projects.customSections[sectionIdx]?.id;
     if (removedId && activeProjectsSubTab === `custom:${removedId}`) {
-      setActiveProjectsSubTab('articles');
+      setActiveProjectsSubTab('menu');
     }
     setFormData((p) => ({
       ...p,
@@ -3818,6 +7500,606 @@ export default function CmsDashboard({ data, onSave }) {
       };
       return { ...p, projects: { ...p.projects, customSections } };
     });
+
+  const openProjectItem = (kind, idx, sectionIdx = null) => {
+    setActiveProjectItem({ kind, idx, sectionIdx });
+    bumpCmsDomRevision();
+  };
+  const closeProjectItem = () => {
+    setActiveProjectItem(null);
+    bumpCmsDomRevision();
+  };
+  const projectSectionLabel = () => {
+    if (activeProjectsSubTab === 'articles') return formData.projects.articlesLabel || 'Articles';
+    if (activeProjectsSubTab === 'directing') return formData.projects.directingLabel || 'Directing';
+    if (activeProjectsSubTab === 'poster') return formData.projects.posterLabel || 'Poster';
+    if (activeProjectsSubTab.startsWith('custom:')) return formData.projects.customSections.find((s) => `custom:${s.id}` === activeProjectsSubTab)?.label || 'Project Tab';
+    return 'Projects';
+  };
+
+
+  /* ============ PHASE 3: UNIVERSAL PROJECT CONTENT BLOCKS ============ */
+  const UNIVERSAL_BLOCK_TYPES = [
+    { type: 'text', label: 'Text', icon: 'Aa' },
+    { type: 'image', label: 'Image', icon: '▧' },
+    { type: 'gallery', label: 'Gallery', icon: '▦' },
+    { type: 'video', label: 'Video', icon: '▶' },
+    { type: 'audio', label: 'Audio', icon: '♪' },
+    { type: 'link', label: 'Link', icon: '↗' },
+    { type: 'file', label: 'File', icon: 'PDF' },
+    { type: 'word', label: 'Import Doc', icon: 'W' },
+    { type: 'embed', label: 'Embed', icon: '</>' },
+    { type: 'divider', label: 'Divider', icon: '—' },
+  ];
+
+  const emptyUniversalBlock = (type) => ({
+    id: `block-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    type,
+    text: '',
+    url: '',
+    label: '',
+    caption: '',
+    items: [],
+  });
+
+  const updateProjectItemBlocks = (kind, idx, sectionIdx, updater) => {
+    setFormData((prev) => {
+      const projects = { ...prev.projects };
+
+      if (kind === 'article') {
+        const articles = [...projects.articles];
+        const item = { ...articles[idx] };
+        item.cmsBlocks = updater(Array.isArray(item.cmsBlocks) ? item.cmsBlocks : []);
+        articles[idx] = item;
+        projects.articles = articles;
+      } else if (kind === 'directing') {
+        const directing = { ...projects.directing, items: [...projects.directing.items] };
+        const item = { ...directing.items[idx] };
+        item.cmsBlocks = updater(Array.isArray(item.cmsBlocks) ? item.cmsBlocks : []);
+        directing.items[idx] = item;
+        projects.directing = directing;
+      } else if (kind === 'poster') {
+        const poster = { ...projects.poster, items: [...projects.poster.items] };
+        const item = { ...poster.items[idx] };
+        item.cmsBlocks = updater(Array.isArray(item.cmsBlocks) ? item.cmsBlocks : []);
+        poster.items[idx] = item;
+        projects.poster = poster;
+      } else if (kind === 'custom') {
+        const customSections = [...projects.customSections];
+        const section = { ...customSections[sectionIdx], items: [...customSections[sectionIdx].items] };
+        const item = { ...section.items[idx] };
+        item.cmsBlocks = updater(Array.isArray(item.cmsBlocks) ? item.cmsBlocks : []);
+        section.items[idx] = item;
+        customSections[sectionIdx] = section;
+        projects.customSections = customSections;
+      }
+
+      return { ...prev, projects };
+    });
+  };
+
+  const addUniversalBlock = (kind, idx, sectionIdx, type) => {
+    const nextBlock = emptyUniversalBlock(type);
+    updateProjectItemBlocks(kind, idx, sectionIdx, (blocks) => [...blocks, nextBlock]);
+    setExpandedUniversalBlockIds((current) => new Set([...current, nextBlock.id]));
+  };
+
+  const setUniversalBlockField = (kind, idx, sectionIdx, blockIdx, field, value) =>
+    updateProjectItemBlocks(kind, idx, sectionIdx, (blocks) =>
+      blocks.map((block, i) => (i === blockIdx ? { ...block, [field]: value } : block))
+    );
+
+  const removeUniversalBlock = (kind, idx, sectionIdx, blockIdx) =>
+    updateProjectItemBlocks(kind, idx, sectionIdx, (blocks) => blocks.filter((_, i) => i !== blockIdx));
+
+  const moveUniversalBlock = (kind, idx, sectionIdx, blockIdx, direction) =>
+    updateProjectItemBlocks(kind, idx, sectionIdx, (blocks) => {
+      const next = [...blocks];
+      const target = blockIdx + direction;
+      if (target < 0 || target >= next.length) return next;
+      [next[blockIdx], next[target]] = [next[target], next[blockIdx]];
+      return next;
+    });
+
+
+  const PROJECT_LAYOUT_PRESETS = [
+    { id: 'default', label: 'Default', icon: '□', hint: 'Use the current Projects presentation.' },
+    { id: 'editorial', label: 'Editorial', icon: 'Aa', hint: 'Keep writing at the center.' },
+    { id: 'visual', label: 'Visual', icon: '▧', hint: 'Image dan visual work gets more emphasis.' },
+    { id: 'case-study', label: 'Case Study', icon: 'Aa▧', hint: 'Problem, process, outcome, and reasoning.' },
+    { id: 'media', label: 'Media', icon: '▶', hint: 'Make audio/video the primary hero.' },
+    { id: 'minimal', label: 'Minimal', icon: '—', hint: 'Use the quietest, simplest presentation.' },
+  ];
+
+  const PROJECT_DESIGN_RECIPES = [
+    { id: 'default', label: 'Default', layout: 'default', coverStyle: 'split', contentWidth: 'normal', alignment: 'left' },
+    { id: 'editorial-story', label: 'Editorial Story', layout: 'editorial', coverStyle: 'small', contentWidth: 'narrow', alignment: 'left' },
+    { id: 'visual-showcase', label: 'Visual Showcase', layout: 'visual', coverStyle: 'full', contentWidth: 'wide', alignment: 'center' },
+    { id: 'case-study', label: 'Case Study', layout: 'case-study', coverStyle: 'split', contentWidth: 'normal', alignment: 'left' },
+    { id: 'long-read', label: 'Long Read', layout: 'editorial', coverStyle: 'none', contentWidth: 'narrow', alignment: 'left' },
+    { id: 'media-piece', label: 'Media Piece', layout: 'media', coverStyle: 'full', contentWidth: 'normal', alignment: 'center' },
+
+    { id: 'literary', label: 'Literary / Short Story', layout: 'editorial', coverStyle: 'small', contentWidth: 'narrow', alignment: 'left' },
+    { id: 'screenplay', label: 'Screenplay', layout: 'minimal', coverStyle: 'none', contentWidth: 'normal', alignment: 'left' },
+    { id: 'audio-piece', label: 'Audio Piece', layout: 'media', coverStyle: 'full', contentWidth: 'normal', alignment: 'center' },
+    { id: 'poster-piece', label: 'Poster', layout: 'visual', coverStyle: 'full', contentWidth: 'wide', alignment: 'center' },
+    { id: 'technical-documentation', label: 'Technical Documentation', layout: 'editorial', coverStyle: 'none', contentWidth: 'normal', alignment: 'left' },
+    { id: 'ux-writing-case-study', label: 'UX Writing Case Study', layout: 'case-study', coverStyle: 'split', contentWidth: 'normal', alignment: 'left' },
+    { id: 'copywriting-campaign', label: 'Copywriting Campaign', layout: 'visual', coverStyle: 'full', contentWidth: 'wide', alignment: 'left' },
+    { id: 'seo-content-case-study', label: 'SEO Content Case Study', layout: 'case-study', coverStyle: 'small', contentWidth: 'normal', alignment: 'left' },
+    { id: 'content-strategy', label: 'Content Strategy', layout: 'case-study', coverStyle: 'none', contentWidth: 'wide', alignment: 'left' },
+    { id: 'editing-case-study', label: 'Editing Case Study', layout: 'case-study', coverStyle: 'none', contentWidth: 'normal', alignment: 'left' },
+  ];
+
+  const getProjectPresentation = (item) => ({
+    mode: item?.cmsPresentation?.mode || 'legacy',
+    recipe: item?.cmsPresentation?.recipe || 'default',
+    layout: item?.cmsPresentation?.layout || 'default',
+    coverStyle: item?.cmsPresentation?.coverStyle || 'split',
+    contentWidth: item?.cmsPresentation?.contentWidth || 'normal',
+    alignment: item?.cmsPresentation?.alignment || 'left',
+  });
+
+  const updateProjectItemPresentation = (kind, idx, sectionIdx, patch) => {
+    setFormData((prev) => {
+      const projects = { ...prev.projects };
+      const patchItem = (raw) => ({ ...raw, cmsPresentation: { ...getProjectPresentation(raw), ...patch } });
+
+      if (kind === 'article') {
+        const articles = [...projects.articles];
+        articles[idx] = patchItem(articles[idx]);
+        projects.articles = articles;
+      } else if (kind === 'directing') {
+        const directing = { ...projects.directing, items: [...projects.directing.items] };
+        directing.items[idx] = patchItem(directing.items[idx]);
+        projects.directing = directing;
+      } else if (kind === 'poster') {
+        const poster = { ...projects.poster, items: [...projects.poster.items] };
+        poster.items[idx] = patchItem(poster.items[idx]);
+        projects.poster = poster;
+      } else if (kind === 'custom') {
+        const customSections = [...projects.customSections];
+        const section = { ...customSections[sectionIdx], items: [...customSections[sectionIdx].items] };
+        section.items[idx] = patchItem(section.items[idx]);
+        customSections[sectionIdx] = section;
+        projects.customSections = customSections;
+      }
+      return { ...prev, projects };
+    });
+  };
+
+  const applyProjectRecipe = (kind, idx, sectionIdx, recipeId) => {
+    const recipe = PROJECT_DESIGN_RECIPES.find((entry) => entry.id === recipeId) || PROJECT_DESIGN_RECIPES[0];
+    updateProjectItemPresentation(kind, idx, sectionIdx, {
+      recipe: recipe.id,
+      layout: recipe.layout,
+      coverStyle: recipe.coverStyle,
+      contentWidth: recipe.contentWidth,
+      alignment: recipe.alignment,
+    });
+  };
+
+  const setUniversalBlockDisplay = (kind, idx, sectionIdx, blockIdx, patch) =>
+    updateProjectItemBlocks(kind, idx, sectionIdx, (blocks) =>
+      blocks.map((block, i) => i === blockIdx
+        ? { ...block, display: { ...(block.display || {}), ...patch } }
+        : block
+      )
+    );
+
+  const renderBlockDisplayControls = (kind, idx, sectionIdx, block, blockIdx) => {
+    const display = block.display || {};
+    const select = (label, field, value, options) => (
+      <label className="space-y-1">
+        <span className="font-[Arial] text-[8px] font-bold uppercase tracking-[0.12em] text-gray-400">{label}</span>
+        <select value={value} onChange={(e) => setUniversalBlockDisplay(kind, idx, sectionIdx, blockIdx, { [field]: e.target.value })} className={inputCls}>
+          {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+      </label>
+    );
+
+    if (block.type === 'image') return <div className="mt-4 space-y-2 border-t border-gray-100 pt-3 dark:border-gray-700"><p className="text-[9px] leading-relaxed text-gray-400">Auto follows the Design Recipe. Override it only when this work needs special treatment.</p><div className="grid grid-cols-1 gap-2 md:grid-cols-2">{select('Display','size',display.size||'auto',[['auto','Auto (Recipe)'],['contained','Contained'],['normal','Normal'],['wide','Wide'],['full','Full'],['left','Left Feature'],['right','Right Feature']])}{select('Caption Align','align',display.align||'auto',[['auto','Auto'],['left','Left'],['center','Center'],['right','Right']])}</div></div>;
+    if (block.type === 'gallery') return <div className="mt-4 space-y-2 border-t border-gray-100 pt-3 dark:border-gray-700"><p className="text-[9px] leading-relaxed text-gray-400">Auto chooses the arrangement based on the recipe and number of images.</p><div className="grid grid-cols-1 gap-2 md:grid-cols-2">{select('Layout','layout',display.layout||'auto',[['auto','Auto (Recipe)'],['duo','Duo'],['grid','Grid'],['carousel','Carousel'],['filmstrip','Filmstrip']])}{select('Columns','columns',String(display.columns||3),[['2','2'],['3','3'],['4','4']])}</div></div>;
+    if (block.type === 'text' || block.type === 'word') return <div className="mt-4 grid grid-cols-1 gap-2 border-t border-gray-100 pt-3 dark:border-gray-700 md:grid-cols-2">{select('Style','style',display.style||'body',[['body','Body'],['intro','Intro'],['quote','Quote'],['callout','Callout']])}{select('Width','width',display.width||'normal',[['narrow','Narrow'],['normal','Normal'],['wide','Wide']])}</div>;
+    if (block.type === 'audio') return <div className="mt-4 border-t border-gray-100 pt-3 dark:border-gray-700">{select('Player','style',display.style||'player',[['player','Player'],['hero','Hero Player'],['compact','Compact']])}</div>;
+    if (block.type === 'video') return <div className="mt-4 border-t border-gray-100 pt-3 dark:border-gray-700">{select('Display','style',display.style||'inline',[['inline','Inline'],['wide','Wide'],['cinema','Cinema']])}</div>;
+    return null;
+  };
+
+  const renderProjectPresentationStudio = (kind, idx, sectionIdx, item) => {
+    const presentation = getProjectPresentation(item);
+    return (
+      <div className="space-y-5">
+        <div>
+          <p className="font-[Arial] text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">Website Presentation</p>
+          <p className="mt-1 text-[11px] text-gray-400">Choose how this work is presented without touching VS Code. Default keeps the existing Projects presentation baseline.</p>
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-[#242424]">
+          <div className="mb-2">
+            <span className="font-[Arial] text-[9px] font-bold uppercase tracking-[0.14em] text-gray-500">Public Mode</span>
+            <p className="mt-1 text-[9px] leading-relaxed text-gray-400">Legacy keeps the previous renderer. Studio makes Universal Blocks the public content source, with legacy content used only as a safe fallback when no Studio text exists.</p>
+            {kind === 'custom' && <p className="mt-1 text-[9px] leading-relaxed text-blue-500 dark:text-blue-300">Writing tabs such as Scriptwriting and Short Story always prefer the newest Universal writing blocks when they contain text, so edits from the CMS writing toolbox cannot be hidden behind stale legacy content.</p>}
+            <div className={`mt-2 rounded-md border px-2.5 py-2 font-[Arial] text-[9px] font-bold uppercase tracking-[0.1em] ${presentation.mode === 'studio' ? 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/20 dark:text-blue-300' : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300'}`}>
+              Public source: {presentation.mode === 'studio' ? 'Universal Blocks / Studio' : 'Legacy Content'}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => updateProjectItemPresentation(kind, idx, sectionIdx, { mode: 'legacy' })} className={`rounded-lg border px-3 py-2 text-left transition ${presentation.mode === 'legacy' ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20' : 'border-gray-200 hover:border-blue-300 dark:border-gray-700'}`}>
+              <strong className="block font-[Arial] text-[9px] uppercase tracking-[0.12em]">Legacy</strong>
+              <span className="mt-1 block text-[8px] text-gray-400">Previous presentation</span>
+            </button>
+            <button type="button" onClick={() => updateProjectItemPresentation(kind, idx, sectionIdx, { mode: 'studio' })} className={`rounded-lg border px-3 py-2 text-left transition ${presentation.mode === 'studio' ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20' : 'border-gray-200 hover:border-blue-300 dark:border-gray-700'}`}>
+              <strong className="block font-[Arial] text-[9px] uppercase tracking-[0.12em]">Studio</strong>
+              <span className="mt-1 block text-[8px] text-gray-400">Presentation Studio</span>
+            </button>
+          </div>
+        </div>
+
+        <label className="block space-y-2">
+          <span className="font-[Arial] text-[9px] font-bold uppercase tracking-[0.14em] text-gray-500">Design Recipe</span>
+          <select value={presentation.recipe} onChange={(e) => { if (e.target.value !== 'custom') applyProjectRecipe(kind, idx, sectionIdx, e.target.value); }} className={inputCls}>
+            <option value="custom">Custom / Manual</option>
+            {PROJECT_DESIGN_RECIPES.map((recipe) => <option key={recipe.id} value={recipe.id}>{recipe.label}</option>)}
+          </select>
+        </label>
+
+        <div>
+          <p className="mb-2 font-[Arial] text-[9px] font-bold uppercase tracking-[0.14em] text-gray-500">Layout</p>
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+            {PROJECT_LAYOUT_PRESETS.map((preset) => (
+              <button key={preset.id} type="button" onClick={() => updateProjectItemPresentation(kind, idx, sectionIdx, { recipe: 'custom', layout: preset.id })} className={`min-h-[94px] rounded-xl border p-3 text-left transition ${presentation.layout === preset.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20' : 'border-gray-200 bg-white hover:border-blue-300 dark:border-gray-700 dark:bg-[#242424]'}`}>
+                <span className="font-[Arial] text-lg font-bold text-blue-600">{preset.icon}</span>
+                <strong className="mt-2 block font-[Arial] text-[9px] uppercase tracking-[0.1em]">{preset.label}</strong>
+                <span className="mt-1 block text-[9px] leading-snug text-gray-400">{preset.hint}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <label className="space-y-1"><span className="font-[Arial] text-[8px] font-bold uppercase tracking-[0.12em] text-gray-400">Cover Style</span><select value={presentation.coverStyle} onChange={(e)=>updateProjectItemPresentation(kind,idx,sectionIdx,{recipe:'custom',coverStyle:e.target.value})} className={inputCls}><option value="full">Full Width</option><option value="split">Split</option><option value="small">Small</option><option value="none">None</option></select></label>
+          <label className="space-y-1"><span className="font-[Arial] text-[8px] font-bold uppercase tracking-[0.12em] text-gray-400">Content Width</span><select value={presentation.contentWidth} onChange={(e)=>updateProjectItemPresentation(kind,idx,sectionIdx,{recipe:'custom',contentWidth:e.target.value})} className={inputCls}><option value="narrow">Narrow</option><option value="normal">Normal</option><option value="wide">Wide</option></select></label>
+          <label className="space-y-1"><span className="font-[Arial] text-[8px] font-bold uppercase tracking-[0.12em] text-gray-400">Alignment</span><select value={presentation.alignment} onChange={(e)=>updateProjectItemPresentation(kind,idx,sectionIdx,{recipe:'custom',alignment:e.target.value})} className={inputCls}><option value="left">Left</option><option value="center">Center</option></select></label>
+        </div>
+
+        <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50/60 p-3 dark:border-gray-700 dark:bg-[#1f1f1f]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div><strong className="font-[Arial] text-[9px] uppercase tracking-[0.12em]">Project Preview</strong><p className="mt-1 text-[9px] text-gray-400">The controls are ready. The preview/public renderer will be connected in Phase 4B so the live website remains untouched until the component is verified.</p></div>
+            <button type="button" disabled className="rounded-lg border border-gray-200 px-3 py-2 font-[Arial] text-[9px] font-bold text-gray-400 opacity-60 dark:border-gray-700">PREVIEW — PHASE 4B</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const toggleUniversalBlock = (blockId) => {
+    setExpandedUniversalBlockIds((current) => {
+      const next = new Set(current);
+      if (next.has(blockId)) next.delete(blockId);
+      else next.add(blockId);
+      return next;
+    });
+  };
+
+  const setAllUniversalBlocksExpanded = (blocks, expanded) => {
+    setExpandedUniversalBlockIds((current) => {
+      const next = new Set(current);
+      (blocks || []).forEach((block) => {
+        if (!block?.id) return;
+        if (expanded) next.add(block.id);
+        else next.delete(block.id);
+      });
+      return next;
+    });
+  };
+
+  const renderUniversalProjectEditor = (kind, idx, sectionIdx, item) => {
+    const blocks = Array.isArray(item?.cmsBlocks) ? item.cmsBlocks : [];
+
+    const blockBody = (block, blockIdx) => {
+      if (block.type === 'text') {
+        return <RichTextEditor key={`universal-text-${block.id}`} initialValue={block.text || ''} onChange={(html) => setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'text', html)} placeholder="Write content here..." compact />;
+      }
+      if (block.type === 'image') {
+        return <div className="space-y-3"><ImageDropzone value={block.url || ''} onChange={(url) => setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'url', url)} profile="poster"/><details className="rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 dark:border-gray-700 dark:bg-[#1f1f1f]"><summary className="cursor-pointer font-[Arial] text-[9px] font-bold uppercase tracking-[0.12em] text-gray-500">Or use image URL</summary><input value={block.url || ''} onChange={(e) => setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'url', e.target.value)} placeholder="https://..." className={`${inputCls} mt-2`}/></details><input value={block.caption || ''} onChange={(e) => setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'caption', e.target.value)} placeholder="Caption (optional)" className={inputCls}/></div>;
+      }
+      if (block.type === 'gallery') {
+        return <div className="space-y-3"><GalleryDropzone items={block.items || []} onChange={(items) => setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'items', items)} profile="poster"/><details className="rounded-lg border border-gray-200 bg-gray-50/50 px-3 py-2 dark:border-gray-700 dark:bg-[#1f1f1f]"><summary className="cursor-pointer font-[Arial] text-[9px] font-bold uppercase tracking-[0.12em] text-gray-500">Or add image URLs</summary><textarea rows={4} value={(block.items || []).join('\n')} onChange={(e) => setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'items', e.target.value.split('\n').map(v => v.trim()).filter(Boolean))} placeholder={"One image URL per line\nhttps://...\nhttps://..."} className={`${inputCls} mt-2 resize-y`}/></details><input value={block.caption || ''} onChange={(e) => setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'caption', e.target.value)} placeholder="Gallery caption (optional)" className={inputCls}/></div>;
+      }
+      if (block.type === 'video') {
+        return <div className="space-y-3"><input value={block.url || ''} onChange={(e) => setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'url', e.target.value)} placeholder="URL video / embed" className={inputCls}/><input value={block.caption || ''} onChange={(e) => setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'caption', e.target.value)} placeholder="Description (optional)" className={inputCls}/></div>;
+      }
+      if (block.type === 'audio') {
+        const uploadKey = `universal-audio-${kind}-${sectionIdx ?? 'root'}-${idx}-${blockIdx}`;
+        const isUploading = uploadingCustomImage === uploadKey;
+        const importAudio = async (file) => {
+          if (!file) return;
+          setUploadingCustomImage(uploadKey);
+          try {
+            const url = await uploadAudioToStorage(file);
+            if (url) {
+              setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'url', url);
+              setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'label', file.name);
+              dispatchCmsNotice(`${file.name} uploaded successfully.`);
+            }
+          } finally {
+            setUploadingCustomImage(null);
+          }
+        };
+
+        return (
+          <div className="space-y-3">
+            <div
+              className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/70 p-5 text-center transition hover:border-blue-400 dark:border-gray-700 dark:bg-[#1f1f1f]"
+              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+              onDrop={async (e) => {
+                e.preventDefault();
+                await importAudio(e.dataTransfer.files?.[0]);
+              }}
+            >
+              <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white text-sm text-blue-600 dark:border-gray-700 dark:bg-[#242424]">▶</div>
+              <p className="font-[Arial] text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600 dark:text-gray-300">Drop Audio / Voice Note</p>
+              <p className="mt-1 text-[9px] text-gray-400">MP3 disarankan · M4A · WAV · OGG · AAC — max 20 MB</p>
+              <label className="mt-3 inline-flex cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-2 font-[Arial] text-[9px] font-bold uppercase tracking-wide text-gray-600 transition hover:border-blue-500 hover:text-blue-600 dark:border-gray-700 dark:bg-[#242424] dark:text-gray-300">
+                {isUploading ? 'Uploading…' : 'Choose Audio'}
+                <input
+                  type="file"
+                  accept=".mp3,.m4a,.wav,.ogg,.aac,audio/*"
+                  disabled={isUploading}
+                  onChange={async (e) => {
+                    await importAudio(e.target.files?.[0]);
+                    e.target.value = '';
+                  }}
+                  className="hidden"
+                />
+              </label>
+              {block.label && <p className="mt-3 text-[10px] text-green-700 dark:text-green-400">✓ {block.label}</p>}
+            </div>
+
+            {block.url && (
+              <audio src={block.url} controls preload="metadata" className="w-full" />
+            )}
+
+            <div>
+              <p className="mb-1 font-[Arial] text-[8px] font-bold uppercase tracking-[0.12em] text-gray-400">Or use a direct audio URL</p>
+              <input
+                value={block.url || ''}
+                onChange={(e) => setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'url', e.target.value)}
+                placeholder="https://.../audio.mp3"
+                className={inputCls}
+              />
+              <p className="mt-1 text-[9px] text-gray-400">A Google Drive /view page is not a direct audio URL. For voice notes, uploading the file directly above is the safest option.</p>
+            </div>
+
+            <input value={block.caption || ''} onChange={(e) => setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'caption', e.target.value)} placeholder="Description / caption (optional)" className={inputCls}/>
+          </div>
+        );
+      }
+      if (block.type === 'link' || block.type === 'file') {
+        return <div className="grid grid-cols-1 gap-3 md:grid-cols-2"><input value={block.label || ''} onChange={(e) => setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'label', e.target.value)} placeholder={block.type === 'file' ? 'File / button name' : 'Link label'} className={inputCls}/><input value={block.url || ''} onChange={(e) => setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'url', e.target.value)} placeholder={block.type === 'file' ? 'URL file / PDF' : 'https://...'} className={inputCls}/></div>;
+      }
+      if (block.type === 'word') {
+        const convertingKey = `universal-word-${kind}-${sectionIdx ?? 'root'}-${idx}-${blockIdx}`;
+        const importDocument = async (file) => {
+          if (!file) return;
+          const maxBytes = 10 * 1024 * 1024;
+          if (file.size > maxBytes) {
+            dispatchCmsNotice('Dokumen terlalu besar. Maksimal 10 MB.');
+            return;
+          }
+
+          const ext = (file.name.split('.').pop() || '').toLowerCase();
+          if (!['docx', 'txt', 'md', 'markdown'].includes(ext)) {
+            dispatchCmsNotice('Unsupported format. Use DOCX, TXT, or MD.');
+            return;
+          }
+
+          setConvertingCustomWord(convertingKey);
+          try {
+            let html = '';
+            if (ext === 'docx') {
+              html = await convertWordFileToHtml(file);
+            } else {
+              const raw = await file.text();
+              const escapeHtml = (value) => String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+
+              if (ext === 'md' || ext === 'markdown') {
+                // Lightweight Markdown import: keeps the CMS/public bundle lean.
+                // It intentionally handles common writing syntax only; the result remains editable.
+                const inline = (value) => escapeHtml(value)
+                  .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                  .replace(/__(.+?)__/g, '<strong>$1</strong>')
+                  .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                  .replace(/_(.+?)_/g, '<em>$1</em>')
+                  .replace(/`(.+?)`/g, '<code>$1</code>')
+                  .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+                const rows = raw.replace(/\r\n?/g, '\n').split('\n');
+                const parts = [];
+                let list = [];
+                const flushList = () => {
+                  if (!list.length) return;
+                  parts.push(`<ul>${list.map((entry) => `<li>${inline(entry)}</li>`).join('')}</ul>`);
+                  list = [];
+                };
+
+                rows.forEach((row) => {
+                  const trimmed = row.trim();
+                  const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+                  const bullet = trimmed.match(/^[-*]\s+(.+)$/);
+                  if (bullet) {
+                    list.push(bullet[1]);
+                    return;
+                  }
+                  flushList();
+                  if (!trimmed) parts.push('<p><br></p>');
+                  else if (heading) parts.push(`<h${heading[1].length}>${inline(heading[2])}</h${heading[1].length}>`);
+                  else if (/^>\s?/.test(trimmed)) parts.push(`<blockquote>${inline(trimmed.replace(/^>\s?/, ''))}</blockquote>`);
+                  else parts.push(`<p>${inline(row)}</p>`);
+                });
+                flushList();
+                html = parts.join('');
+              } else {
+                html = raw
+                  .replace(/\r\n?/g, '\n')
+                  .split(/\n{2,}/)
+                  .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>`)
+                  .join('');
+              }
+            }
+
+            if (html != null) {
+              setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'text', html);
+              setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'label', file.name);
+              dispatchCmsNotice(`${file.name} imported successfully. Review the result before Save Changes.`);
+            }
+          } catch (error) {
+            console.error('Document import failed:', error);
+            dispatchCmsNotice('Document import failed. Try another file or paste it manually.');
+          } finally {
+            setConvertingCustomWord(null);
+          }
+        };
+
+        return (
+          <div className="space-y-4">
+            <div
+              className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/70 p-5 text-center transition hover:border-blue-400 dark:border-gray-700 dark:bg-[#1f1f1f]"
+              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+              onDrop={async (e) => {
+                e.preventDefault();
+                await importDocument(e.dataTransfer.files?.[0]);
+              }}
+            >
+              <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white font-[Arial] text-sm font-bold text-blue-600 dark:border-gray-700 dark:bg-[#242424]">W</div>
+              <label className="block font-[Arial] text-[10px] font-bold uppercase tracking-[0.12em] text-gray-600 dark:text-gray-300">
+                Drop dokumen di sini
+              </label>
+              <p className="mt-1 text-[9px] text-gray-400">DOCX · TXT · MD — maksimal 10 MB</p>
+              <label className="mt-3 inline-flex cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-2 font-[Arial] text-[9px] font-bold uppercase tracking-wide text-gray-600 transition hover:border-blue-500 hover:text-blue-600 dark:border-gray-700 dark:bg-[#242424] dark:text-gray-300">
+                {convertingCustomWord === convertingKey ? 'Memproses…' : 'Select Dokumen'}
+                <input
+                  type="file"
+                  accept=".docx,.txt,.md,.markdown,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  disabled={convertingCustomWord === convertingKey}
+                  onChange={async (e) => {
+                    await importDocument(e.target.files?.[0]);
+                    e.target.value = '';
+                  }}
+                  className="hidden"
+                />
+              </label>
+              {convertingCustomWord === convertingKey && <p className="mt-3 text-[10px] font-semibold text-blue-600">Lagi membaca dokumen…</p>}
+              {block.label && <p className="mt-3 text-[10px] text-green-700 dark:text-green-400">✓ Imported from {block.label}</p>}
+              <p className="mx-auto mt-3 max-w-xl text-[9px] leading-relaxed text-gray-400">Documents are only used during CMS import. The imported content is stored with the work, so visitors do not need to load the DOCX/TXT/MD file.</p>
+            </div>
+            <RichTextEditor
+              key={`universal-word-editor-${block.id}-${block.label || 'manual'}`}
+              initialValue={block.text || ''}
+              onChange={(html) => setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'text', html)}
+              placeholder="Imported content appears here and can still be edited like regular content..."
+              compact
+            />
+          </div>
+        );
+      }
+      if (block.type === 'embed') {
+        return <textarea rows={4} value={block.text || ''} onChange={(e) => setUniversalBlockField(kind, idx, sectionIdx, blockIdx, 'text', e.target.value)} placeholder="Paste a URL or embed code..." className={`${inputCls} resize-y font-[Arial] text-[11px]`}/>;
+      }
+      return <p className="font-[Arial] text-[10px] text-gray-400">Divider does not require content.</p>;
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="font-[Arial] text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">Work Content</p>
+            <p className="mt-1 text-[11px] text-gray-400">Studio uses these blocks as the main content. Add, reorder, and mix only what this work needs.</p>
+          </div>
+          {!!blocks.length && <div className="flex shrink-0 gap-1">
+            <button type="button" onClick={() => setAllUniversalBlocksExpanded(blocks, true)} className="rounded border border-gray-200 px-2 py-1 font-[Arial] text-[8px] font-bold uppercase tracking-wide hover:border-blue-400 hover:text-blue-600 dark:border-gray-700">Expand All</button>
+            <button type="button" onClick={() => setAllUniversalBlocksExpanded(blocks, false)} className="rounded border border-gray-200 px-2 py-1 font-[Arial] text-[8px] font-bold uppercase tracking-wide hover:border-blue-400 hover:text-blue-600 dark:border-gray-700">Collapse All</button>
+          </div>}
+        </div>
+
+        {blocks.length === 0 && (
+          <div className="rounded-xl border-2 border-dashed border-gray-200 px-5 py-8 text-center dark:border-gray-700">
+            <p className="font-[Arial] text-xs font-bold text-gray-500 dark:text-gray-400">No universal content blocks yet.</p>
+            <p className="mt-1 text-[10px] text-gray-400">Add Text, Image, Gallery, Video, Audio/VN, Link, File/PDF, Import Doc, Embed, or Divider as needed.</p>
+          </div>
+        )}
+
+        {blocks.map((block, blockIdx) => {
+          const isExpanded = expandedUniversalBlockIds.has(block.id);
+          const rawPreview = block.type === 'text' || block.type === 'word'
+            ? String(block.text || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim()
+            : block.caption || block.label || (block.type === 'gallery' ? `${block.items?.length || 0} images` : block.url || '');
+          const preview = rawPreview.length > 58 ? `${rawPreview.slice(0, 58).trimEnd()}…` : rawPreview;
+          return (
+          <div key={block.id || blockIdx} className={`rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-[#242424] ${isExpanded ? 'p-4 md:p-5' : 'px-3 py-2.5'}`}>
+            <div className={`${isExpanded ? 'mb-4' : ''} flex items-center justify-between gap-3`}>
+              <button type="button" onClick={() => toggleUniversalBlock(block.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left" title={isExpanded ? 'Collapse block' : 'Expand block'}>
+                <span className="flex h-8 min-w-8 items-center justify-center rounded-md border border-gray-200 px-1.5 font-[Arial] text-[10px] font-bold text-blue-600 dark:border-gray-700">{UNIVERSAL_BLOCK_TYPES.find((entry) => entry.type === block.type)?.icon || '•'}</span>
+                <span className="min-w-0">
+                  <strong className="block font-[Arial] text-[10px] uppercase tracking-[0.14em] text-gray-700 dark:text-gray-200">{UNIVERSAL_BLOCK_TYPES.find((entry) => entry.type === block.type)?.label || block.type}</strong>
+                  {!isExpanded && <span className="mt-0.5 block truncate text-[9px] text-gray-400">{preview || 'Empty block'}</span>}
+                </span>
+              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                <button type="button" disabled={blockIdx === 0} onClick={() => moveUniversalBlock(kind, idx, sectionIdx, blockIdx, -1)} title="Move up" className="rounded border border-gray-200 px-2 py-1 text-[10px] disabled:opacity-25 dark:border-gray-700">↑</button>
+                <button type="button" disabled={blockIdx === blocks.length - 1} onClick={() => moveUniversalBlock(kind, idx, sectionIdx, blockIdx, 1)} title="Move down" className="rounded border border-gray-200 px-2 py-1 text-[10px] disabled:opacity-25 dark:border-gray-700">↓</button>
+                <button type="button" onClick={() => toggleUniversalBlock(block.id)} title={isExpanded ? 'Collapse' : 'Expand'} className="rounded border border-gray-200 px-2 py-1 text-[10px] dark:border-gray-700">{isExpanded ? '▴' : '▾'}</button>
+                <button type="button" onClick={() => removeUniversalBlock(kind, idx, sectionIdx, blockIdx)} title="Delete block" className="rounded border border-red-200 px-2 py-1 text-[10px] text-red-600 dark:border-red-900/50">×</button>
+              </div>
+            </div>
+            {isExpanded && <>
+              {blockBody(block, blockIdx)}
+              {renderBlockDisplayControls(kind, idx, sectionIdx, block, blockIdx)}
+            </>}
+          </div>
+          );
+        })}
+
+        <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 dark:border-gray-700 dark:bg-[#1f1f1f]">
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <p className="font-[Arial] text-[9px] font-bold uppercase tracking-[0.16em] text-gray-400">+ Add Content</p>
+              <p className="mt-1 text-[9px] text-gray-400">Use the available blocks. Import Doc converts a document into editable content instead of placing the raw document on the public page.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 md:grid-cols-10">
+            {UNIVERSAL_BLOCK_TYPES.map((entry) => (
+              <button
+                key={entry.type}
+                type="button"
+                onClick={() => addUniversalBlock(kind, idx, sectionIdx, entry.type)}
+                title={
+                  entry.type === 'word' ? 'Drop/import DOCX, TXT, or MD, then edit the result' :
+                  entry.type === 'text' ? 'Rich text editor' :
+                  entry.type === 'image' ? 'Single image' :
+                  entry.type === 'gallery' ? 'Multiple images' :
+                  entry.type === 'video' ? 'Video or embed' :
+                  entry.type === 'audio' ? 'Audio / voice note' :
+                  entry.type === 'link' ? 'External link' :
+                  entry.type === 'file' ? 'File/PDF' :
+                  entry.type === 'embed' ? 'URL or embed' :
+                  'Content divider'
+                }
+                className={`flex min-h-[68px] flex-col items-center justify-center rounded-lg border bg-white px-2 py-2 text-center transition dark:bg-[#242424] ${entry.type === 'word' ? 'border-blue-300 text-blue-600 hover:border-blue-600 dark:border-blue-800' : 'border-gray-200 hover:border-blue-500 hover:text-blue-600 dark:border-gray-700'}`}
+              >
+                <span className="font-[Arial] text-sm font-bold">{entry.icon}</span>
+                <span className="mt-1 font-[Arial] text-[8px] font-bold uppercase tracking-wide">{entry.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   /* ============ CONTACT ============ */
   const setContactField = (field, value) =>
@@ -4005,7 +8287,7 @@ export default function CmsDashboard({ data, onSave }) {
     setDraggingKey(null);
   };
 
-  // Blok form 1 item Poster — file langsung tanpa Sub Bab, tinggal "Tambah Poster"
+  // Blok form 1 item Poster — file langsung tanpa Sub Bab, tinggal "Add Poster"
   // dan item baru langsung nongol di daftar (bisa diurutin/dihapus).
   const renderPosterItem = (it, idx, items) => {
     const listKey = 'poster';
@@ -4031,9 +8313,9 @@ export default function CmsDashboard({ data, onSave }) {
               Blink pas mode Hint
             </label>
           </div>
-        <input type="text" value={it.title} onChange={(e) => setPosterItemField(idx, 'title', e.target.value)} placeholder="Judul" className={inputClsSm} />
+        <input type="text" value={it.title} onChange={(e) => setPosterItemField(idx, 'title', e.target.value)} placeholder="Title" className={inputClsSm} />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          <input type="text" value={it.category} onChange={(e) => setPosterItemField(idx, 'category', e.target.value)} placeholder="Kategori" className={inputClsSm} />
+          <input type="text" value={it.category} onChange={(e) => setPosterItemField(idx, 'category', e.target.value)} placeholder="Category" className={inputClsSm} />
           <input type="text" value={it.dimensions} onChange={(e) => setPosterItemField(idx, 'dimensions', e.target.value)} placeholder="Dimensi/Info (mis. 2400x3000px)" className={inputClsSm} />
         </div>
 
@@ -4059,14 +8341,15 @@ export default function CmsDashboard({ data, onSave }) {
           />
         </div>
         <ProjectCoverHint contentType="image" />
-        <input type="text" value={it.imageUrl} onChange={(e) => setPosterItemField(idx, 'imageUrl', e.target.value)} placeholder="Atau tempel URL Gambar (dari galeri/hosting lain)" className={inputClsSm} />
+        <ImageUploadNote profile="poster" />
+        <input type="text" value={it.imageUrl} onChange={(e) => setPosterItemField(idx, 'imageUrl', e.target.value)} placeholder="Or paste an image URL (from another gallery/host)" className={inputClsSm} />
 
-        <textarea rows={2} value={it.description} onChange={(e) => setPosterItemField(idx, 'description', e.target.value)} placeholder="Deskripsi singkat (penjelasan karya)" className={`${inputClsSm} resize-none`} />
+        <RichTextEditor fieldMode initialValue={it.description} onChange={(html) => setPosterItemField(idx, 'description', html)} placeholder="Short description (work context)" />
       </ContentCard>
     );
   };
 
-  // Blok form 1 Tab Tambahan (Custom Section) — label tab (bisa diedit/dihapus) + daftar
+  // Blok form 1 Tab Addan (Custom Section) — label tab (bisa diedit/dihapus) + daftar
   // kartu sederhana di dalamnya (judul, kategori, gambar, deskripsi, link opsional).
   // Sama kayak renderPosterItem: fungsi biasa yang nge-return JSX, BUKAN komponen
   // JSX tag, biar input gak kehilangan fokus tiap ngetik (lihat catatan di
@@ -4075,7 +8358,7 @@ export default function CmsDashboard({ data, onSave }) {
   // Beda dari renderPosterItem: gak ada collapse/expand di sini, soalnya
   // masing-masing custom section UDAH dapet pill nav sendiri di atas (sejajar
   // Articles/Poster) — jadi "buka" section ini ya klik pill-nya langsung, gak perlu
-  // tombol Edit/Tutup terpisah lagi kayak dulu waktu semua numpuk di 1 wrapper tab.
+  // tombol Edit/Close terpisah lagi kayak dulu waktu semua numpuk di 1 wrapper tab.
   const renderCustomSectionBlock = (section, sectionIdx) => {
     const items = section.items;
     const contentType = section.contentType || (section.layout === 'articles' ? 'writing' : 'image');
@@ -4086,26 +8369,27 @@ export default function CmsDashboard({ data, onSave }) {
             type="text"
             value={section.label}
             onChange={(e) => setCustomSectionLabel(sectionIdx, e.target.value)}
-            placeholder="Nama Tab (mis. Dummy Projects, Eksperimen, dst) — ini yang tampil di pill nav"
+            placeholder="Tab Name (e.g. Dummy Projects, Experiments) — shown in the pill navigation"
             className={`${inputClsSm} font-semibold flex-1`}
           />
-          <RemoveBtn onClick={() => removeCustomSection(sectionIdx)} label="Hapus Tab Ini" />
+          <RemoveBtn onClick={() => removeCustomSection(sectionIdx)} label="Remove Tab Ini" />
         </div>
 
-        <Field label="Keterangan kartu tab (kosongkan untuk menghapus)">
+        <Field label="Tab Card Description (leave blank to remove)">
           <input value={section.description || ''} onChange={(e) => setCustomSectionDescription(sectionIdx, e.target.value)} className={inputClsSm} />
         </Field>
 
         <div className="rounded-lg border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-900 dark:bg-blue-950/20">
-          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">Jenis konten tab</label>
+          <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">Tab Content Type</label>
           <select value={contentType} onChange={(e) => setCustomSectionContentType(sectionIdx, e.target.value)} className={inputClsSm}>
             <option value="writing">Writing — Cerpen, puisi, esai, script</option>
             <option value="video">Video — Film, directing, reel</option>
             <option value="image">Image — Poster, foto, visual</option>
             <option value="document">Document — PDF, Word, laporan</option>
-            <option value="link">External Link — Karya di website lain</option>
+            <option value="link">External Link — Work hosted on another website</option>
+            <option value="audio">Audio — Voice note / MP3</option>
           </select>
-          <p className="mt-1.5 text-[10px] leading-relaxed text-gray-500 dark:text-gray-400">Form item di bawah otomatis mengikuti jenis ini. Mengganti jenis tidak menghapus data lama; field yang tidak relevan hanya disembunyikan.</p>
+          <p className="mt-1.5 text-[10px] leading-relaxed text-gray-500 dark:text-gray-400">The item form below automatically follows this type. Changing the type does not delete existing data; irrelevant fields are only hidden.</p>
         </div>
 
         <div className="space-y-3 pl-3 border-l-2 border-gray-200 dark:border-gray-700">
@@ -4113,11 +8397,11 @@ export default function CmsDashboard({ data, onSave }) {
             <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
               Item ({items.length})
             </h4>
-            <AddBtn onClick={() => addCustomItem(sectionIdx)} label="Tambah Item" />
+            <AddBtn onClick={() => addCustomItem(sectionIdx)} label="Add Item" />
           </div>
 
           {items.length === 0 && (
-            <p className="text-[10px] text-gray-400 italic">Belum ada item.</p>
+            <p className="text-[10px] text-gray-400 italic">No items yet.</p>
           )}
 
           {items.map((it, idx) => (
@@ -4128,7 +8412,7 @@ export default function CmsDashboard({ data, onSave }) {
               idx={idx}
               count={items.length}
               title={it.title || `Item #${idx + 1}`}
-              subtitle={it.category || 'Belum ada kategori'}
+              subtitle={it.category || 'No category'}
               onRemove={() => removeCustomItem(sectionIdx, idx)}
             >
                 <div className="flex justify-end">
@@ -4142,8 +8426,8 @@ export default function CmsDashboard({ data, onSave }) {
                     Blink pas mode Hint
                   </label>
                 </div>
-              <input type="text" value={it.title} onChange={(e) => setCustomItemField(sectionIdx, idx, 'title', e.target.value)} placeholder="Judul" className={inputClsSm} />
-              <input type="text" value={it.category} onChange={(e) => setCustomItemField(sectionIdx, idx, 'category', e.target.value)} placeholder="Kategori (opsional)" className={inputClsSm} />
+              <input type="text" value={it.title} onChange={(e) => setCustomItemField(sectionIdx, idx, 'title', e.target.value)} placeholder="Title" className={inputClsSm} />
+              <input type="text" value={it.category} onChange={(e) => setCustomItemField(sectionIdx, idx, 'category', e.target.value)} placeholder="Category (optional)" className={inputClsSm} />
 
               {['writing', 'video', 'image', 'document', 'link'].includes(contentType) && (
                 <>
@@ -4152,20 +8436,21 @@ export default function CmsDashboard({ data, onSave }) {
                     <input type="file" accept="image/*" disabled={uploadingCustomImage === `${sectionIdx}-${idx}`} onChange={async (e) => { const file = e.target.files[0]; if (!file) return; if (!(await validateProjectCover(file, contentType))) { e.target.value = ''; return; } setUploadingCustomImage(`${sectionIdx}-${idx}`); const url = await uploadImageToStorage(file); setUploadingCustomImage(null); if (url) setCustomItemField(sectionIdx, idx, 'imageUrl', url); e.target.value = ''; }} className="flex-1 text-[10px]" />
                   </div>
                   <ProjectCoverHint contentType={contentType} />
-                  <input type="text" value={it.imageUrl || ''} onChange={(e) => setCustomItemField(sectionIdx, idx, 'imageUrl', e.target.value)} placeholder={contentType === 'video' ? 'URL thumbnail/poster' : 'Atau tempel URL gambar/cover'} className={inputClsSm} />
+                  <ImageUploadNote profile={contentType === 'video' ? 'video' : contentType === 'image' ? 'poster' : 'default'} />
+                  <input type="text" value={it.imageUrl || ''} onChange={(e) => setCustomItemField(sectionIdx, idx, 'imageUrl', e.target.value)} placeholder={contentType === 'video' ? 'URL thumbnail/poster' : 'Or paste an image / cover URL'} className={inputClsSm} />
                 </>
               )}
 
-              <textarea rows={2} value={it.description || ''} onChange={(e) => setCustomItemField(sectionIdx, idx, 'description', e.target.value)} placeholder={contentType === 'video' ? 'Premise / ringkasan video' : 'Deskripsi singkat'} className={`${inputClsSm} resize-y`} />
+              <RichTextEditor fieldMode initialValue={it.description || ''} onChange={(html) => setCustomItemField(sectionIdx, idx, 'description', html)} placeholder={contentType === 'video' ? 'Premise / video summary' : 'Short description'} />
 
               {contentType === 'writing' && (
                 <div className="space-y-3 border-t border-dashed border-gray-200 pt-3 dark:border-gray-700">
-                  <RichTextEditor key={`${it.id || idx}-${it.wordFileName || 'manual'}`} initialValue={it.wordContent || ''} onChange={(html) => setCustomItemField(sectionIdx, idx, 'wordContent', html)} placeholder="Tulis cerpen, puisi, esai, atau script di sini..." />
+                  <RichTextEditor key={`${it.id || idx}-${it.wordFileName || 'manual'}`} initialValue={it.wordContent || ''} onChange={(html) => setCustomItemField(sectionIdx, idx, 'wordContent', html)} placeholder="Write a short story, poem, essay, or script here..." />
                   <div>
-                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-gray-400">Atau import dari Word (.docx)</label>
+                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-gray-400">Or import from Word (.docx)</label>
                     <input type="file" accept=".docx" disabled={convertingCustomWord === `${sectionIdx}-${idx}`} onChange={async (e) => { const file = e.target.files[0]; if (!file) return; setConvertingCustomWord(`${sectionIdx}-${idx}`); const html = await convertWordFileToHtml(file); setConvertingCustomWord(null); if (html != null) { setCustomItemField(sectionIdx, idx, 'wordContent', html); setCustomItemField(sectionIdx, idx, 'wordFileName', file.name); } e.target.value = ''; }} className="w-full text-[10px]" />
                     {convertingCustomWord === `${sectionIdx}-${idx}` && <p className="mt-1 text-[10px] font-semibold text-blue-600">Lagi mengonversi Word...</p>}
-                    {it.wordFileName && <p className="mt-1 text-[10px] text-green-700 dark:text-green-400">✓ Diimpor dari {it.wordFileName}</p>}
+                    {it.wordFileName && <p className="mt-1 text-[10px] text-green-700 dark:text-green-400">✓ Imported from {it.wordFileName}</p>}
                   </div>
                 </div>
               )}
@@ -4174,11 +8459,11 @@ export default function CmsDashboard({ data, onSave }) {
                 <div className="space-y-2 border-t border-dashed border-gray-200 pt-3 dark:border-gray-700">
                   <div className="grid grid-cols-1 gap-2 md:grid-cols-3"><input value={it.role || ''} onChange={(e) => setCustomItemField(sectionIdx, idx, 'role', e.target.value)} placeholder="Role" className={inputClsSm} /><input value={it.year || ''} onChange={(e) => setCustomItemField(sectionIdx, idx, 'year', e.target.value)} placeholder="Tahun" className={inputClsSm} /><input value={it.runtime || ''} onChange={(e) => setCustomItemField(sectionIdx, idx, 'runtime', e.target.value)} placeholder="Durasi" className={inputClsSm} /></div>
                   <div className="grid grid-cols-1 gap-2 md:grid-cols-[0.35fr_1fr]"><select value={it.mediaType || 'youtube'} onChange={(e) => setCustomItemField(sectionIdx, idx, 'mediaType', e.target.value)} className={inputClsSm}><option value="youtube">YouTube</option><option value="vimeo">Vimeo</option><option value="drive">Google Drive</option><option value="video">MP4/WebM</option><option value="external">External</option></select><input value={it.mediaUrl || ''} onChange={(e) => setCustomItemField(sectionIdx, idx, 'mediaUrl', e.target.value)} placeholder="URL video" className={inputClsSm} /></div>
-                  <Field label="Credits / catatan produksi"><RichTextEditor key={`custom-video-${it.id || idx}`} initialValue={it.credits || ''} onChange={(html) => setCustomItemField(sectionIdx, idx, 'credits', html)} placeholder="Cast, crew, kontribusi, dan catatan produksi..." /></Field>
+                  <Field label="Credits / Production Notes"><RichTextEditor key={`custom-video-${it.id || idx}`} initialValue={it.credits || ''} onChange={(html) => setCustomItemField(sectionIdx, idx, 'credits', html)} placeholder="Cast, crew, contribution, and production notes..." /></Field>
                 </div>
               )}
 
-              {contentType === 'image' && <input value={it.dimensions || ''} onChange={(e) => setCustomItemField(sectionIdx, idx, 'dimensions', e.target.value)} placeholder="Dimensi / medium / tahun (opsional)" className={inputClsSm} />}
+              {contentType === 'image' && <input value={it.dimensions || ''} onChange={(e) => setCustomItemField(sectionIdx, idx, 'dimensions', e.target.value)} placeholder="Dimensions / medium / year (optional)" className={inputClsSm} />}
 
               {contentType === 'document' && (
                 <div className="space-y-2 border-t border-dashed border-gray-200 pt-3 dark:border-gray-700">
@@ -4188,7 +8473,7 @@ export default function CmsDashboard({ data, onSave }) {
               )}
 
               {['document', 'link', 'writing', 'video'].includes(contentType) && (
-                <div className="grid grid-cols-1 gap-2 md:grid-cols-2"><input value={it.buttonLabel || ''} onChange={(e) => setCustomItemField(sectionIdx, idx, 'buttonLabel', e.target.value)} placeholder="Label tombol (opsional)" className={inputClsSm} /><input value={contentType === 'document' ? (it.fileUrl || '') : (it.url || '')} onChange={(e) => setCustomItemField(sectionIdx, idx, contentType === 'document' ? 'fileUrl' : 'url', e.target.value)} placeholder="URL tujuan (opsional)" className={inputClsSm} /></div>
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2"><input value={it.buttonLabel || ''} onChange={(e) => setCustomItemField(sectionIdx, idx, 'buttonLabel', e.target.value)} placeholder="Button label (optional)" className={inputClsSm} /><input value={contentType === 'document' ? (it.fileUrl || '') : (it.url || '')} onChange={(e) => setCustomItemField(sectionIdx, idx, contentType === 'document' ? 'fileUrl' : 'url', e.target.value)} placeholder="Destination URL (optional)" className={inputClsSm} /></div>
               )}
             </ContentCard>
           ))}
@@ -4222,11 +8507,11 @@ export default function CmsDashboard({ data, onSave }) {
       };
       case 'career': return {
         source: formData.career, rootPath: 'career',
-        allowedPaths: ['career.heading', 'career.subheading', 'career.archiveTitle', 'career.archiveIntro', 'career.archiveButtonLabel', 'career.credentialsButtonLabel', 'career.credentialsHeading', 'career.credentialsSubheading', 'career.credentialsBackLabel', 'career.categories'],
+        allowedPaths: ['career.heading', 'career.subheading', 'career.archiveTitle', 'career.archiveIntro', 'career.archiveButtonLabel', 'career.credentialsButtonLabel', 'career.credentialsHeading', 'career.credentialsSubheading', 'career.credentialsBackLabel', 'career.backLabel', 'career.categories'],
       };
       case 'book': return {
         source: formData.books, rootPath: 'books',
-        allowedPaths: ['books.heading', 'books.subheading', 'books.worksTabLabel', 'books.readingTabLabel', 'books.items', 'books.readingItems'],
+        allowedPaths: ['books.heading', 'books.subheading', 'books.worksTabLabel', 'books.readingTabLabel', 'books.backLabel', 'books.items', 'books.readingItems'],
       };
       case 'projects': return {
         source: formData.projects, rootPath: 'projects',
@@ -4269,19 +8554,19 @@ export default function CmsDashboard({ data, onSave }) {
 
   return (
     <CmsCardContext.Provider value={{ expandedContentKey, draggingKey, toggleContentCard, reorderList, handleDragStart, handleDragEnd, handleDragOver, handleDrop, openSectionKeys, toggleSection }}>
-    <div data-cms-language-root="true" className="max-w-4xl mx-auto space-y-6 text-gray-900 dark:text-gray-100 p-4">
+    <div data-cms-language-root="true" className="fixed inset-0 z-[140] flex h-dvh w-screen flex-col overflow-hidden bg-[#f3f3f3] p-4 font-[Arial] text-gray-900 dark:bg-[#161616] dark:text-gray-100 md:p-6">
 
       {showCancelConfirm && (
         <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/55 px-4" role="dialog" aria-modal="true" aria-labelledby="cancel-cms-title">
           <div className="w-full max-w-sm overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#202020] shadow-2xl">
             <div className="bg-[#2B579A] px-5 py-3 text-white">
-              <h2 id="cancel-cms-title" className="font-mono text-sm font-bold tracking-wider">SAYA SATPAM!</h2>
+              <h2 id="cancel-cms-title" className="font-[Arial] text-sm font-bold tracking-wider">SAYA SATPAM!</h2>
             </div>
             <div className="p-5">
-              <p className="text-sm text-gray-700 dark:text-gray-200">Batalin semua perubahan yang belum disimpan?</p>
+              <p className="text-sm text-gray-700 dark:text-gray-200">Discard all unsaved changes?</p>
               <div className="mt-5 flex justify-end gap-2">
                 <button type="button" onClick={() => setShowCancelConfirm(false)} className="rounded-md bg-gray-200 dark:bg-gray-700 px-4 py-2 text-xs font-bold text-gray-700 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-600">Lanjut Edit</button>
-                <button type="button" onClick={discardChanges} className="rounded-md bg-[#2B579A] px-4 py-2 text-xs font-bold text-white hover:bg-[#234a84]">Ya, Batalkan</button>
+                <button type="button" onClick={discardChanges} className="rounded-md bg-[#2B579A] px-4 py-2 text-xs font-bold text-white hover:bg-[#234a84]">Ya, Cancel</button>
               </div>
             </div>
           </div>
@@ -4291,18 +8576,18 @@ export default function CmsDashboard({ data, onSave }) {
       {notice && (
         <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/55 px-4" role="alertdialog" aria-modal="true">
           <div className="w-full max-w-sm overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#202020] shadow-2xl">
-            <div className="bg-[#2B579A] px-5 py-3 text-white"><h2 className="font-mono text-sm font-bold tracking-wider">SAYA SATPAM!</h2></div>
+            <div className="bg-[#2B579A] px-5 py-3 text-white"><h2 className="font-[Arial] text-sm font-bold tracking-wider">SAYA SATPAM!</h2></div>
             <div className="p-5"><p className="text-sm text-gray-700 dark:text-gray-200">{notice}</p><div className="mt-5 flex justify-end"><button type="button" onClick={() => setNotice('')} className="rounded-md bg-[#2B579A] px-4 py-2 text-xs font-bold text-white hover:bg-[#234a84]">Oke</button></div></div>
           </div>
         </div>
       )}
 
       {/* HEADER & TOMBOL GLOBAL SAVE / NOPE */}
-      <div className="border-b pb-4 border-gray-200 dark:border-gray-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="mx-auto flex w-full max-w-[1600px] shrink-0 flex-col items-start justify-between gap-4 border-b border-gray-300 pb-4 dark:border-gray-700 md:flex-row md:items-center">
         <div>
-          <h1 className="text-xl font-bold font-mono">PANEL KONTROL CMS ADMIN</h1>
+          <h1 className="text-xl font-bold font-[Arial]">CMS ADMIN CONTROL PANEL</h1>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            Edit seluruh konten dan fitur website dari sini — perubahan langsung dipakai di halaman publik setelah Save ditekan.
+            Edit all website content and features here — changes go live on the public site after you press Save Changes.
           </p>
         </div>
 
@@ -4322,51 +8607,140 @@ export default function CmsDashboard({ data, onSave }) {
           >
             {isSaving ? 'Menyimpan...' : 'Save Changes'}
           </button>
+          <div className="flex items-center overflow-hidden rounded border border-red-300 bg-red-600 shadow-sm">
+            <button
+              type="button"
+              onClick={requestWebsiteRecording}
+              className="inline-flex h-8 items-center gap-1.5 px-3 text-xs font-bold text-white transition hover:bg-red-500"
+              title="Record Website"
+            >
+              <span className="h-2.5 w-2.5 rounded-full bg-white" aria-hidden="true" />
+              Record Website
+            </button>
+            <select
+              value={recordQuality}
+              onChange={(event) => setRecordQuality(event.target.value)}
+              className="h-8 border-l border-red-300 bg-red-700 px-2 text-[10px] font-bold text-white outline-none"
+              title="Recording quality"
+              aria-label="Recording quality"
+            >
+              <option value="720" className="bg-white text-black">720p</option>
+              <option value="1080" className="bg-white text-black">1080p</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            onClick={() => onExitAdmin?.()}
+            disabled={!onExitAdmin}
+            title="Exit CMS Admin"
+            aria-label="Exit CMS Admin"
+            className="inline-flex h-8 w-8 items-center justify-center rounded border border-orange-300 bg-orange-500 text-black shadow-sm transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-40 dark:border-orange-400 dark:bg-orange-500 dark:text-black dark:hover:bg-orange-400"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="8" r="3.2" />
+              <path d="M5.8 19c.7-3.2 3-5 6.2-5s5.5 1.8 6.2 5" />
+            </svg>
+          </button>
         </div>
       </div>
 
-      <form id="cms-admin-form" onSubmit={handleSave} className="bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm space-y-6 max-h-[calc(100vh-11rem)] overflow-y-auto overscroll-contain">
+      {showAdminWelcome && (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/50 px-4" role="dialog" aria-modal="true" aria-labelledby="cms-welcome-title">
+          <div className="w-full max-w-sm overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-[#202020]">
+            <div className="bg-[#2B579A] px-5 py-3 text-white">
+              <h2 id="cms-welcome-title" className="font-[Arial] text-sm font-bold tracking-wider">SAYA SATPAM!</h2>
+            </div>
+            <div className="p-5">
+              <p className="text-sm text-gray-700 dark:text-gray-200">what do you want to work on here?</p>
+              <div className="mt-5 flex justify-end">
+                <button type="button" onClick={() => setShowAdminWelcome(false)} className="rounded-md bg-[#2B579A] px-4 py-2 text-xs font-bold text-white hover:bg-[#234a84]">
+                  Siap, Pak
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <form id="cms-admin-form" onSubmit={handleSave} className={`mx-auto mt-4 min-h-0 w-full max-w-[1600px] flex-1 overflow-y-auto overscroll-contain ${activeTab === null ? 'bg-transparent' : 'rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-[#1e1e1e] md:p-7'}`}>
 
       {activeTab === null ? (
-        <div>
-          {cmsSection === null ? <><h2 className="mb-4 text-xs font-mono uppercase tracking-widest text-gray-400 dark:text-gray-500">Pilih kelompok pengaturan</h2><div className="mx-auto grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-4"><button type="button" onClick={() => setCmsSection('main')} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">01 / Pokok</span><strong className="mt-4 block font-mono text-xl">UTAMA</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Home, About, Projects, Career, Book, dan Contact.</span></button><button type="button" onClick={() => setCmsSection('side')} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">02 / Sampingan</span><strong className="mt-4 block font-mono text-xl">SAMPINGAN</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Featured Works, Visitor Introduction, Navigation & Labels, Interactive Words, dan Update Patch.</span></button><button type="button" onClick={() => setCmsSection('extra')} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">03 / Interaktif</span><strong className="mt-4 block font-mono text-xl">INTERAKTIF</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Wassup? dan Mini Game untuk pengalaman tambahan pengunjung.</span></button><button type="button" onClick={() => { setCmsSection('websikee'); setActiveTab('websikee'); }} className="min-h-44 rounded-lg border border-gray-200 bg-gray-50 p-5 text-left transition-all hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#2d2d2d]"><span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">04 / Metadata</span><strong className="mt-4 block font-mono text-xl">WEBSIKEE!</strong><span className="mt-2 block text-xs leading-relaxed text-gray-500">Judul website dan foto preview saat link dibagikan.</span></button></div></> : <><div className="mb-4 flex items-center justify-between gap-3"><div><button type="button" onClick={() => setCmsSection(null)} className="mb-2 font-mono text-xs text-gray-500 hover:text-blue-600">← Pilih kelompok lain</button><h2 className="text-xs font-mono uppercase tracking-widest text-gray-400 dark:text-gray-500">{cmsSection === 'main' ? 'Pokok / kebutuhan utama portofolio' : cmsSection === 'side' ? 'Sampingan / fitur pendukung portofolio' : cmsSection === 'websikee' ? 'Websikee! / metadata website' : 'Interaktif / pengalaman tambahan pengunjung'}</h2></div></div><div className="grid max-h-[calc(100vh-17rem)] grid-cols-2 gap-3 overflow-y-auto overscroll-contain pr-1 sm:grid-cols-3">
-            {(cmsSection === 'main' ? MAIN_TABS : cmsSection === 'side' ? SIDE_TABS : EXTRA_TABS).map((tab) => {
-              const meta = TAB_META[tab];
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setActiveTab(tab)}
-                  className="flex flex-col items-start gap-1.5 p-4 bg-gray-50 dark:bg-[#2d2d2d] border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-md transition-all text-left"
-                >
-                  <span className="text-2xl leading-none">{meta.emoji}</span>
-                  <span className="text-sm font-bold font-mono uppercase tracking-wide text-gray-800 dark:text-gray-100">
-                    {meta.label}
-                  </span>
-                  <span className="text-[11px] text-gray-400 dark:text-gray-500 leading-snug">
-                    {meta.desc}
-                  </span>
-                </button>
-              );
-            })}</div></>}
+        <div className="flex min-h-full w-full items-center justify-center py-8 md:py-12">
+          {cmsSection === null ? (
+            <div className="w-full max-w-3xl">
+              <div className="mb-7 text-center">
+                <h2 className="font-[Arial] text-2xl font-bold text-gray-900 dark:text-white">Yip Yap, Ale!</h2>
+                <p className="mt-2 font-[Arial] text-xs font-semibold text-blue-600 dark:text-blue-400">what do you want to manage today?</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 md:gap-4">
+                {[
+                  { key: 'main', title: 'MAIN' },
+                  { key: 'side', title: 'SIDE' },
+                  { key: 'extra', title: 'INTERACTIVE' },
+                  { key: 'websikee', title: 'WEBSIKEE!' },
+                ].map((group) => (
+                  <button
+                    key={group.key}
+                    type="button"
+                    onClick={() => {
+                      if (group.key === 'websikee') { setCmsSection('websikee'); setActiveTab('websikee'); }
+                      else setCmsSection(group.key);
+                    }}
+                    className="group flex min-h-[150px] flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-4 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#242424] md:min-h-[170px] md:p-5"
+                  >
+                    <span className="text-gray-400 transition-colors group-hover:text-blue-600 dark:text-gray-500 dark:group-hover:text-blue-400"><CmsMenuIllustration type={group.key} /></span>
+                    <strong className="mt-4 block font-[Arial] text-sm font-bold uppercase tracking-[0.12em] text-gray-900 dark:text-white md:text-base">{group.title}</strong>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="w-full max-w-5xl">
+              <div className="mb-6 border-b border-gray-300 pb-4 dark:border-gray-700">
+                <button type="button" onClick={() => setCmsSection(null)} className="mb-3 inline-flex items-center gap-1.5 font-[Arial] text-xs text-gray-500 transition-colors hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400">← Back</button>
+                <h2 className="font-[Arial] text-2xl font-bold text-gray-900 dark:text-white">{cmsSection === 'main' ? 'MAIN' : cmsSection === 'side' ? 'SIDE' : 'INTERACTIVE'}</h2>
+              </div>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
+                {(cmsSection === 'main' ? MAIN_TABS : cmsSection === 'side' ? SIDE_TABS : EXTRA_TABS).map((tab) => {
+                  const meta = TAB_META[tab];
+                  return (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setActiveTab(tab)}
+                      className="group flex min-h-[142px] flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-4 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#242424] md:min-h-[156px] md:p-5"
+                    >
+                      <span className="text-gray-400 transition-colors group-hover:text-blue-600 dark:text-gray-500 dark:group-hover:text-blue-400"><CmsMenuIllustration type={tab} /></span>
+                      <strong className="mt-4 block font-[Arial] text-xs font-bold uppercase tracking-[0.1em] text-gray-900 dark:text-white md:text-sm">{meta.label}</strong>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
       <>
-        {/* Tombol kembali ke menu — pola sama kayak halaman publik Career.jsx */}
-        <button
-          type="button"
-          onClick={() => { setActiveTab(null); setActiveMiniGameEditor(null); if (cmsSection === 'websikee') setCmsSection(null); }}
-          className="flex items-center gap-1.5 text-xs font-mono text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 mb-2 transition-colors"
-        >
-          <span>←</span> Kembali ke {cmsSection === 'main' ? 'Pokok' : cmsSection === 'side' ? 'Sampingan' : cmsSection === 'websikee' ? 'Websikee!' : 'Interaktif'}
-        </button>
-
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-[#282828]">
-          <div>
-            <p className="text-xs font-bold text-gray-700 dark:text-gray-200">Bahasa konten</p>
-            <p className="text-[10px] text-gray-400">Edit di tab yang sama. ID adalah sumber; EN adalah versi resmi buatan sendiri.</p>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
+          <button
+            type="button"
+            onClick={() => { setActiveTab(null); setActiveMiniGameEditor(null); if (cmsSection === 'websikee') setCmsSection(null); }}
+            className="inline-flex items-center gap-1.5 font-[Arial] text-xs text-gray-500 transition-colors hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400"
+          >
+            <span>←</span> Back
+          </button>
+          <div className="text-right">
+            <p className="font-[Arial] text-[9px] font-bold uppercase tracking-[0.18em] text-blue-600">{cmsSection === 'main' ? 'MAIN' : cmsSection === 'side' ? 'SIDE' : cmsSection === 'websikee' ? 'WEBSIKEE!' : 'INTERACTIVE'}</p>
+            <p className="font-[Arial] text-sm font-bold uppercase text-gray-800 dark:text-gray-100">{TAB_META[activeTab]?.label || activeTab}</p>
           </div>
-          <div className="flex shrink-0 overflow-hidden rounded-md border border-gray-300 bg-white font-mono text-[10px] font-bold dark:border-gray-600 dark:bg-[#1e1e1e]">
+        </div>
+
+        <div className="mb-5 flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-[#282828]">
+          <div>
+            <p className="text-xs font-bold text-gray-700 dark:text-gray-200">Content Language</p>
+            <p className="text-[10px] text-gray-400">Edit in the same tab. ID is the source; EN is your official English version.</p>
+          </div>
+          <div className="flex shrink-0 overflow-hidden rounded-md border border-gray-300 bg-white font-[Arial] text-[10px] font-bold dark:border-gray-600 dark:bg-[#1e1e1e]">
             <button type="button" onClick={() => setCmsLanguage('id')} className={`px-3 py-1.5 ${cmsLanguage === 'id' ? 'bg-[#2B579A] text-white' : 'text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'}`}>ID</button>
             <button type="button" onClick={() => setCmsLanguage('en')} className={`border-l border-gray-300 px-3 py-1.5 dark:border-gray-600 ${cmsLanguage === 'en' ? 'bg-[#2B579A] text-white' : 'text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'}`}>EN</button>
           </div>
@@ -4376,8 +8750,8 @@ export default function CmsDashboard({ data, onSave }) {
         {activeTab === 'websikee' && (
           <section className="space-y-5">
             <div>
-              <h2 className="font-mono text-lg font-bold">Websikee!</h2>
-              <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">Metadata website. Website Title tersimpan lewat CMS. Share Preview Image di bawah ini menimpa satu file tetap di Supabase, sehingga GitHub Pages dan crawler share memakai sumber gambar yang sama.</p>
+              <h2 className="font-[Arial] text-lg font-bold">Websikee!</h2>
+              <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">Website metadata. Website Title is stored through the CMS. The Share Preview Image below overwrites one fixed file in Supabase so GitHub Pages and social crawlers use the same image source.</p>
             </div>
 
             <Field label="Website Title" sourceValue={sourceFormData.website?.title || ''} cmsLanguage={cmsLanguage}>
@@ -4391,21 +8765,16 @@ export default function CmsDashboard({ data, onSave }) {
             </Field>
 
             <Field label="Website Description" sourceValue={sourceFormData.website?.description || ''} cmsLanguage={cmsLanguage}>
-              <textarea
-                value={formData.website?.description || ''}
-                onChange={(e) => setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), description: e.target.value } }))}
-                className={`${inputCls} min-h-[96px] resize-y`}
-                placeholder="Deskripsi singkat yang muncul pada metadata dan preview saat link portfolio dibagikan."
-              />
+              <RichTextEditor fieldMode initialValue={formData.website?.description || ''} onChange={(html) => setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), description: html } }))} placeholder="Short description shown in metadata and link previews when the portfolio is shared." />
             </Field>
 
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Favicon / Website Icon</p>
-              <p className="text-[10px] leading-relaxed text-gray-400">Icon kecil di tab browser, tepat di sebelah Website Title. Gunakan gambar kotak. File ditimpa ke path tetap website/favicon.png di Supabase.</p>
+              <p className="text-[10px] leading-relaxed text-gray-400">Small browser-tab icon beside the Website Title. Use a square image. The file overwrites the fixed website/favicon.png path in Supabase.</p>
               {sourceFormData.website?.favicon && (
                 <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-[#282828]">
                   <img src={sourceFormData.website.favicon} alt="Favicon website" className="h-12 w-12 rounded border border-gray-300 object-cover dark:border-gray-600" />
-                  <p className="min-w-0 break-all font-mono text-[9px] text-gray-400">{sourceFormData.website.favicon}</p>
+                  <p className="min-w-0 break-all font-[Arial] text-[9px] text-gray-400">{sourceFormData.website.favicon}</p>
                 </div>
               )}
               <input
@@ -4423,23 +8792,23 @@ export default function CmsDashboard({ data, onSave }) {
                 }}
                 className="w-full text-[10px]"
               />
-              {uploadingWebsitePreview && <p className="text-[10px] text-blue-500">Mengupload gambar…</p>}
+              {uploadingWebsitePreview && <p className="text-[10px] text-blue-500">Uploading image…</p>}
               <input
                 type="text"
                 value={sourceFormData.website?.favicon || ''}
                 onChange={(e) => setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), favicon: e.target.value } }))}
                 className={inputCls}
-                placeholder="Atau tempel URL favicon"
+                placeholder="Or paste a favicon URL"
               />
             </div>
 
             <div className="space-y-2">
               <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Share Preview Image</p>
-              <p className="text-[10px] leading-relaxed text-gray-400">Upload gambar baru untuk mengganti preview link. File akan ditimpa ke path tetap website/share-preview.jpg di Supabase; URL-nya tidak berubah. Bentuk kartu akhirnya tetap ditentukan aplikasi tempat link dibagikan.</p>
+              <p className="text-[10px] leading-relaxed text-gray-400">Upload a new image to replace the link preview. The file overwrites the fixed website/share-preview.jpg path in Supabase; its URL stays the same. The final card appearance is still controlled by the app where the link is shared.</p>
               {sourceFormData.website?.shareImage && (
                 <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-[#282828]">
                   <img src={sourceFormData.website.shareImage} alt="Preview link website" className="h-20 w-28 rounded border border-gray-300 object-cover dark:border-gray-600" />
-                  <button type="button" onClick={() => setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: '' } }))} className="text-xs font-semibold text-red-500 hover:text-red-600">Hapus gambar</button>
+                  <button type="button" onClick={() => setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: '' } }))} className="text-xs font-semibold text-red-500 hover:text-red-600">Remove image</button>
                 </div>
               )}
               <input
@@ -4457,34 +8826,27 @@ export default function CmsDashboard({ data, onSave }) {
                 }}
                 className="w-full text-[10px]"
               />
-              {uploadingWebsitePreview && <p className="text-[10px] text-blue-500">Mengupload gambar…</p>}
+              {uploadingWebsitePreview && <p className="text-[10px] text-blue-500">Uploading image…</p>}
               <input
                 type="text"
                 value={sourceFormData.website?.shareImage || ''}
                 onChange={(e) => setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: e.target.value } }))}
                 className={inputCls}
-                placeholder="Atau tempel URL gambar"
+                placeholder="Or paste an image URL"
               />
             </div>
             <div className="space-y-2 border-t border-gray-200 pt-5 dark:border-gray-700">
               <div>
-                <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Catatan Website</p>
+                <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Notes Website</p>
                 <p className="mt-1 text-[10px] leading-relaxed text-gray-400">
-                  Catatan pribadi admin untuk command Git, rumus push/deploy, checklist, atau pesan lain. Disimpan lokal di browser ini dan tidak dikirim ke data portfolio publik.
+                  Notes pribadi admin untuk command Git, rumus push/deploy, checklist, atau pesan lain. Disimpan lokal di browser ini dan tidak dikirim ke data portfolio publik.
                 </p>
               </div>
-              <textarea
-                rows={12}
-                value={sourceFormData.website?.devNotes || ''}
-                onChange={(e) => {
-                  const value = e.target.value;
+              <RichTextEditor fieldMode initialValue={sourceFormData.website?.devNotes || ''} onChange={(html) => {
+                  const value = html;
                   writeLocalDevNotes(value);
                   setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), devNotes: value } }));
-                }}
-                className={`${inputCls} min-h-[240px] max-h-[480px] resize-y overflow-y-auto font-mono text-[11px] leading-relaxed`}
-                placeholder={'PUSH & DEPLOY\n\ngit status\ngit add .\ngit commit -m "..."\ngit push\n\nCATATAN:\n- cek localhost\n- cek mobile\n- cek CMS save\n- baru push'}
-                spellCheck={false}
-              />
+                }} placeholder={'PUSH & DEPLOY\n\ngit status\ngit add .\ngit commit -m "..."\ngit push\n\nNOTES:\n- check localhost\n- check mobile\n- check CMS save\n- then push'} />
             </div>
           </section>
         )}
@@ -4493,32 +8855,32 @@ export default function CmsDashboard({ data, onSave }) {
         {activeTab === 'home' && (
           <div className="space-y-4">
             <h2 className="text-sm font-bold border-b pb-2 border-gray-100 dark:border-gray-800 text-blue-600 dark:text-blue-400">Tab Home</h2>
-            <Field label="Nama Lengkap" sourceValue={sourceFormData.home.name} cmsLanguage={cmsLanguage}>
+            <Field label="Full Name" sourceValue={sourceFormData.home.name} cmsLanguage={cmsLanguage}>
               <input type="text" value={formData.home.name} onChange={(e) => setHome('name', e.target.value)} className={inputCls} />
             </Field>
             <Field label="Role / Jabatan Singkat" sourceValue={sourceFormData.home.role} cmsLanguage={cmsLanguage}>
               <input type="text" value={formData.home.role} onChange={(e) => setHome('role', e.target.value)} className={inputCls} />
             </Field>
-            <CollapsibleSection sectionKey="home-dynamic-statement" title="Dynamic Statement" subtitle="Kalimat besar di kanan identitas Home.">
+            <CollapsibleSection sectionKey="home-dynamic-statement" title="Dynamic Statement" subtitle="Large statement to the right of the Home identity.">
 
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h3 className="text-sm font-bold text-blue-700 dark:text-blue-300">Dynamic Statement</h3>
-                  <p className="mt-1 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">Kalimat besar di kanan identitas Home. Setiap baris merupakan pasangan kata yang akan diganti seperti proses edit di Word.</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">Large statement to the right of the Home identity. Each row is a word pair that swaps like an edit in Word.</p>
                 </div>
-                <button type="button" onClick={() => setDynamicStatement('enabled', !formData.home.dynamicStatement.enabled)} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${formData.home.dynamicStatement.enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} aria-label="Aktifkan atau nonaktifkan dynamic statement">
+                <button type="button" onClick={() => setDynamicStatement('enabled', !formData.home.dynamicStatement.enabled)} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${formData.home.dynamicStatement.enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`} aria-label="Enable or disable dynamic statement">
                   <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${formData.home.dynamicStatement.enabled ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
               </div>
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <Field label="Pembuka" sourceValue={sourceFormData.home.dynamicStatement.prefix || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.home.dynamicStatement.prefix || ''} onChange={(e) => setDynamicStatement('prefix', e.target.value)} className={inputCls} placeholder="Gue" /></Field>
+                <Field label="Prefix" sourceValue={sourceFormData.home.dynamicStatement.prefix || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.home.dynamicStatement.prefix || ''} onChange={(e) => setDynamicStatement('prefix', e.target.value)} className={inputCls} placeholder="Gue" /></Field>
                 <Field label="Kata highlight kuning" sourceValue={sourceFormData.home.dynamicStatement.highlightedWord || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.home.dynamicStatement.highlightedWord || ''} onChange={(e) => setDynamicStatement('highlightedWord', e.target.value)} className={inputCls} placeholder="mengubah" /></Field>
-                <Field label="Kata penghubung" sourceValue={sourceFormData.home.dynamicStatement.connector || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.home.dynamicStatement.connector || ''} onChange={(e) => setDynamicStatement('connector', e.target.value)} className={inputCls} placeholder="menjadi" /></Field>
+                <Field label="Connector" sourceValue={sourceFormData.home.dynamicStatement.connector || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.home.dynamicStatement.connector || ''} onChange={(e) => setDynamicStatement('connector', e.target.value)} className={inputCls} placeholder="menjadi" /></Field>
               </div>
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <Field label="Ukuran kalimat">
+                <Field label="Statement Size">
                   <select value={formData.home.dynamicStatement.size || 'large'} onChange={(e) => setDynamicStatement('size', e.target.value)} className={inputCls}>
                     <option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option>
                   </select>
@@ -4528,7 +8890,7 @@ export default function CmsDashboard({ data, onSave }) {
                     <option value="slow">Slow</option><option value="normal">Normal</option><option value="fast">Fast</option>
                   </select>
                 </Field>
-                <Field label="Jeda setelah kalimat selesai">
+                <Field label="Pause after statement completes">
                   <select value={Number(formData.home.dynamicStatement.pauseDuration) || 2700} onChange={(e) => setDynamicStatement('pauseDuration', Number(e.target.value))} className={inputCls}>
                     <option value={2000}>2 detik</option><option value={2700}>2,7 detik</option><option value={3500}>3,5 detik</option><option value={5000}>5 detik</option>
                   </select>
@@ -4538,21 +8900,21 @@ export default function CmsDashboard({ data, onSave }) {
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Pasangan kata ({formData.home.dynamicStatement.pairs.length}/8)</p>
-                  {formData.home.dynamicStatement.pairs.length < 8 && <button type="button" onClick={addDynamicPair} className="rounded-md border border-dashed border-blue-400 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-100 dark:text-blue-300 dark:hover:bg-blue-950/40">+ Tambah Pasangan</button>}
+                  {formData.home.dynamicStatement.pairs.length < 8 && <button type="button" onClick={addDynamicPair} className="rounded-md border border-dashed border-blue-400 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-100 dark:text-blue-300 dark:hover:bg-blue-950/40">+ Add Pair</button>}
                 </div>
                 {formData.home.dynamicStatement.pairs.map((pair, index) => (
                   <div key={index} className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-gray-200 bg-white p-2 dark:border-gray-700 dark:bg-gray-900/60">
                     <input type="text" value={pair.source || ''} onChange={(e) => setDynamicPair(index, 'source', e.target.value)} className={inputCls} placeholder="pengamatan" aria-label={`Kata awal pasangan ${index + 1}`} />
-                    <span className="font-mono text-xs text-gray-400">→</span>
+                    <span className="font-[Arial] text-xs text-gray-400">→</span>
                     <input type="text" value={pair.result || ''} onChange={(e) => setDynamicPair(index, 'result', e.target.value)} className={inputCls} placeholder="cerita" aria-label={`Kata hasil pasangan ${index + 1}`} />
                     <div className="flex gap-1">
                       <button type="button" onClick={() => moveDynamicPair(index, -1)} disabled={index === 0} className="rounded border border-gray-200 px-2 py-1 text-xs disabled:opacity-30 dark:border-gray-700" title="Naik">↑</button>
                       <button type="button" onClick={() => moveDynamicPair(index, 1)} disabled={index === formData.home.dynamicStatement.pairs.length - 1} className="rounded border border-gray-200 px-2 py-1 text-xs disabled:opacity-30 dark:border-gray-700" title="Turun">↓</button>
-                      <button type="button" onClick={() => removeDynamicPair(index)} className="rounded border border-red-200 px-2 py-1 text-xs text-red-500 hover:bg-red-50 dark:border-red-900/60 dark:hover:bg-red-950/30" title="Hapus">×</button>
+                      <button type="button" onClick={() => removeDynamicPair(index)} className="rounded border border-red-200 px-2 py-1 text-xs text-red-500 hover:bg-red-50 dark:border-red-900/60 dark:hover:bg-red-950/30" title="Remove">×</button>
                     </div>
                   </div>
                 ))}
-                {!formData.home.dynamicStatement.pairs.length && <p className="rounded-lg border border-dashed border-gray-300 p-3 text-center text-xs text-gray-400 dark:border-gray-700">Belum ada pasangan kata. Tambahkan minimal satu.</p>}
+                {!formData.home.dynamicStatement.pairs.length && <p className="rounded-lg border border-dashed border-gray-300 p-3 text-center text-xs text-gray-400 dark:border-gray-700">No word pairs yet. Add at least one.</p>}
               </div>
             
             </CollapsibleSection>
@@ -4563,23 +8925,23 @@ export default function CmsDashboard({ data, onSave }) {
         {activeTab === 'featuredWorks' && (
           <div className="space-y-4">
             <h2 className="text-sm font-bold border-b pb-2 border-gray-100 dark:border-gray-800 text-blue-600 dark:text-blue-400">Featured Works / Carousel</h2>
-            <p className="text-xs text-gray-500 italic">Pilih maksimal lima karya. Judul dan gambar otomatis mengikuti data asli di Book atau Projects.</p>
+            <p className="text-xs text-gray-500 italic">Select up to five works. Titles and images automatically follow the source data in Books or Projects.</p>
             <Field label="Heading Carousel" sourceValue={sourceFormData.home.featuredWorksHeading || ''} cmsLanguage={cmsLanguage}>
-              <input type="text" value={formData.home.featuredWorksHeading || ''} onChange={(e) => setHome('featuredWorksHeading', e.target.value)} className={inputCls} placeholder="Pilihan Karya" />
+              <input type="text" value={formData.home.featuredWorksHeading || ''} onChange={(e) => setHome('featuredWorksHeading', e.target.value)} className={inputCls} placeholder="Selected Works" />
             </Field>
             <div className="space-y-3">
               {(formData.home.featuredWorks || []).map((work, index) => {
                 const selectedValue = `${work.type || ''}|${work.sectionId || ''}|${work.itemId || ''}`;
-                return <ContentCard key={`${work.type}-${work.itemId}-${index}`} cardKey={`featured-${index}`} listKey="featuredWorks" idx={index} count={formData.home.featuredWorks.length} title={`Karya #${index + 1}`} subtitle={featuredWorkOptions.find((option) => option.value === selectedValue)?.label || 'Belum memilih karya'} onRemove={() => removeFeaturedWork(index)}>
+                return <ContentCard key={`${work.type}-${work.itemId}-${index}`} cardKey={`featured-${index}`} listKey="featuredWorks" idx={index} count={formData.home.featuredWorks.length} title={`Work #${index + 1}`} subtitle={featuredWorkOptions.find((option) => option.value === selectedValue)?.label || 'No work selected'} onRemove={() => removeFeaturedWork(index)}>
                   <select value={selectedValue} onChange={(e) => { const [type, sectionId, itemId] = e.target.value.split('|'); setFeaturedWork(index, { type, sectionId, itemId }); }} className={inputCls}>
-                    <option value="||">Pilih karya…</option>
+                    <option value="||">Select work…</option>
                     {featuredWorkOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
-                  <textarea rows={2} value={work.teaser || ''} onChange={(e) => setFeaturedWork(index, { teaser: e.target.value })} className={`${inputCls} resize-y`} placeholder="Kalimat pendek untuk menjelaskan output" />
+                  <RichTextEditor fieldMode initialValue={work.teaser || ''} onChange={(html) => setFeaturedWork(index, { teaser: html })} placeholder="Short sentence describing the output" />
                 </ContentCard>;
               })}
             </div>
-            {(formData.home.featuredWorks || []).length < 5 && <button type="button" onClick={addFeaturedWork} className="rounded-md border border-dashed border-blue-400 px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30">+ Tambah Karya</button>}
+            {(formData.home.featuredWorks || []).length < 5 && <button type="button" onClick={addFeaturedWork} className="rounded-md border border-dashed border-blue-400 px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30">+ Add Work</button>}
           </div>
         )}
 
@@ -4587,20 +8949,20 @@ export default function CmsDashboard({ data, onSave }) {
         {activeTab === 'about' && (
           <div className="space-y-5">
             <h2 className="text-sm font-bold border-b pb-2 border-gray-100 dark:border-gray-800 text-blue-600 dark:text-blue-400">Tab About</h2>
-            <p className="text-xs text-gray-500 italic">The Author dan Bits & Pieces tampil sebagai dua tab yang mengganti isi halaman A4.</p>
+            <p className="text-xs text-gray-500 italic">The Author and Bits & Pieces appear as two tabs that switch the A4 page content.</p>
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <Field label="Judul Halaman" sourceValue={sourceFormData.about.heading || ''} cmsLanguage={cmsLanguage}><input value={formData.about.heading || ''} onChange={(e) => setAboutField('heading', e.target.value)} className={inputCls} /></Field>
-              <Field label="Subheading Halaman" sourceValue={sourceFormData.about.subheading || ''} cmsLanguage={cmsLanguage}><input value={formData.about.subheading || ''} onChange={(e) => setAboutField('subheading', e.target.value)} className={inputCls} /></Field>
-              <Field label="Nama tab bio" sourceValue={sourceFormData.about.authorNoteTabLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.about.authorNoteTabLabel || ''} onChange={(e) => setAboutField('authorNoteTabLabel', e.target.value)} className={inputCls} /></Field>
-              <Field label="Nama tab Bits & Pieces" sourceValue={sourceFormData.about.bitsTabLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.about.bitsTabLabel || ''} onChange={(e) => setAboutField('bitsTabLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Page Title" sourceValue={sourceFormData.about.heading || ''} cmsLanguage={cmsLanguage}><input value={formData.about.heading || ''} onChange={(e) => setAboutField('heading', e.target.value)} className={inputCls} /></Field>
+              <Field label="Page Subheading" sourceValue={sourceFormData.about.subheading || ''} cmsLanguage={cmsLanguage}><input value={formData.about.subheading || ''} onChange={(e) => setAboutField('subheading', e.target.value)} className={inputCls} /></Field>
+              <Field label="Bio Tab Name" sourceValue={sourceFormData.about.authorNoteTabLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.about.authorNoteTabLabel || ''} onChange={(e) => setAboutField('authorNoteTabLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Bits & Pieces Tab Name" sourceValue={sourceFormData.about.bitsTabLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.about.bitsTabLabel || ''} onChange={(e) => setAboutField('bitsTabLabel', e.target.value)} className={inputCls} /></Field>
             </div>
 
             <CollapsibleSection sectionKey="about-author" title="The Author">
 
               <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400">The Author</h3>
               <Field label="Headline" sourceValue={sourceFormData.about.headline || ''} cmsLanguage={cmsLanguage}><input value={formData.about.headline || ''} onChange={(e) => setAboutField('headline', e.target.value)} className={inputCls} /></Field>
-              <Field label="Bio" sourceValue={sourceFormData.about.bio || ''} cmsLanguage={cmsLanguage}><textarea rows={5} value={formData.about.bio || ''} onChange={(e) => setAboutField('bio', e.target.value)} className={`${inputCls} resize-y`} /></Field>
+              <Field label="Bio" sourceValue={sourceFormData.about.bio || ''} cmsLanguage={cmsLanguage}><RichTextEditor fieldMode initialValue={formData.about.bio || ''} onChange={(html) => setAboutField('bio', html)} /></Field>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <Field label="Tanda tangan" sourceValue={sourceFormData.about.signature || ''} cmsLanguage={cmsLanguage}><input value={formData.about.signature || ''} onChange={(e) => setAboutField('signature', e.target.value)} className={inputCls} /></Field>
                 <Field label="Lokasi / closing" sourceValue={sourceFormData.about.locationLine || ''} cmsLanguage={cmsLanguage}><input value={formData.about.locationLine || ''} onChange={(e) => setAboutField('locationLine', e.target.value)} className={inputCls} /></Field>
@@ -4613,9 +8975,9 @@ export default function CmsDashboard({ data, onSave }) {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400">Bits & Pieces</h3>
-                  <p className="mt-1 text-xs text-gray-500">Buat tab seperti Status, Currently Writing, Currently Reading, dan lainnya. Urutannya bisa di-drag & drop.</p>
+                  <p className="mt-1 text-xs text-gray-500">Create tabs such as Status, Currently Writing, Currently Reading, and others. Their order can be changed by drag and drop.</p>
                 </div>
-                <button type="button" onClick={addBitsAndPiecesItem} className="rounded bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-100 dark:bg-blue-950/40">+ Tambah Tab</button>
+                <button type="button" onClick={addBitsAndPiecesItem} className="rounded bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-100 dark:bg-blue-950/40">+ Add Tab</button>
               </div>
               <div className="space-y-3">
                 {(formData.about.bitsAndPieces?.items || []).map((item, index) => (
@@ -4625,13 +8987,13 @@ export default function CmsDashboard({ data, onSave }) {
                     listKey="bitsAndPieces"
                     idx={index}
                     count={(formData.about.bitsAndPieces?.items || []).length}
-                    title={item.label || 'Tab tanpa judul'}
-                    subtitle={item.value || 'Belum diisi'}
+                    title={item.label || 'Untitled Tab'}
+                    subtitle={item.value || 'Not filled in yet'}
                     onRemove={() => removeBitsAndPiecesItem(index)}
                   >
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-[0.35fr_1fr]">
-                      <Field label="Nama tab"><input value={item.label || ''} onChange={(e) => updateBitsAndPiecesItem(index, { label: e.target.value })} className={inputCls} placeholder="Status / Currently Writing / Currently Reading" /></Field>
-                      <Field label="Isi"><textarea rows={3} value={item.value || ''} onChange={(e) => updateBitsAndPiecesItem(index, { value: e.target.value })} className={`${inputCls} resize-y`} placeholder="Isi tab" /></Field>
+                      <Field label="Tab Name"><input value={item.label || ''} onChange={(e) => updateBitsAndPiecesItem(index, { label: e.target.value })} className={inputCls} placeholder="Status / Currently Writing / Currently Reading" /></Field>
+                      <Field label="Isi"><RichTextEditor fieldMode initialValue={item.value || ''} onChange={(html) => updateBitsAndPiecesItem(index, { value: html })} placeholder="Isi tab" /></Field>
                     </div>
                   </ContentCard>
                 ))}
@@ -4645,7 +9007,7 @@ export default function CmsDashboard({ data, onSave }) {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-bold text-blue-600 dark:text-blue-400">Last.fm / Listening Footnote</h3>
-                  <p className="mt-1 text-xs text-gray-500">Menampilkan lagu yang sedang atau terakhir didengar di area abu-abu kiri halaman About.</p>
+                  <p className="mt-1 text-xs text-gray-500">Shows the currently or most recently played song in the gray area on the left side of the About page.</p>
                 
                 </div>
                 <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-200">
@@ -4659,9 +9021,9 @@ export default function CmsDashboard({ data, onSave }) {
                 <Field label="Label terakhir diputar" sourceValue={sourceFormData.about.listeningFootnote.lastPlayedLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.lastPlayedLabel || ''} onChange={(e) => setListeningFootnote('lastPlayedLabel', e.target.value)} className={inputCls} /></Field>
                 <Field label="Label fallback" sourceValue={sourceFormData.about.listeningFootnote.fallbackLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.fallbackLabel || ''} onChange={(e) => setListeningFootnote('fallbackLabel', e.target.value)} className={inputCls} /></Field>
               </div>
-              <p className="text-xs text-gray-500">Fallback dipakai kalau live Last.fm belum tersedia.</p>
+              <p className="text-xs text-gray-500">Fallback is used when live Last.fm data is unavailable.</p>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <Field label="Judul lagu fallback" sourceValue={sourceFormData.about.listeningFootnote.fallbackTitle || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.fallbackTitle || ''} onChange={(e) => setListeningFootnote('fallbackTitle', e.target.value)} className={inputCls} /></Field>
+                <Field label="Fallback Song Title" sourceValue={sourceFormData.about.listeningFootnote.fallbackTitle || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.fallbackTitle || ''} onChange={(e) => setListeningFootnote('fallbackTitle', e.target.value)} className={inputCls} /></Field>
                 <Field label="Artis fallback" sourceValue={sourceFormData.about.listeningFootnote.fallbackArtist || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.fallbackArtist || ''} onChange={(e) => setListeningFootnote('fallbackArtist', e.target.value)} className={inputCls} /></Field>
                 <Field label="URL cover fallback" sourceValue={sourceFormData.about.listeningFootnote.fallbackImage || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.fallbackImage || ''} onChange={(e) => setListeningFootnote('fallbackImage', e.target.value)} className={inputCls} /></Field>
                 <Field label="Link lagu fallback" sourceValue={sourceFormData.about.listeningFootnote.fallbackUrl || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.fallbackUrl || ''} onChange={(e) => setListeningFootnote('fallbackUrl', e.target.value)} className={inputCls} /></Field>
@@ -4675,38 +9037,38 @@ export default function CmsDashboard({ data, onSave }) {
           <div className="space-y-6">
             <h2 className="text-sm font-bold border-b pb-2 border-gray-100 dark:border-gray-800 text-blue-600 dark:text-blue-400">Tab Career</h2>
             <p className="text-xs text-gray-500 italic">
-              Kategori di bawah bebas ditambah, dihapus, atau diganti namanya — cocok buat
+              Category di bawah bebas ditambah, dihapus, atau diganti namanya — cocok buat
               riwayat kerja/pendidikan, tapi juga bisa dipakai buat Achievements, Certificates,
               atau slot lain yang lo butuhin.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Field label="Judul Halaman (mis. Career & Education)" sourceValue={sourceFormData.career.heading} cmsLanguage={cmsLanguage}>
+              <Field label="Page Title (mis. Career & Education)" sourceValue={sourceFormData.career.heading} cmsLanguage={cmsLanguage}>
                 <input type="text" value={formData.career.heading} onChange={(e) => setCareerHeading('heading', e.target.value)} className={inputCls} />
               </Field>
-              <Field label="Sub-judul / Keterangan Singkat" sourceValue={sourceFormData.career.subheading} cmsLanguage={cmsLanguage}>
+              <Field label="Subtitle / Short Description" sourceValue={sourceFormData.career.subheading} cmsLanguage={cmsLanguage}>
                 <input type="text" value={formData.career.subheading} onChange={(e) => setCareerHeading('subheading', e.target.value)} className={inputCls} />
               </Field>
             </div>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <CollapsibleSection sectionKey="career-archive-cover" title="Career Archive Cover">
-                <Field label="Judul besar sampul" sourceValue={sourceFormData.career.archiveTitle || ''} cmsLanguage={cmsLanguage}><textarea rows={2} value={formData.career.archiveTitle || ''} onChange={(e) => setCareerHeading('archiveTitle', e.target.value)} className={`${inputCls} resize-y`} placeholder="A record of work, study..." /></Field>
-                <Field label="Pengantar sampul" sourceValue={sourceFormData.career.archiveIntro || ''} cmsLanguage={cmsLanguage}><textarea rows={2} value={formData.career.archiveIntro || ''} onChange={(e) => setCareerHeading('archiveIntro', e.target.value)} className={`${inputCls} resize-y`} /></Field>
-                <Field label="Tulisan tombol buka arsip" sourceValue={sourceFormData.career.archiveButtonLabel || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.career.archiveButtonLabel || ''} onChange={(e) => setCareerHeading('archiveButtonLabel', e.target.value)} className={inputCls} placeholder="Open career archive" /></Field>
+                <Field label="Archive Cover Title" sourceValue={sourceFormData.career.archiveTitle || ''} cmsLanguage={cmsLanguage}><RichTextEditor fieldMode initialValue={formData.career.archiveTitle || ''} onChange={(html) => setCareerHeading('archiveTitle', html)} placeholder="A record of work, study..." /></Field>
+                <Field label="Pengantar sampul" sourceValue={sourceFormData.career.archiveIntro || ''} cmsLanguage={cmsLanguage}><RichTextEditor fieldMode initialValue={formData.career.archiveIntro || ''} onChange={(html) => setCareerHeading('archiveIntro', html)} /></Field>
+                <Field label="Open Archive Button Label" sourceValue={sourceFormData.career.archiveButtonLabel || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.career.archiveButtonLabel || ''} onChange={(e) => setCareerHeading('archiveButtonLabel', e.target.value)} className={inputCls} placeholder="Open career archive" /></Field>
               </CollapsibleSection>
 
               <CollapsibleSection sectionKey="career-view-credentials" title="View Credentials">
-                <Field label="Tulisan tombol credentials" sourceValue={sourceFormData.career.credentialsButtonLabel || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.career.credentialsButtonLabel || ''} onChange={(e) => setCareerHeading('credentialsButtonLabel', e.target.value)} className={inputCls} placeholder="View credentials" /></Field>
-                <Field label="Judul halaman Credentials" sourceValue={sourceFormData.career.credentialsHeading || ''} cmsLanguage={cmsLanguage}><input value={formData.career.credentialsHeading || ''} onChange={(e) => setCareerHeading('credentialsHeading', e.target.value)} className={inputCls} /></Field>
-                  <Field label="Subheading halaman Credentials" sourceValue={sourceFormData.career.credentialsSubheading || ''} cmsLanguage={cmsLanguage}><textarea rows={2} value={formData.career.credentialsSubheading || ''} onChange={(e) => setCareerHeading('credentialsSubheading', e.target.value)} className={`${inputCls} resize-y`} /></Field>
-                  <Field label="Tulisan kembali dari Credentials" sourceValue={sourceFormData.career.credentialsBackLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.career.credentialsBackLabel || ''} onChange={(e) => setCareerHeading('credentialsBackLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Credentials Button Label" sourceValue={sourceFormData.career.credentialsButtonLabel || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.career.credentialsButtonLabel || ''} onChange={(e) => setCareerHeading('credentialsButtonLabel', e.target.value)} className={inputCls} placeholder="View credentials" /></Field>
+                <Field label="Credentials Page Title" sourceValue={sourceFormData.career.credentialsHeading || ''} cmsLanguage={cmsLanguage}><input value={formData.career.credentialsHeading || ''} onChange={(e) => setCareerHeading('credentialsHeading', e.target.value)} className={inputCls} /></Field>
+                  <Field label="Credentials Page Subheading" sourceValue={sourceFormData.career.credentialsSubheading || ''} cmsLanguage={cmsLanguage}><RichTextEditor fieldMode initialValue={formData.career.credentialsSubheading || ''} onChange={(html) => setCareerHeading('credentialsSubheading', html)} /></Field>
+                  <Field label="Credentials Back Label" sourceValue={sourceFormData.career.credentialsBackLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.career.credentialsBackLabel || ''} onChange={(e) => setCareerHeading('credentialsBackLabel', e.target.value)} className={inputCls} /></Field>
                 </CollapsibleSection>
               </div>
   
-            <CollapsibleSection sectionKey="career-content-manager" title="Konten Career" subtitle="Kategori, item career, credentials, dan urutan konten">
+            <CollapsibleSection sectionKey="career-content-manager" title="Career Content" subtitle="Categories, career items, credentials & content order">
               {formData.career.categories.length === 0 && (
-                <p className="text-[11px] text-gray-400 italic">Belum ada kategori. Tambah salah satu tipe di bawah buat mulai.</p>
+                <p className="text-[11px] text-gray-400 italic">No categories yet. Add one of the types below to get started.</p>
               )}
   
               {/* Pola tab pill: cuma 1 kategori yang keliatan isinya dalam satu waktu (Professional
@@ -4735,10 +9097,10 @@ export default function CmsDashboard({ data, onSave }) {
                               : 'bg-gray-100 dark:bg-[#2d2d2d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#383838]'
                           }`}
                         >
-                          {cat.name || `Kategori #${idx + 1}`} ({cat.items.length})
+                          {cat.name || `Category #${idx + 1}`} ({cat.items.length})
                         </button>
                       ))}
-                      <button type="button" onClick={() => addCareerCategory('career')} className="rounded border border-dashed border-blue-400 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-950/30">+ Tambah Tab</button>
+                      <button type="button" onClick={() => addCareerCategory('career')} className="rounded border border-dashed border-blue-400 px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-950/30">+ Add Tab</button>
                     </div>
   
                     <div key={category.id || catIdx} className="space-y-3 p-4 rounded-lg border-2 border-gray-100 dark:border-gray-800">
@@ -4747,7 +9109,7 @@ export default function CmsDashboard({ data, onSave }) {
                           type="text"
                           value={category.name}
                           onChange={(e) => setCareerCategoryName(catIdx, e.target.value)}
-                          placeholder="Nama Kategori (mis. Professional, Achievements, dst)"
+                          placeholder="Category Name (e.g. Professional, Achievements)"
                           className={`${inputClsSm} font-semibold flex-1`}
                         />
                         <select
@@ -4758,20 +9120,20 @@ export default function CmsDashboard({ data, onSave }) {
                           <option value="career">{CAREER_TYPE_LABEL.career}</option>
                           <option value="credential">{CAREER_TYPE_LABEL.credential}</option>
                         </select>
-                        <RemoveBtn onClick={() => removeCareerCategory(catIdx)} label="Hapus Kategori" />
+                        <RemoveBtn onClick={() => removeCareerCategory(catIdx)} label="Remove Category" />
                       </div>
   
                       <div className="flex items-center justify-between">
                         <h3 className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
                           {category.items.length} item — seret ⠿ atau pakai ▲▼ buat urutin
                         </h3>
-                        <AddBtn onClick={() => addCareerItem(catIdx)} label="Tambah Item" />
+                        <AddBtn onClick={() => addCareerItem(catIdx)} label="Add Item" />
                       </div>
   
-                      {/* Gambar latar kartu menu kategori ini di halaman publik */}
+                      {/* Image latar kartu menu kategori ini di halaman publik */}
                       <div className="p-3 bg-blue-50/50 dark:bg-blue-950/20 rounded border border-dashed border-blue-200 dark:border-blue-900 space-y-2">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500">
-                          Gambar Latar Kartu Menu "{category.name || 'Tanpa Nama'}"
+                          Image Latar Kartu Menu "{category.name || 'Tanpa Name'}"
                         </span>
                         <div className="flex items-center gap-3">
                           {category.bgImage && (
@@ -4794,28 +9156,28 @@ export default function CmsDashboard({ data, onSave }) {
                           />
                           {category.bgImage && (
                             <button type="button" onClick={() => setCareerBgImage(catIdx, '')} className="text-[10px] text-red-500 hover:text-red-600 font-semibold shrink-0">
-                              Hapus
+                              Remove
                             </button>
                           )}
                         </div>
                         {uploadingCareerBg === bgKey && (
-                          <p className="text-[10px] text-blue-500 animate-pulse">Mengupload gambar...</p>
+                          <p className="text-[10px] text-blue-500 animate-pulse">Uploading image...</p>
                         )}
                         <input
                           type="text"
                           value={category.bgImage}
                           onChange={(e) => setCareerBgImage(catIdx, e.target.value)}
-                          placeholder="Atau tempel URL gambar langsung di sini"
+                          placeholder="Or paste an image URL directly here"
                           className={inputClsSm}
                         />
-                        <p className="text-[10px] text-gray-400">Kosongkan aja kalau belum ada — nanti otomatis pakai warna gradasi default.</p>
+                        <p className="text-[10px] text-gray-400">Leave it blank if unavailable — the default gradient will be used automatically.</p>
                       </div>
   
                       {category.items.length === 0 && (
-                        <p className="text-[11px] text-gray-400 italic">Belum ada item.</p>
+                        <p className="text-[11px] text-gray-400 italic">No items yet.</p>
                       )}
   
-                      {/* -------- Item TIPE 'career': Posisi @ Instansi + pop-up detail instansi -------- */}
+                      {/* -------- Item TIPE 'career': Position @ Instansi + pop-up detail instansi -------- */}
                       {/* Collapsed by default (cuma judul + tombol Edit) — sama pola kayak Articles di
                           tab Projects, biar kategori yang isinya banyak item (Professional, College, dst)
                           gak numpuk-panjang sekaligus di layar. Klik "Edit" buat buka form lengkapnya.
@@ -4842,10 +9204,10 @@ export default function CmsDashboard({ data, onSave }) {
                                 className="flex-1 min-w-0 text-left"
                               >
                                 <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                                  {item.role || <span className="italic text-gray-400 font-normal">Item #{idx + 1} — belum ada judul</span>}
+                                  {item.role || <span className="italic text-gray-400 font-normal">Item #{idx + 1} — no title yet</span>}
                                 </span>
                                 {(item.company || item.period) && (
-                                  <span className="block text-[10px] font-mono text-gray-400 mt-0.5 truncate">
+                                  <span className="block text-[10px] font-[Arial] text-gray-400 mt-0.5 truncate">
                                     {[item.company, item.period].filter(Boolean).join(' · ')}
                                   </span>
                                 )}
@@ -4891,29 +9253,29 @@ export default function CmsDashboard({ data, onSave }) {
                                 onClick={() => setExpandedCareerKey(null)}
                                 className="text-[10px] px-2.5 py-1 bg-gray-200 dark:bg-[#3a3a3a] text-gray-600 dark:text-gray-300 rounded font-semibold hover:bg-gray-300 dark:hover:bg-[#454545]"
                               >
-                                Tutup
+                                Close
                               </button>
-                              <RemoveBtn onClick={() => removeCareerItem(catIdx, idx)} label="Hapus Item" />
+                              <RemoveBtn onClick={() => removeCareerItem(catIdx, idx)} label="Remove Item" />
                             </div>
                           </div>
   
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <input type="text" value={item.role} onChange={(e) => setCareerItemField(catIdx, idx, 'role', e.target.value)} placeholder="Posisi / Peran" className={inputClsSm} />
-                            <input type="text" value={item.company} onChange={(e) => setCareerItemField(catIdx, idx, 'company', e.target.value)} placeholder="Nama Instansi / Perusahaan" className={inputClsSm} />
+                            <input type="text" value={item.role} onChange={(e) => setCareerItemField(catIdx, idx, 'role', e.target.value)} placeholder="Position / Role" className={inputClsSm} />
+                            <input type="text" value={item.company} onChange={(e) => setCareerItemField(catIdx, idx, 'company', e.target.value)} placeholder="Organization / Company Name" className={inputClsSm} />
                             <input type="text" value={item.location} onChange={(e) => setCareerItemField(catIdx, idx, 'location', e.target.value)} placeholder="Lokasi" className={inputClsSm} />
                             <input type="text" value={item.period} onChange={(e) => setCareerItemField(catIdx, idx, 'period', e.target.value)} placeholder="Periode (mis. 2024 – Present)" className={inputClsSm} />
                           </div>
-                          <textarea rows={2} value={item.description} onChange={(e) => setCareerItemField(catIdx, idx, 'description', e.target.value)} placeholder="Deskripsi singkat" className={`${inputClsSm} resize-none`} />
+                          <RichTextEditor fieldMode initialValue={item.description} onChange={(html) => setCareerItemField(catIdx, idx, 'description', html)} placeholder="Short description" />
   
                           <div className="space-y-2 rounded border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-900 dark:bg-blue-950/20">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-300">Version History</span>
                             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                              <input type="number" value={item.timelineOrder ?? ''} onChange={(e) => setCareerItemField(catIdx, idx, 'timelineOrder', e.target.value)} placeholder="Urutan timeline (1, 2, 3...)" className={inputClsSm} />
-                              <input type="text" value={item.revisionTitle || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'revisionTitle', e.target.value)} placeholder="Judul refleksi (mis. Ideas became visible.)" className={inputClsSm} />
+                              <input type="number" value={item.timelineOrder ?? ''} onChange={(e) => setCareerItemField(catIdx, idx, 'timelineOrder', e.target.value)} placeholder="Order timeline (1, 2, 3...)" className={inputClsSm} />
+                              <input type="text" value={item.revisionTitle || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'revisionTitle', e.target.value)} placeholder="Reflection Title (e.g. Ideas became visible.)" className={inputClsSm} />
                             </div>
-                            <textarea rows={2} value={item.shortSummary || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'shortSummary', e.target.value)} placeholder="Ringkasan pendek yang tampil di A4" className={`${inputClsSm} resize-y`} />
-                            <textarea rows={2} value={item.whatChanged || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'whatChanged', e.target.value)} placeholder="What changed — pelajaran/perubahan dari fase ini" className={`${inputClsSm} resize-y`} />
-                            <input type="text" value={item.coverImage || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'coverImage', e.target.value)} placeholder="URL gambar dokumentasi opsional (kosong = pakai foto instansi)" className={inputClsSm} />
+                            <RichTextEditor fieldMode initialValue={item.shortSummary || ''} onChange={(html) => setCareerItemField(catIdx, idx, 'shortSummary', html)} placeholder="Short summary shown on the A4 page" />
+                            <RichTextEditor fieldMode initialValue={item.whatChanged || ''} onChange={(html) => setCareerItemField(catIdx, idx, 'whatChanged', html)} placeholder="What changed — lesson or change from this phase" />
+                            <input type="text" value={item.coverImage || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'coverImage', e.target.value)} placeholder="Documentation image URL (optional; blank = use organization photo)" className={inputClsSm} />
                             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                               <input type="text" value={item.relatedLabel || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'relatedLabel', e.target.value)} placeholder="Label related work" className={inputClsSm} />
                               <input type="text" value={item.relatedUrl || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'relatedUrl', e.target.value)} placeholder="URL related work" className={inputClsSm} />
@@ -4922,7 +9284,7 @@ export default function CmsDashboard({ data, onSave }) {
   
                           <div className="p-3 bg-white dark:bg-[#1e1e1e] rounded border border-dashed border-gray-300 dark:border-gray-600 space-y-2">
                             <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500">Pop-up Detail Instansi</span>
-                            <input type="text" value={item.companyInfo.name} onChange={(e) => setCareerCompanyInfoField(catIdx, idx, 'name', e.target.value)} placeholder="Nama Lengkap Instansi" className={inputClsSm} />
+                            <input type="text" value={item.companyInfo.name} onChange={(e) => setCareerCompanyInfoField(catIdx, idx, 'name', e.target.value)} placeholder="Full Name Instansi" className={inputClsSm} />
                             <input type="text" value={item.companyInfo.address} onChange={(e) => setCareerCompanyInfoField(catIdx, idx, 'address', e.target.value)} placeholder="Alamat Instansi" className={inputClsSm} />
   
                             <div className="flex items-center gap-2">
@@ -4946,9 +9308,9 @@ export default function CmsDashboard({ data, onSave }) {
                                 className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
                               />
                             </div>
-                            <input type="text" value={item.companyInfo.photo} onChange={(e) => setCareerCompanyInfoField(catIdx, idx, 'photo', e.target.value)} placeholder="Atau tempel URL Foto Instansi" className={inputClsSm} />
+                            <input type="text" value={item.companyInfo.photo} onChange={(e) => setCareerCompanyInfoField(catIdx, idx, 'photo', e.target.value)} placeholder="Or paste an organization photo URL" className={inputClsSm} />
   
-                            <textarea rows={2} value={item.companyInfo.about} onChange={(e) => setCareerCompanyInfoField(catIdx, idx, 'about', e.target.value)} placeholder="Deskripsi Singkat Instansi" className={`${inputClsSm} resize-none`} />
+                            <RichTextEditor fieldMode initialValue={item.companyInfo.about} onChange={(html) => setCareerCompanyInfoField(catIdx, idx, 'about', html)} placeholder="Short Organization Description" />
                           </div>
                         </div>
                         );
@@ -4977,10 +9339,10 @@ export default function CmsDashboard({ data, onSave }) {
                                 className="flex-1 min-w-0 text-left"
                               >
                                 <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                                  {item.title || <span className="italic text-gray-400 font-normal">Item #{idx + 1} — belum ada judul</span>}
+                                  {item.title || <span className="italic text-gray-400 font-normal">Item #{idx + 1} — no title yet</span>}
                                 </span>
                                 {(item.issuer || item.date) && (
-                                  <span className="block text-[10px] font-mono text-gray-400 mt-0.5 truncate">
+                                  <span className="block text-[10px] font-[Arial] text-gray-400 mt-0.5 truncate">
                                     {[item.issuer, item.date].filter(Boolean).join(' · ')}
                                   </span>
                                 )}
@@ -5026,34 +9388,34 @@ export default function CmsDashboard({ data, onSave }) {
                                 onClick={() => setExpandedCareerKey(null)}
                                 className="text-[10px] px-2.5 py-1 bg-gray-200 dark:bg-[#3a3a3a] text-gray-600 dark:text-gray-300 rounded font-semibold hover:bg-gray-300 dark:hover:bg-[#454545]"
                               >
-                                Tutup
+                                Close
                               </button>
-                              <RemoveBtn onClick={() => removeCareerItem(catIdx, idx)} label="Hapus Item" />
+                              <RemoveBtn onClick={() => removeCareerItem(catIdx, idx)} label="Remove Item" />
                             </div>
                           </div>
   
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <input type="text" value={item.title} onChange={(e) => setCareerItemField(catIdx, idx, 'title', e.target.value)} placeholder="Nama Pencapaian / Sertifikat" className={inputClsSm} />
+                            <input type="text" value={item.title} onChange={(e) => setCareerItemField(catIdx, idx, 'title', e.target.value)} placeholder="Achievement / Certificate Name" className={inputClsSm} />
                             <input type="text" value={item.issuer} onChange={(e) => setCareerItemField(catIdx, idx, 'issuer', e.target.value)} placeholder="Penyelenggara / Penerbit" className={inputClsSm} />
-                            <input type="text" value={item.date} onChange={(e) => setCareerItemField(catIdx, idx, 'date', e.target.value)} placeholder="Tanggal (mis. Mei 2026)" className={inputClsSm} />
+                            <input type="text" value={item.date} onChange={(e) => setCareerItemField(catIdx, idx, 'date', e.target.value)} placeholder="Date (mis. Mei 2026)" className={inputClsSm} />
                             <input type="text" value={item.verifyUrl} onChange={(e) => setCareerItemField(catIdx, idx, 'verifyUrl', e.target.value)} placeholder="Link Verifikasi / Bukti (opsional)" className={inputClsSm} />
                           </div>
-                          <textarea rows={2} value={item.description} onChange={(e) => setCareerItemField(catIdx, idx, 'description', e.target.value)} placeholder="Deskripsi singkat (opsional)" className={`${inputClsSm} resize-none`} />
+                          <RichTextEditor fieldMode initialValue={item.description} onChange={(html) => setCareerItemField(catIdx, idx, 'description', html)} placeholder="Short description (opsional)" />
   
                           <div className="space-y-2 rounded border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-900 dark:bg-blue-950/20">
                             <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-200">
                               <input type="checkbox" checked={item.showOnTimeline === true} onChange={(e) => setCareerItemField(catIdx, idx, 'showOnTimeline', e.target.checked)} className="accent-blue-600" />
-                              Jadikan credential ini milestone utama di Version History
+                              Make this credential a main milestone in Version History
                             </label>
                             {item.showOnTimeline === true && <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                              <input type="number" value={item.timelineOrder ?? ''} onChange={(e) => setCareerItemField(catIdx, idx, 'timelineOrder', e.target.value)} placeholder="Urutan timeline" className={inputClsSm} />
-                              <input type="text" value={item.revisionTitle || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'revisionTitle', e.target.value)} placeholder="Judul refleksi" className={inputClsSm} />
-                              <textarea rows={2} value={item.whatChanged || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'whatChanged', e.target.value)} placeholder="What changed" className={`${inputClsSm} resize-y md:col-span-2`} />
+                              <input type="number" value={item.timelineOrder ?? ''} onChange={(e) => setCareerItemField(catIdx, idx, 'timelineOrder', e.target.value)} placeholder="Order timeline" className={inputClsSm} />
+                              <input type="text" value={item.revisionTitle || ''} onChange={(e) => setCareerItemField(catIdx, idx, 'revisionTitle', e.target.value)} placeholder="Reflection Title" className={inputClsSm} />
+                              <RichTextEditor fieldMode initialValue={item.whatChanged || ''} onChange={(html) => setCareerItemField(catIdx, idx, 'whatChanged', html)} placeholder="What changed" />
                             </div>}
                           </div>
   
                           <div className="p-3 bg-white dark:bg-[#1e1e1e] rounded border border-dashed border-gray-300 dark:border-gray-600 space-y-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500">Gambar Bukti (sertifikat/foto pencapaian)</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500">Evidence Image (certificate/achievement photo)</span>
                             <div className="flex items-center gap-2">
                               {item.image && (
                                 <img src={item.image} alt={item.title} className="w-14 h-14 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
@@ -5075,7 +9437,7 @@ export default function CmsDashboard({ data, onSave }) {
                                 className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
                               />
                             </div>
-                            <input type="text" value={item.image} onChange={(e) => setCareerItemField(catIdx, idx, 'image', e.target.value)} placeholder="Atau tempel URL Gambar" className={inputClsSm} />
+                            <input type="text" value={item.image} onChange={(e) => setCareerItemField(catIdx, idx, 'image', e.target.value)} placeholder="Or paste an image URL" className={inputClsSm} />
                           </div>
                         </div>
                         );
@@ -5095,20 +9457,20 @@ export default function CmsDashboard({ data, onSave }) {
             <div className="border-b pb-2 border-gray-100 dark:border-gray-800"><h2 className="text-sm font-bold text-blue-600 dark:text-blue-400">Tab Book</h2></div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Field label="Nama tab karya saya" sourceValue={sourceFormData.books.worksTabLabel || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.books.worksTabLabel || ''} onChange={(e) => setBooksHeading('worksTabLabel', e.target.value)} className={inputCls} /></Field>
-              <Field label="Nama tab buku yang dibaca" sourceValue={sourceFormData.books.readingTabLabel || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.books.readingTabLabel || ''} onChange={(e) => setBooksHeading('readingTabLabel', e.target.value)} className={inputCls} /></Field>
-              <Field label="Judul Halaman (mis. Books, Writings & Open Source)" sourceValue={sourceFormData.books.heading} cmsLanguage={cmsLanguage}>
+              <Field label="My Work Tab Name" sourceValue={sourceFormData.books.worksTabLabel || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.books.worksTabLabel || ''} onChange={(e) => setBooksHeading('worksTabLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Reading Tab Name" sourceValue={sourceFormData.books.readingTabLabel || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.books.readingTabLabel || ''} onChange={(e) => setBooksHeading('readingTabLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Page Title (mis. Books, Writings & Open Source)" sourceValue={sourceFormData.books.heading} cmsLanguage={cmsLanguage}>
                 <input type="text" value={formData.books.heading} onChange={(e) => setBooksHeading('heading', e.target.value)} className={inputCls} />
               </Field>
-              <Field label="Sub-judul / Keterangan Singkat" sourceValue={sourceFormData.books.subheading} cmsLanguage={cmsLanguage}>
+              <Field label="Subtitle / Short Description" sourceValue={sourceFormData.books.subheading} cmsLanguage={cmsLanguage}>
                 <input type="text" value={formData.books.subheading} onChange={(e) => setBooksHeading('subheading', e.target.value)} className={inputCls} />
               </Field>
             </div>
 
-            <CollapsibleSection sectionKey="book-content-manager" title="Konten Book" subtitle="My Books dan Books I Read">
-              <section className="mt-6 space-y-4 border-t border-gray-200 pt-6 dark:border-gray-700"><div className="flex items-center justify-between"><div><h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">My Books</h3><p className="mt-1 text-[10px] text-gray-400">Pengaturan karya / buku saya.</p></div><AddBtn onClick={addBook} label="Tambah Buku/Karya" /></div>
+            <CollapsibleSection sectionKey="book-content-manager" title="Book Content" subtitle="My Books and Books I Read">
+              <section className="mt-6 space-y-4 border-t border-gray-200 pt-6 dark:border-gray-700"><div className="flex items-center justify-between"><div><h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">My Books</h3><p className="mt-1 text-[10px] text-gray-400">My work / book settings.</p></div><AddBtn onClick={addBook} label="Add Book / Work" /></div>
               {formData.books.items.map((book, idx) => (
-                <ContentCard key={book.id || idx} cardKey={`book-${book.id || idx}`} listKey="books" idx={idx} count={formData.books.items.length} title={book.title || `Buku/Karya #${idx + 1}`} subtitle={[book.category, book.pageCount ? `${book.pageCount} halaman` : ''].filter(Boolean).join(' · ')} onRemove={() => removeBook(idx)}>
+                <ContentCard key={book.id || idx} cardKey={`book-${book.id || idx}`} listKey="books" idx={idx} count={formData.books.items.length} title={book.title || `Book / Work #${idx + 1}`} subtitle={[book.category, book.pageCount ? `${book.pageCount} pages` : ''].filter(Boolean).join(' · ')} onRemove={() => removeBook(idx)}>
                     <div className="flex flex-wrap justify-end gap-4">
                       <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
                         <input type="checkbox" checked={book.featured === true} onChange={(e) => setExclusiveBookFlag(idx, 'featured', e.target.checked)} className="accent-blue-600" />
@@ -5128,43 +9490,43 @@ export default function CmsDashboard({ data, onSave }) {
                         Blink pas mode Hint
                       </label>
                     </div>
-                  <input type="text" value={book.title} onChange={(e) => setBookField(idx, 'title', e.target.value)} placeholder="Judul Buku / Karya" className={inputClsSm} />
-                  <Field label="Peran / Kontribusi Saya">
-                    <input type="text" value={book.myRoles || ''} onChange={(e) => setBookField(idx, 'myRoles', e.target.value)} placeholder="Penulis, Editor, Desainer Buku (pisahkan dengan koma)" className={inputClsSm} />
-                    <p className="mt-1 text-[10px] leading-relaxed text-gray-400">Boleh satu atau beberapa peran. Urutan yang ditulis di sini menjadi urutan chip pada Book Autopsy.</p>
+                  <input type="text" value={book.title} onChange={(e) => setBookField(idx, 'title', e.target.value)} placeholder="Book / Work Title" className={inputClsSm} />
+                  <Field label="Role / Kontribusi Saya">
+                    <input type="text" value={book.myRoles || ''} onChange={(e) => setBookField(idx, 'myRoles', e.target.value)} placeholder="Writer, Editor, Book Designer (separate with commas)" className={inputClsSm} />
+                    <p className="mt-1 text-[10px] leading-relaxed text-gray-400">Use one or multiple roles. The order entered here becomes the chip order in Book Autopsy.</p>
                   </Field>
                   <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    <input type="text" value={book.author || ''} onChange={(e) => setBookField(idx, 'author', e.target.value)} placeholder="Nama penulis" className={inputClsSm} />
+                    <input type="text" value={book.author || ''} onChange={(e) => setBookField(idx, 'author', e.target.value)} placeholder="Author name" className={inputClsSm} />
                     <input type="text" value={book.publisher || ''} onChange={(e) => setBookField(idx, 'publisher', e.target.value)} placeholder="Penerbit / imprint" className={inputClsSm} />
-                    <input type="text" value={book.publicationDate || ''} onChange={(e) => setBookField(idx, 'publicationDate', e.target.value)} placeholder="Tanggal terbit (mis. September 2026)" className={inputClsSm} />
+                    <input type="text" value={book.publicationDate || ''} onChange={(e) => setBookField(idx, 'publicationDate', e.target.value)} placeholder="Date terbit (mis. September 2026)" className={inputClsSm} />
                     <input type="text" value={book.isbn || ''} onChange={(e) => setBookField(idx, 'isbn', e.target.value)} placeholder="ISBN (opsional)" className={inputClsSm} />
                     <input type="text" value={book.edition || ''} onChange={(e) => setBookField(idx, 'edition', e.target.value)} placeholder="Edisi (opsional)" className={inputClsSm} />
                   </div>
                   <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    <input type="text" value={book.category} onChange={(e) => setBookField(idx, 'category', e.target.value)} placeholder="Kategori (mis. Fiksi / Esai)" className={inputClsSm} />
+                    <input type="text" value={book.category} onChange={(e) => setBookField(idx, 'category', e.target.value)} placeholder="Category (e.g. Fiction / Essay)" className={inputClsSm} />
                     <select value={book.status || 'published'} onChange={(e) => setBookField(idx, 'status', e.target.value)} className={inputClsSm}>
                       <option value="published">Published</option><option value="writing">In Progress</option><option value="draft">Draft</option><option value="archived">Archived</option>
                     </select>
                     <input type="text" value={book.year || ''} onChange={(e) => setBookField(idx, 'year', e.target.value)} placeholder="Tahun (mis. 2026)" className={inputClsSm} />
-                    <input type="text" value={book.language || ''} onChange={(e) => setBookField(idx, 'language', e.target.value)} placeholder="Bahasa" className={inputClsSm} />
+                    <input type="text" value={book.language || ''} onChange={(e) => setBookField(idx, 'language', e.target.value)} placeholder="Language" className={inputClsSm} />
                     <input type="text" value={book.format || ''} onChange={(e) => setBookField(idx, 'format', e.target.value)} placeholder="Format (Novel, E-Book, Booklet...)" className={inputClsSm} />
                     <input type="number" min="0" max="100" value={book.progress || ''} onChange={(e) => setBookField(idx, 'progress', e.target.value)} placeholder="Progress naskah (%)" className={inputClsSm} />
                   </div>
-                  <textarea rows={2} value={book.pitch || ''} onChange={(e) => setBookField(idx, 'pitch', e.target.value)} placeholder="One-line pitch — satu kalimat yang menjual gagasan karya" className={`${inputClsSm} resize-none`} />
-                  <textarea rows={2} value={book.summary} onChange={(e) => setBookField(idx, 'summary', e.target.value)} placeholder="Ringkasan singkat" className={`${inputClsSm} resize-none`} />
-                  <textarea rows={3} value={book.fullDescription} onChange={(e) => setBookField(idx, 'fullDescription', e.target.value)} placeholder="Deskripsi lengkap" className={`${inputClsSm} resize-none`} />
-                  <textarea rows={3} value={book.whyWritten || ''} onChange={(e) => setBookField(idx, 'whyWritten', e.target.value)} placeholder="Why I wrote this — alasan personal/kreatif menulis karya ini" className={`${inputClsSm} resize-none`} />
+                  <RichTextEditor fieldMode initialValue={book.pitch || ''} onChange={(html) => setBookField(idx, 'pitch', html)} placeholder="One-line pitch — one sentence that sells the idea of the work" />
+                  <RichTextEditor fieldMode initialValue={book.summary} onChange={(html) => setBookField(idx, 'summary', html)} placeholder="Ringkasan singkat" />
+                  <RichTextEditor fieldMode initialValue={book.fullDescription} onChange={(html) => setBookField(idx, 'fullDescription', html)} placeholder="Full description" />
+                  <RichTextEditor fieldMode initialValue={book.whyWritten || ''} onChange={(html) => setBookField(idx, 'whyWritten', html)} placeholder="Why I wrote this — personal / creative reason for writing this work" />
   
                   <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-900 dark:bg-blue-950/20">
                     <div className="mb-2">
                       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-700 dark:text-blue-300">Book Autopsy</p>
-                      <p className="mt-1 text-[10px] leading-relaxed text-gray-500 dark:text-gray-400">Empat catatan pendek yang mengelilingi cover di halaman Book. Kosongkan field yang tidak ingin ditampilkan.</p>
+                      <p className="mt-1 text-[10px] leading-relaxed text-gray-500 dark:text-gray-400">Four short notes surrounding the cover on the Book page. Leave any field blank if you do not want it displayed.</p>
                     </div>
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                      <textarea rows={2} value={book.origin || ''} onChange={(e) => setBookField(idx, 'origin', e.target.value)} placeholder="Origin — dari mana gagasan buku ini lahir?" className={`${inputClsSm} resize-none`} />
-                      <textarea rows={2} value={book.coreQuestion || ''} onChange={(e) => setBookField(idx, 'coreQuestion', e.target.value)} placeholder="Core Question — pertanyaan utama buku" className={`${inputClsSm} resize-none`} />
-                      <textarea rows={2} value={book.writtenDuring || ''} onChange={(e) => setBookField(idx, 'writtenDuring', e.target.value)} placeholder="Written During — periode atau keadaan saat ditulis" className={`${inputClsSm} resize-none`} />
-                      <textarea rows={2} value={book.almostDeleted || ''} onChange={(e) => setBookField(idx, 'almostDeleted', e.target.value)} placeholder="Almost Deleted — bagian yang nyaris dibuang" className={`${inputClsSm} resize-none`} />
+                      <RichTextEditor fieldMode initialValue={book.origin || ''} onChange={(html) => setBookField(idx, 'origin', html)} placeholder="Origin — where did the idea for this book come from?" />
+                      <RichTextEditor fieldMode initialValue={book.coreQuestion || ''} onChange={(html) => setBookField(idx, 'coreQuestion', html)} placeholder="Core Question — the book’s central question" />
+                      <RichTextEditor fieldMode initialValue={book.writtenDuring || ''} onChange={(html) => setBookField(idx, 'writtenDuring', html)} placeholder="Written During — period or context when it was written" />
+                      <RichTextEditor fieldMode initialValue={book.almostDeleted || ''} onChange={(html) => setBookField(idx, 'almostDeleted', html)} placeholder="Almost Deleted — the part that was nearly removed" />
                     </div>
                   </div>
   
@@ -5188,7 +9550,7 @@ export default function CmsDashboard({ data, onSave }) {
                       className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
                     />
                   </div>
-                  <input type="text" value={book.coverImage} onChange={(e) => setBookField(idx, 'coverImage', e.target.value)} placeholder="Atau tempel URL Cover Buku" className={inputClsSm} />
+                  <input type="text" value={book.coverImage} onChange={(e) => setBookField(idx, 'coverImage', e.target.value)} placeholder="Or paste a Book Cover URL" className={inputClsSm} />
   
                   <div className="pt-1 border-t border-gray-200 dark:border-gray-700">
                     <p className="text-[10px] text-gray-400 mb-1.5 mt-2">
@@ -5214,15 +9576,15 @@ export default function CmsDashboard({ data, onSave }) {
                         className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
                       />
                     </div>
-                    <input type="text" value={book.overviewImage || ''} onChange={(e) => setBookField(idx, 'overviewImage', e.target.value)} placeholder="Atau tempel URL Foto Overview" className={`${inputClsSm} mt-2`} />
+                    <input type="text" value={book.overviewImage || ''} onChange={(e) => setBookField(idx, 'overviewImage', e.target.value)} placeholder="Or paste an overview image URL" className={`${inputClsSm} mt-2`} />
                   </div>
   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <input type="text" value={book.pageCount || ''} onChange={(e) => setBookField(idx, 'pageCount', e.target.value)} placeholder="Jumlah Halaman (mis. 184)" className={inputClsSm} />
+                    <input type="text" value={book.pageCount || ''} onChange={(e) => setBookField(idx, 'pageCount', e.target.value)} placeholder="Page Count (e.g. 184)" className={inputClsSm} />
                   </div>
   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <input type="text" value={book.actionText} onChange={(e) => setBookField(idx, 'actionText', e.target.value)} placeholder="Teks Tombol (mis. Beli Buku Ini)" className={inputClsSm} />
+                    <input type="text" value={book.actionText} onChange={(e) => setBookField(idx, 'actionText', e.target.value)} placeholder="Button Text (e.g. Buy This Book)" className={inputClsSm} />
                     <input type="text" value={book.actionUrl} onChange={(e) => setBookField(idx, 'actionUrl', e.target.value)} placeholder="Link Tombol" className={inputClsSm} />
                     <input type="text" value={book.secondaryText || ''} onChange={(e) => setBookField(idx, 'secondaryText', e.target.value)} placeholder="Teks tombol kedua (opsional)" className={inputClsSm} />
                     <input type="text" value={book.secondaryUrl || ''} onChange={(e) => setBookField(idx, 'secondaryUrl', e.target.value)} placeholder="Link tombol kedua" className={inputClsSm} />
@@ -5236,12 +9598,12 @@ export default function CmsDashboard({ data, onSave }) {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Books I Read</h3>
-                    <p className="mt-1 text-[10px] text-gray-400">Pengaturan buku bacaan — fitur dan treatment sama dengan My Books.</p>
+                    <p className="mt-1 text-[10px] text-gray-400">Reading-book settings — features and treatment match My Books.</p>
                   </div>
-                  <AddBtn onClick={addReadingBook} label="Tambah Buku Bacaan" />
+                  <AddBtn onClick={addReadingBook} label="Add Reading Book" />
                 </div>
               {(formData.books.readingItems || []).map((book, idx) => (
-                <ContentCard key={book.id || idx} cardKey={`book-${book.id || idx}`} listKey="readingBooks" idx={idx} count={formData.books.items.length} title={book.title || `Buku/Karya #${idx + 1}`} subtitle={[book.category, book.pageCount ? `${book.pageCount} halaman` : ''].filter(Boolean).join(' · ')} onRemove={() => removeReadingBook(idx)}>
+                <ContentCard key={book.id || idx} cardKey={`book-${book.id || idx}`} listKey="readingBooks" idx={idx} count={formData.books.items.length} title={book.title || `Book / Work #${idx + 1}`} subtitle={[book.category, book.pageCount ? `${book.pageCount} pages` : ''].filter(Boolean).join(' · ')} onRemove={() => removeReadingBook(idx)}>
                     <div className="flex flex-wrap justify-end gap-4">
                       <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
                         <input type="checkbox" checked={book.featured === true} onChange={(e) => setExclusiveReadingBookFlag(idx, 'featured', e.target.checked)} className="accent-blue-600" />
@@ -5261,43 +9623,43 @@ export default function CmsDashboard({ data, onSave }) {
                         Blink pas mode Hint
                       </label>
                     </div>
-                  <input type="text" value={book.title} onChange={(e) => setReadingBookField(idx, 'title', e.target.value)} placeholder="Judul Buku / Karya" className={inputClsSm} />
-                  <Field label="Peran / Kontribusi Saya">
-                    <input type="text" value={book.myRoles || ''} onChange={(e) => setReadingBookField(idx, 'myRoles', e.target.value)} placeholder="Penulis, Editor, Desainer Buku (pisahkan dengan koma)" className={inputClsSm} />
-                    <p className="mt-1 text-[10px] leading-relaxed text-gray-400">Boleh satu atau beberapa peran. Urutan yang ditulis di sini menjadi urutan chip pada Book Autopsy.</p>
+                  <input type="text" value={book.title} onChange={(e) => setReadingBookField(idx, 'title', e.target.value)} placeholder="Book / Work Title" className={inputClsSm} />
+                  <Field label="Role / Kontribusi Saya">
+                    <input type="text" value={book.myRoles || ''} onChange={(e) => setReadingBookField(idx, 'myRoles', e.target.value)} placeholder="Writer, Editor, Book Designer (separate with commas)" className={inputClsSm} />
+                    <p className="mt-1 text-[10px] leading-relaxed text-gray-400">Use one or multiple roles. The order entered here becomes the chip order in Book Autopsy.</p>
                   </Field>
                   <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    <input type="text" value={book.author || ''} onChange={(e) => setReadingBookField(idx, 'author', e.target.value)} placeholder="Nama penulis" className={inputClsSm} />
+                    <input type="text" value={book.author || ''} onChange={(e) => setReadingBookField(idx, 'author', e.target.value)} placeholder="Author name" className={inputClsSm} />
                     <input type="text" value={book.publisher || ''} onChange={(e) => setReadingBookField(idx, 'publisher', e.target.value)} placeholder="Penerbit / imprint" className={inputClsSm} />
-                    <input type="text" value={book.publicationDate || ''} onChange={(e) => setReadingBookField(idx, 'publicationDate', e.target.value)} placeholder="Tanggal terbit (mis. September 2026)" className={inputClsSm} />
+                    <input type="text" value={book.publicationDate || ''} onChange={(e) => setReadingBookField(idx, 'publicationDate', e.target.value)} placeholder="Date terbit (mis. September 2026)" className={inputClsSm} />
                     <input type="text" value={book.isbn || ''} onChange={(e) => setReadingBookField(idx, 'isbn', e.target.value)} placeholder="ISBN (opsional)" className={inputClsSm} />
                     <input type="text" value={book.edition || ''} onChange={(e) => setReadingBookField(idx, 'edition', e.target.value)} placeholder="Edisi (opsional)" className={inputClsSm} />
                   </div>
                   <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    <input type="text" value={book.category} onChange={(e) => setReadingBookField(idx, 'category', e.target.value)} placeholder="Kategori (mis. Fiksi / Esai)" className={inputClsSm} />
+                    <input type="text" value={book.category} onChange={(e) => setReadingBookField(idx, 'category', e.target.value)} placeholder="Category (e.g. Fiction / Essay)" className={inputClsSm} />
                     <select value={book.status || 'published'} onChange={(e) => setReadingBookField(idx, 'status', e.target.value)} className={inputClsSm}>
                       <option value="published">Published</option><option value="writing">In Progress</option><option value="draft">Draft</option><option value="archived">Archived</option>
                     </select>
                     <input type="text" value={book.year || ''} onChange={(e) => setReadingBookField(idx, 'year', e.target.value)} placeholder="Tahun (mis. 2026)" className={inputClsSm} />
-                    <input type="text" value={book.language || ''} onChange={(e) => setReadingBookField(idx, 'language', e.target.value)} placeholder="Bahasa" className={inputClsSm} />
+                    <input type="text" value={book.language || ''} onChange={(e) => setReadingBookField(idx, 'language', e.target.value)} placeholder="Language" className={inputClsSm} />
                     <input type="text" value={book.format || ''} onChange={(e) => setReadingBookField(idx, 'format', e.target.value)} placeholder="Format (Novel, E-Book, Booklet...)" className={inputClsSm} />
                     <input type="number" min="0" max="100" value={book.progress || ''} onChange={(e) => setReadingBookField(idx, 'progress', e.target.value)} placeholder="Progress naskah (%)" className={inputClsSm} />
                   </div>
-                  <textarea rows={2} value={book.pitch || ''} onChange={(e) => setReadingBookField(idx, 'pitch', e.target.value)} placeholder="One-line pitch — satu kalimat yang menjual gagasan karya" className={`${inputClsSm} resize-none`} />
-                  <textarea rows={2} value={book.summary} onChange={(e) => setReadingBookField(idx, 'summary', e.target.value)} placeholder="Ringkasan singkat" className={`${inputClsSm} resize-none`} />
-                  <textarea rows={3} value={book.fullDescription} onChange={(e) => setReadingBookField(idx, 'fullDescription', e.target.value)} placeholder="Deskripsi lengkap" className={`${inputClsSm} resize-none`} />
-                  <textarea rows={3} value={book.whyWritten || ''} onChange={(e) => setReadingBookField(idx, 'whyWritten', e.target.value)} placeholder="Why I wrote this — alasan personal/kreatif menulis karya ini" className={`${inputClsSm} resize-none`} />
+                  <RichTextEditor fieldMode initialValue={book.pitch || ''} onChange={(html) => setReadingBookField(idx, 'pitch', html)} placeholder="One-line pitch — one sentence that sells the idea of the work" />
+                  <RichTextEditor fieldMode initialValue={book.summary} onChange={(html) => setReadingBookField(idx, 'summary', html)} placeholder="Ringkasan singkat" />
+                  <RichTextEditor fieldMode initialValue={book.fullDescription} onChange={(html) => setReadingBookField(idx, 'fullDescription', html)} placeholder="Full description" />
+                  <RichTextEditor fieldMode initialValue={book.whyWritten || ''} onChange={(html) => setReadingBookField(idx, 'whyWritten', html)} placeholder="Why I wrote this — personal / creative reason for writing this work" />
   
                   <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-900 dark:bg-blue-950/20">
                     <div className="mb-2">
                       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-700 dark:text-blue-300">Book Autopsy</p>
-                      <p className="mt-1 text-[10px] leading-relaxed text-gray-500 dark:text-gray-400">Empat catatan pendek yang mengelilingi cover di halaman Book. Kosongkan field yang tidak ingin ditampilkan.</p>
+                      <p className="mt-1 text-[10px] leading-relaxed text-gray-500 dark:text-gray-400">Four short notes surrounding the cover on the Book page. Leave any field blank if you do not want it displayed.</p>
                     </div>
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                      <textarea rows={2} value={book.origin || ''} onChange={(e) => setReadingBookField(idx, 'origin', e.target.value)} placeholder="Origin — dari mana gagasan buku ini lahir?" className={`${inputClsSm} resize-none`} />
-                      <textarea rows={2} value={book.coreQuestion || ''} onChange={(e) => setReadingBookField(idx, 'coreQuestion', e.target.value)} placeholder="Core Question — pertanyaan utama buku" className={`${inputClsSm} resize-none`} />
-                      <textarea rows={2} value={book.writtenDuring || ''} onChange={(e) => setReadingBookField(idx, 'writtenDuring', e.target.value)} placeholder="Written During — periode atau keadaan saat ditulis" className={`${inputClsSm} resize-none`} />
-                      <textarea rows={2} value={book.almostDeleted || ''} onChange={(e) => setReadingBookField(idx, 'almostDeleted', e.target.value)} placeholder="Almost Deleted — bagian yang nyaris dibuang" className={`${inputClsSm} resize-none`} />
+                      <RichTextEditor fieldMode initialValue={book.origin || ''} onChange={(html) => setReadingBookField(idx, 'origin', html)} placeholder="Origin — where did the idea for this book come from?" />
+                      <RichTextEditor fieldMode initialValue={book.coreQuestion || ''} onChange={(html) => setReadingBookField(idx, 'coreQuestion', html)} placeholder="Core Question — the book’s central question" />
+                      <RichTextEditor fieldMode initialValue={book.writtenDuring || ''} onChange={(html) => setReadingBookField(idx, 'writtenDuring', html)} placeholder="Written During — period or context when it was written" />
+                      <RichTextEditor fieldMode initialValue={book.almostDeleted || ''} onChange={(html) => setReadingBookField(idx, 'almostDeleted', html)} placeholder="Almost Deleted — the part that was nearly removed" />
                     </div>
                   </div>
   
@@ -5321,7 +9683,7 @@ export default function CmsDashboard({ data, onSave }) {
                       className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
                     />
                   </div>
-                  <input type="text" value={book.coverImage} onChange={(e) => setReadingBookField(idx, 'coverImage', e.target.value)} placeholder="Atau tempel URL Cover Buku" className={inputClsSm} />
+                  <input type="text" value={book.coverImage} onChange={(e) => setReadingBookField(idx, 'coverImage', e.target.value)} placeholder="Or paste a Book Cover URL" className={inputClsSm} />
   
                   <div className="pt-1 border-t border-gray-200 dark:border-gray-700">
                     <p className="text-[10px] text-gray-400 mb-1.5 mt-2">
@@ -5347,15 +9709,15 @@ export default function CmsDashboard({ data, onSave }) {
                         className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
                       />
                     </div>
-                    <input type="text" value={book.overviewImage || ''} onChange={(e) => setReadingBookField(idx, 'overviewImage', e.target.value)} placeholder="Atau tempel URL Foto Overview" className={`${inputClsSm} mt-2`} />
+                    <input type="text" value={book.overviewImage || ''} onChange={(e) => setReadingBookField(idx, 'overviewImage', e.target.value)} placeholder="Or paste an overview image URL" className={`${inputClsSm} mt-2`} />
                   </div>
   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <input type="text" value={book.pageCount || ''} onChange={(e) => setReadingBookField(idx, 'pageCount', e.target.value)} placeholder="Jumlah Halaman (mis. 184)" className={inputClsSm} />
+                    <input type="text" value={book.pageCount || ''} onChange={(e) => setReadingBookField(idx, 'pageCount', e.target.value)} placeholder="Page Count (e.g. 184)" className={inputClsSm} />
                   </div>
   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <input type="text" value={book.actionText} onChange={(e) => setReadingBookField(idx, 'actionText', e.target.value)} placeholder="Teks Tombol (mis. Beli Buku Ini)" className={inputClsSm} />
+                    <input type="text" value={book.actionText} onChange={(e) => setReadingBookField(idx, 'actionText', e.target.value)} placeholder="Button Text (e.g. Buy This Book)" className={inputClsSm} />
                     <input type="text" value={book.actionUrl} onChange={(e) => setReadingBookField(idx, 'actionUrl', e.target.value)} placeholder="Link Tombol" className={inputClsSm} />
                     <input type="text" value={book.secondaryText || ''} onChange={(e) => setReadingBookField(idx, 'secondaryText', e.target.value)} placeholder="Teks tombol kedua (opsional)" className={inputClsSm} />
                     <input type="text" value={book.secondaryUrl || ''} onChange={(e) => setReadingBookField(idx, 'secondaryUrl', e.target.value)} placeholder="Link tombol kedua" className={inputClsSm} />
@@ -5371,285 +9733,87 @@ export default function CmsDashboard({ data, onSave }) {
         {/* ================= PROJECTS ================= */}
         {activeTab === 'projects' && (
           <div className="space-y-6">
-            <h2 className="text-sm font-bold border-b pb-2 border-gray-100 dark:border-gray-800 text-blue-600 dark:text-blue-400">Tab Projects</h2>
-
-
-            <Field label="Heading Halaman" sourceValue={sourceFormData.projects.heading} cmsLanguage={cmsLanguage}>
-              <input type="text" value={formData.projects.heading} onChange={(e) => setProjectsField('heading', e.target.value)} className={inputCls} />
-            </Field>
-            <Field label="Subheading Halaman" sourceValue={sourceFormData.projects.subheading} cmsLanguage={cmsLanguage}>
-              <textarea rows={2} value={formData.projects.subheading} onChange={(e) => setProjectsField('subheading', e.target.value)} className={`${inputCls} resize-none`} />
-            </Field>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <Field label="Judul Project Index" sourceValue={sourceFormData.projects.indexHeading || ''} cmsLanguage={cmsLanguage}><input value={formData.projects.indexHeading || ''} onChange={(e) => setProjectsField('indexHeading', e.target.value)} className={inputCls} /></Field>
-              <Field label="Keterangan Project Index" sourceValue={sourceFormData.projects.indexDescription || ''} cmsLanguage={cmsLanguage}><input value={formData.projects.indexDescription || ''} onChange={(e) => setProjectsField('indexDescription', e.target.value)} className={inputCls} /></Field>
-              <Field label="Label pencarian" sourceValue={sourceFormData.projects.searchLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.projects.searchLabel || ''} onChange={(e) => setProjectsField('searchLabel', e.target.value)} className={inputCls} /></Field>
-              <Field label="Tulisan kembali ke index" sourceValue={sourceFormData.projects.backLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.projects.backLabel || ''} onChange={(e) => setProjectsField('backLabel', e.target.value)} className={inputCls} /></Field>
-              <Field label="Tulisan buka drawer" sourceValue={sourceFormData.projects.openDrawerLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.projects.openDrawerLabel || ''} onChange={(e) => setProjectsField('openDrawerLabel', e.target.value)} className={inputCls} /></Field>
-            </div>
-
-            <CollapsibleSection sectionKey="projects-card-descriptions" title="Keterangan kartu setiap tab">
-
-              <div>
-                <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100">Keterangan kartu setiap tab</h3>
-                <p className="mt-1 text-xs text-gray-500">Kosongkan kolom untuk menghapus tulisan di bawah nama tab. Tab baru otomatis muncul di bagian ini.</p>
-              </div>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <Field label={formData.projects.articlesLabel || 'Articles'} sourceValue={sourceFormData.projects.articlesDescription || ''} cmsLanguage={cmsLanguage}><input value={formData.projects.articlesDescription || ''} onChange={(e) => setProjectsField('articlesDescription', e.target.value)} className={inputCls} /></Field>
-                <Field label={formData.projects.directingLabel || 'Directing'} sourceValue={sourceFormData.projects.directingDescription || ''} cmsLanguage={cmsLanguage}><input value={formData.projects.directingDescription || ''} onChange={(e) => setProjectsField('directingDescription', e.target.value)} className={inputCls} /></Field>
-                <Field label={formData.projects.posterLabel || 'Poster'} sourceValue={sourceFormData.projects.posterDescription || ''} cmsLanguage={cmsLanguage}><input value={formData.projects.posterDescription || ''} onChange={(e) => setProjectsField('posterDescription', e.target.value)} className={inputCls} /></Field>
-                {formData.projects.customSections.map((section, sectionIdx) => (
-                  <Field key={section.id || sectionIdx} label={section.label || `Tab Baru #${sectionIdx + 1}`}>
-                    <input value={section.description || ''} onChange={(e) => setCustomSectionDescription(sectionIdx, e.target.value)} className={inputCls} />
-                  </Field>
-                ))}
-              </div>
-            
-            </CollapsibleSection>
-
-            <CollapsibleSection sectionKey="projects-content-manager" title={cmsCopy("Konten Projects", "Projects Content")} subtitle={cmsCopy("Articles, Directing, Poster, dan tab tambahan", "Articles, Directing, Posters, and additional tabs")}>
-              {/* Sub-tab: Articles / Poster / tiap Tab Tambahan dapet pill nama sendiri —
-                  sama kayak Articles & Poster, mirroring nav di halaman publiknya sendiri.
-                  "+ Tambah Tab" nempel di ujung, klik langsung bikin tab baru & pindah ke situ. */}
-              <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-3 flex-wrap items-center">
-                {[
-                  { key: 'articles', label: `Articles (${formData.projects.articles.length})` },
-                  { key: 'directing', label: `Directing (${formData.projects.directing.items.length})` },
-                  { key: 'poster', label: `Poster (${formData.projects.poster.items.length})` },
-                  ...formData.projects.customSections.map((cs, idx) => ({
-                    key: `custom:${cs.id}`,
-                    label: `${cs.label || `Tab Baru #${idx + 1}`} (${Array.isArray(cs.items) ? cs.items.length : 0})`,
-                  })),
-                ].map((t) => (
-                  <button
-                    key={t.key}
-                    type="button"
-                    onClick={() => { setActiveProjectsSubTab(t.key); bumpCmsDomRevision(); }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${
-                      activeProjectsSubTab === t.key
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-gray-100 dark:bg-[#2d2d2d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#383838]'
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={addCustomSection}
-                  title="Tambah tab baru di luar Articles & Poster"
-                  className="px-3 py-1.5 text-xs font-semibold rounded border-2 border-dashed border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                >
-                  {cmsCopy("+ Tambah Tab", "+ Add Tab")}
-                </button>
-              </div>
-  
-              {/* ARTICLES — gaya portal berita, artikel pertama otomatis jadi unggulan */}
-              {activeProjectsSubTab === 'articles' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">{cmsCopy("Articles", "Articles")}</h3>
-                  <AddBtn onClick={addArticle} label={cmsCopy("Tambah Artikel", "Add Article")} />
+            {activeProjectsSubTab === 'menu' && (
+              <div className="space-y-7">
+                <div>
+                  <h2 className="font-[Arial] text-2xl font-bold text-gray-900 dark:text-white">PROJECTS</h2>
+                  <p className="mt-1 font-[Arial] text-xs font-semibold text-blue-600 dark:text-blue-400">which showcase do you want to manage?</p>
                 </div>
-                <Field label={cmsCopy('Nama Tab (tampil di navigasi, kosongkan buat pakai "Articles")', 'Tab Name (shown in navigation, leave blank to use "Articles")')} sourceValue={sourceFormData.projects.articlesLabel} cmsLanguage={cmsLanguage}>
-                  <input
-                    type="text"
-                    value={formData.projects.articlesLabel}
-                    onChange={(e) => setProjectsField('articlesLabel', e.target.value)}
-                    placeholder="Articles"
-                    className={inputClsSm}
-                  />
-                </Field>
-                <p className="text-[10px] text-gray-400 -mt-1">
-                  Artikel #1 di daftar bakal tampil besar sebagai artikel unggulan di halaman publik, sisanya jadi daftar kecil di sampingnya. Urutan bisa diatur dengan menyusun ulang artikel di sini.
-                </p>
-                {formData.projects.articles.map((art, idx) => {
-                  const isOpen = expandedArticleIdx === idx;
-                  if (!isOpen) {
-                    // ---------- BARIS COLLAPSED: judul + tanggal + tombol Edit doang ----------
-                    return (
-                      <div
-                        key={art.id || idx}
-                        onDragOver={handleDragOver}
-                        onDrop={handleDrop('articles', idx)}
-                        className={`flex items-center gap-2 p-3 bg-gray-50 dark:bg-[#2d2d2d] rounded border border-gray-200 dark:border-gray-700 transition-opacity ${
-                          draggingKey === `articles-${idx}` ? 'opacity-40' : ''
-                        }`}
-                      >
-                        <ReorderHandle listKey="articles" idx={idx} count={formData.projects.articles.length} />
-                        <button
-                          type="button"
-                          onClick={() => setExpandedArticleIdx(idx)}
-                          className="flex-1 min-w-0 text-left"
-                        >
-                          <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                            {idx === 0 && <span className="text-blue-500 mr-1">(Unggulan)</span>}
-                            {art.title || <span className="italic text-gray-400 font-normal">Artikel #{idx + 1} — belum ada judul</span>}
-                          </span>
-                          {art.date && (
-                            <span className="block text-[10px] font-mono text-gray-400 mt-0.5">{art.date}</span>
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setExpandedArticleIdx(idx)}
-                          className="text-[10px] px-2.5 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 rounded font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/40 shrink-0"
-                        >
-                          Edit
-                        </button>
-                        <RemoveBtn onClick={() => removeArticle(idx)} />
-                      </div>
-                    );
-                  }
-  
-                  // ---------- BARIS EXPANDED: form lengkap 1 artikel ----------
-                  return (
-                  <div
-                    key={art.id || idx}
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop('articles', idx)}
-                    className={`p-4 bg-gray-50 dark:bg-[#2d2d2d] rounded border border-blue-300 dark:border-blue-700 space-y-2 transition-opacity ${
-                      draggingKey === `articles-${idx}` ? 'opacity-40' : ''
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <ReorderHandle listKey="articles" idx={idx} count={formData.projects.articles.length} />
-                        <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300">
-                          Artikel #{idx + 1} {idx === 0 && <span className="text-blue-500">(Unggulan)</span>}
-                        </h4>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={art.hintEnabled !== false}
-                            onChange={(e) => setArticleField(idx, 'hintEnabled', e.target.checked)}
-                            className="accent-blue-600"
-                          />
-                          Blink pas mode Hint
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => setExpandedArticleIdx(null)}
-                          className="text-[10px] px-2.5 py-1 bg-gray-200 dark:bg-[#3a3a3a] text-gray-600 dark:text-gray-300 rounded font-semibold hover:bg-gray-300 dark:hover:bg-[#454545]"
-                        >
-                          Tutup
-                        </button>
-                        <RemoveBtn onClick={() => removeArticle(idx)} />
-                      </div>
-                    </div>
-                    <input type="text" value={art.title} onChange={(e) => setArticleField(idx, 'title', e.target.value)} placeholder="Judul Artikel" className={inputClsSm} />
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                      <input type="text" value={art.date} onChange={(e) => setArticleField(idx, 'date', e.target.value)} placeholder="Tanggal (mis. 12 Mei 2026)" className={inputClsSm} />
-                      <input type="text" value={art.category} onChange={(e) => setArticleField(idx, 'category', e.target.value)} placeholder="Kategori (mis. ESAI)" className={inputClsSm} />
-                      <input type="text" value={art.author} onChange={(e) => setArticleField(idx, 'author', e.target.value)} placeholder="Penulis (opsional)" className={inputClsSm} />
-                    </div>
-  
-          <div className="flex items-center gap-2">
-                      {art.image && (
-                        <img src={art.image} alt={art.title} className="w-16 h-12 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
-                      )}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        disabled={uploadingArticleImage === idx}
-                        onChange={async (e) => {
-                          const file = e.target.files[0];
-                          if (!file) return;
-                          if (!(await validateProjectCover(file, 'writing'))) { e.target.value = ''; return; }
-                          setUploadingArticleImage(idx);
-                          const url = await uploadImageToStorage(file);
-                          setUploadingArticleImage(null);
-                          if (url) setArticleField(idx, 'image', url);
-                          e.target.value = '';
-                        }}
-                        className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
-                      />
-          </div>
-                    <ProjectCoverHint contentType="writing" />
-                    <input type="text" value={art.image} onChange={(e) => setArticleField(idx, 'image', e.target.value)} placeholder="Atau tempel URL Gambar Artikel (dari galeri/hosting lain)" className={inputClsSm} />
-  
-                    <textarea rows={2} value={art.snippet} onChange={(e) => setArticleField(idx, 'snippet', e.target.value)} placeholder="Cuplikan singkat" className={`${inputClsSm} resize-none`} />
-  
-                    <div>
-                      <label className="block text-[10px] font-medium mb-1 text-gray-500">Isi Lengkap Artikel (bisa Bold/Italic/Underline/List/Link)</label>
-                      <RichTextEditor
-                        key={art.id || idx}
-                        initialValue={art.content}
-                        onChange={(html) => setArticleField(idx, 'content', html)}
-                        placeholder="Tulis isi artikel lengkap di sini..."
-                      />
-                    </div>
-                  </div>
-                  );
-                })}
-              </div>
-              )}
-  
-              {activeProjectsSubTab === 'directing' && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between"><h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Directing / Film Works</h3><AddBtn onClick={addDirectingItem} label="Tambah Video Work" /></div>
-                  <Field label='Nama Tab'><input type="text" value={formData.projects.directingLabel || ''} onChange={(e) => setProjectsField('directingLabel', e.target.value)} placeholder="Directing" className={inputClsSm} /></Field>
-                  <p className="text-[10px] text-gray-400">YouTube/Vimeo akan diputar di dalam portfolio. Google Drive dan external link memakai tombol fallback jika pemilik file melarang embed.</p>
-                  {formData.projects.directing.items.map((item, idx) => (
-                    <ContentCard key={item.id || idx} cardKey={`directing-${item.id || idx}`} listKey="directing" idx={idx} count={formData.projects.directing.items.length} title={item.title || `Video Work #${idx + 1}`} subtitle={[item.role, item.year, item.runtime].filter(Boolean).join(' · ')} onRemove={() => removeDirectingItem(idx)}>
-                      <div className="flex justify-end"><label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500"><input type="checkbox" checked={item.hintEnabled !== false} onChange={(e) => setDirectingItemField(idx, 'hintEnabled', e.target.checked)} className="accent-blue-600" /> Blink pas mode Help</label></div>
-                      <input value={item.title || ''} onChange={(e) => setDirectingItemField(idx, 'title', e.target.value)} placeholder="Judul karya" className={inputClsSm} />
-                      <textarea rows={2} value={item.premise || ''} onChange={(e) => setDirectingItemField(idx, 'premise', e.target.value)} placeholder="One-line premise / ringkasan singkat" className={`${inputClsSm} resize-y`} />
-                      <div className="grid grid-cols-1 gap-2 md:grid-cols-3"><input value={item.role || ''} onChange={(e) => setDirectingItemField(idx, 'role', e.target.value)} placeholder="Role: Director & Writer" className={inputClsSm} /><input value={item.year || ''} onChange={(e) => setDirectingItemField(idx, 'year', e.target.value)} placeholder="Tahun" className={inputClsSm} /><input value={item.runtime || ''} onChange={(e) => setDirectingItemField(idx, 'runtime', e.target.value)} placeholder="Durasi: 08:42" className={inputClsSm} /></div>
-                      <div className="grid grid-cols-1 gap-2 md:grid-cols-[0.35fr_1fr]"><select value={item.mediaType || 'youtube'} onChange={(e) => setDirectingItemField(idx, 'mediaType', e.target.value)} className={inputClsSm}><option value="youtube">YouTube</option><option value="vimeo">Vimeo</option><option value="drive">Google Drive</option><option value="video">Direct MP4/WebM</option><option value="external">External Link</option></select><input value={item.mediaUrl || ''} onChange={(e) => setDirectingItemField(idx, 'mediaUrl', e.target.value)} placeholder="URL video/media" className={inputClsSm} /></div>
-                      <div className="flex items-center gap-2">{item.posterImage && <img src={item.posterImage} alt="" className="h-12 w-20 rounded object-cover" />}<input type="file" accept="image/*" onChange={async (e) => { const file = e.target.files[0]; if (!file) return; if (!(await validateProjectCover(file, 'video'))) { e.target.value = ''; return; } const key = `directing-${idx}`; setUploadingGalleryImage(key); const url = await uploadImageToStorage(file); setUploadingGalleryImage(null); if (url) setDirectingItemField(idx, 'posterImage', url); e.target.value = ''; }} className="flex-1 text-[10px]" /></div>
-                      <ProjectCoverHint contentType="video" />
-                      <input value={item.posterImage || ''} onChange={(e) => setDirectingItemField(idx, 'posterImage', e.target.value)} placeholder="Atau tempel URL poster/thumbnail" className={inputClsSm} />
-                      <Field label="Kontribusi / What I did"><RichTextEditor key={`contribution-${item.id || idx}`} initialValue={item.contribution || ''} onChange={(html) => setDirectingItemField(idx, 'contribution', html)} placeholder="Jelaskan keputusan kreatif dan kontribusi konkret..." /></Field>
-                      <Field label="Credits"><RichTextEditor key={`credits-${item.id || idx}`} initialValue={item.credits || ''} onChange={(html) => setDirectingItemField(idx, 'credits', html)} placeholder="Cast, crew, collaborator..." /></Field>
-                      <div className="grid grid-cols-1 gap-2 md:grid-cols-2"><input value={item.externalLabel || ''} onChange={(e) => setDirectingItemField(idx, 'externalLabel', e.target.value)} placeholder="Label tombol tambahan" className={inputClsSm} /><input value={item.externalUrl || ''} onChange={(e) => setDirectingItemField(idx, 'externalUrl', e.target.value)} placeholder="URL tombol tambahan" className={inputClsSm} /></div>
-                    </ContentCard>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
+                  {[
+                    { key: 'settings', label: 'Settings Projects', icon: 'general' },
+                    { key: 'articles', label: formData.projects.articlesLabel || 'Articles', icon: 'book' },
+                    { key: 'directing', label: formData.projects.directingLabel || 'Directing', icon: 'projects' },
+                    { key: 'poster', label: formData.projects.posterLabel || 'Poster', icon: 'featuredWorks' },
+                    ...formData.projects.customSections.map((section, idx) => ({ key: `custom:${section.id}`, label: section.label || `Tab Baru #${idx + 1}`, icon: 'projects' })),
+                  ].map((entry) => (
+                    <button key={entry.key} type="button" onClick={() => { setActiveProjectItem(null); setActiveProjectsSubTab(entry.key); bumpCmsDomRevision(); }} className="group flex min-h-[142px] flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-4 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#242424] md:min-h-[156px] md:p-5">
+                      <span className="text-gray-400 transition-colors group-hover:text-blue-600 dark:text-gray-500 dark:group-hover:text-blue-400"><CmsMenuIllustration type={entry.icon} /></span>
+                      <strong className="mt-4 font-[Arial] text-xs font-bold uppercase tracking-[0.1em] text-gray-900 dark:text-white md:text-sm">{entry.label}</strong>
+                    </button>
                   ))}
+                  <button type="button" onClick={addCustomSection} className="group flex min-h-[142px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 p-4 text-center hover:border-blue-500 dark:border-gray-600 md:min-h-[156px]">
+                    <span className="font-[Arial] text-4xl font-light text-gray-300 group-hover:text-blue-600 dark:text-gray-600">+</span>
+                    <strong className="mt-2 font-[Arial] text-xs font-bold uppercase tracking-[0.1em] text-gray-500 group-hover:text-blue-600">{cmsCopy('Add Tab', 'Add Tab')}</strong>
+                  </button>
                 </div>
-              )}
-  
-              {/* POSTER — daftar file langsung, klik "Tambah Poster" langsung nambah item baru */}
-              {activeProjectsSubTab === 'poster' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Poster</h3>
-                  <AddBtn onClick={addPosterItem} label="Tambah Poster" />
-                </div>
-                <Field label='Nama Tab (tampil di navigasi, kosongkan buat pakai "Poster")'>
-                  <input
-                    type="text"
-                    value={formData.projects.posterLabel}
-                    onChange={(e) => setProjectsField('posterLabel', e.target.value)}
-                    placeholder="Poster"
-                    className={inputClsSm}
-                  />
-                </Field>
-                {formData.projects.poster.items.length === 0 && (
-                  <p className="text-[10px] text-gray-400 italic">Belum ada poster. Klik "+ Tambah Poster" buat mulai.</p>
-                )}
-                {formData.projects.poster.items.map((it, idx) =>
-                  renderPosterItem(it, idx, formData.projects.poster.items)
-                )}
               </div>
-              )}
-  
-              {/* TAB TAMBAHAN — tiap custom section udah dapet pill nav sendiri di atas
-                  (sejajar Articles/Poster), jadi di sini cuma render section yang lagi
-                  aktif aja (dicari lewat activeProjectsSubTab = "custom:<id>"). */}
-              {activeProjectsSubTab.startsWith('custom:') && (() => {
-                const sectionIdx = formData.projects.customSections.findIndex(
-                  (cs) => `custom:${cs.id}` === activeProjectsSubTab
-                );
-                if (sectionIdx === -1) return null;
-                return (
-                  <div className="space-y-3">
-                    {renderCustomSectionBlock(formData.projects.customSections[sectionIdx], sectionIdx)}
+            )}
+
+            {activeProjectsSubTab === 'settings' && (
+              <div className="space-y-6">
+                <button type="button" onClick={() => setActiveProjectsSubTab('menu')} className="font-[Arial] text-xs text-gray-500 hover:text-blue-600">← Back to Projects</button>
+                <div><p className="font-[Arial] text-[9px] font-bold uppercase tracking-[0.18em] text-blue-600">Projects</p><h2 className="mt-1 font-[Arial] text-2xl font-bold">PROJECTS SETTINGS</h2></div>
+                <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-[#242424] md:p-6">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <Field label="Page Heading" sourceValue={sourceFormData.projects.heading} cmsLanguage={cmsLanguage}><input value={formData.projects.heading} onChange={(e)=>setProjectsField('heading',e.target.value)} className={inputCls}/></Field>
+                    <Field label="Page Subheading" sourceValue={sourceFormData.projects.subheading} cmsLanguage={cmsLanguage}><RichTextEditor fieldMode initialValue={formData.projects.subheading} onChange={(html) =>setProjectsField('subheading',html)} /></Field>
+                    <Field label="Project Index Title" sourceValue={sourceFormData.projects.indexHeading||''} cmsLanguage={cmsLanguage}><input value={formData.projects.indexHeading||''} onChange={(e)=>setProjectsField('indexHeading',e.target.value)} className={inputCls}/></Field>
+                    <Field label="Project Index Description" sourceValue={sourceFormData.projects.indexDescription||''} cmsLanguage={cmsLanguage}><input value={formData.projects.indexDescription||''} onChange={(e)=>setProjectsField('indexDescription',e.target.value)} className={inputCls}/></Field>
+                    <Field label="Label pencarian" sourceValue={sourceFormData.projects.searchLabel||''} cmsLanguage={cmsLanguage}><input value={formData.projects.searchLabel||''} onChange={(e)=>setProjectsField('searchLabel',e.target.value)} className={inputCls}/></Field>
+                    <Field label="Back to Index Label" sourceValue={sourceFormData.projects.backLabel||''} cmsLanguage={cmsLanguage}><input value={formData.projects.backLabel||''} onChange={(e)=>setProjectsField('backLabel',e.target.value)} className={inputCls}/></Field>
+                    <Field label="Open Drawer Label" sourceValue={sourceFormData.projects.openDrawerLabel||''} cmsLanguage={cmsLanguage}><input value={formData.projects.openDrawerLabel||''} onChange={(e)=>setProjectsField('openDrawerLabel',e.target.value)} className={inputCls}/></Field>
                   </div>
-                );
-              })()}
-            </CollapsibleSection>
+                </div>
+              </div>
+            )}
+
+            {!['menu','settings'].includes(activeProjectsSubTab) && activeProjectItem === null && (
+              <div className="space-y-6">
+                <button type="button" onClick={()=>setActiveProjectsSubTab('menu')} className="font-[Arial] text-xs text-gray-500 hover:text-blue-600">← Back to Projects</button>
+                <div className="flex flex-wrap items-end justify-between gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
+                  <div><p className="font-[Arial] text-[9px] font-bold uppercase tracking-[0.18em] text-blue-600">Projects</p><h2 className="mt-1 font-[Arial] text-2xl font-bold uppercase">{projectSectionLabel()}</h2></div>
+                  {activeProjectsSubTab==='articles'&&<AddBtn onClick={addArticle} label={cmsCopy('Add Article','Add Article')}/>}
+                  {activeProjectsSubTab==='directing'&&<AddBtn onClick={addDirectingItem} label="Add Video Work"/>}
+                  {activeProjectsSubTab==='poster'&&<AddBtn onClick={addPosterItem} label="Add Poster"/>}
+                  {activeProjectsSubTab.startsWith('custom:')&&(()=>{const si=formData.projects.customSections.findIndex(s=>`custom:${s.id}`===activeProjectsSubTab);return si<0?null:<AddBtn onClick={()=>addCustomItem(si)} label="Add Item"/>;})()}
+                </div>
+
+                <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-[#242424] md:p-6">
+                  <p className="mb-4 font-[Arial] text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">Tab Setup</p>
+                  {activeProjectsSubTab==='articles'&&<div className="grid grid-cols-1 gap-4 md:grid-cols-2"><Field label={cmsCopy('Tab Name','Tab Name')} sourceValue={sourceFormData.projects.articlesLabel} cmsLanguage={cmsLanguage}><input value={formData.projects.articlesLabel||''} onChange={(e)=>setProjectsField('articlesLabel',e.target.value)} className={inputCls}/></Field><Field label={cmsCopy('Description Tab','Tab Description')} sourceValue={sourceFormData.projects.articlesDescription||''} cmsLanguage={cmsLanguage}><input value={formData.projects.articlesDescription||''} onChange={(e)=>setProjectsField('articlesDescription',e.target.value)} className={inputCls}/></Field></div>}
+                  {activeProjectsSubTab==='directing'&&<div className="grid grid-cols-1 gap-4 md:grid-cols-2"><Field label={cmsCopy('Tab Name','Tab Name')} sourceValue={sourceFormData.projects.directingLabel||''} cmsLanguage={cmsLanguage}><input value={formData.projects.directingLabel||''} onChange={(e)=>setProjectsField('directingLabel',e.target.value)} className={inputCls}/></Field><Field label={cmsCopy('Description Tab','Tab Description')} sourceValue={sourceFormData.projects.directingDescription||''} cmsLanguage={cmsLanguage}><input value={formData.projects.directingDescription||''} onChange={(e)=>setProjectsField('directingDescription',e.target.value)} className={inputCls}/></Field></div>}
+                  {activeProjectsSubTab==='poster'&&<div className="grid grid-cols-1 gap-4 md:grid-cols-2"><Field label={cmsCopy('Tab Name','Tab Name')} sourceValue={sourceFormData.projects.posterLabel||''} cmsLanguage={cmsLanguage}><input value={formData.projects.posterLabel||''} onChange={(e)=>setProjectsField('posterLabel',e.target.value)} className={inputCls}/></Field><Field label={cmsCopy('Description Tab','Tab Description')} sourceValue={sourceFormData.projects.posterDescription||''} cmsLanguage={cmsLanguage}><input value={formData.projects.posterDescription||''} onChange={(e)=>setProjectsField('posterDescription',e.target.value)} className={inputCls}/></Field></div>}
+                  {activeProjectsSubTab.startsWith('custom:')&&(()=>{const si=formData.projects.customSections.findIndex(s=>`custom:${s.id}`===activeProjectsSubTab);if(si<0)return null;const s=formData.projects.customSections[si];const ct=s.contentType||(s.layout==='articles'?'writing':'image');return <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><Field label={cmsCopy('Tab Name','Tab Name')}><input value={s.label||''} onChange={(e)=>setCustomSectionLabel(si,e.target.value)} className={inputCls}/></Field><Field label={cmsCopy('Description Tab','Tab Description')}><input value={s.description||''} onChange={(e)=>setCustomSectionDescription(si,e.target.value)} className={inputCls}/></Field><Field label={cmsCopy('Type Content','Content Type')}><select value={ct} onChange={(e)=>setCustomSectionContentType(si,e.target.value)} className={inputCls}><option value="writing">Writing</option><option value="video">Video</option><option value="image">Image</option><option value="document">Document</option><option value="link">External Link</option><option value="audio">Audio</option></select></Field><div className="flex items-end"><RemoveBtn onClick={()=>{removeCustomSection(si);setActiveProjectsSubTab('menu')}} label="Remove Tab Ini"/></div></div>;})()}
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="font-[Arial] text-xs font-bold uppercase tracking-[0.14em] text-gray-500">Isi {projectSectionLabel()}</h3>
+                  {activeProjectsSubTab==='articles'&&formData.projects.articles.map((it,idx)=><div key={it.id||idx} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-[#242424]"><ReorderHandle listKey="articles" idx={idx} count={formData.projects.articles.length}/><button type="button" onClick={()=>openProjectItem('article',idx)} className="min-w-0 flex-1 text-left"><b className="block truncate text-xs">{idx===0&&<span className="mr-1 text-blue-600">★</span>}{it.title||`Article #${idx+1}`}</b><span className="mt-1 block font-[Arial] text-[10px] text-gray-400">{it.date||''}</span></button><button type="button" onClick={()=>openProjectItem('article',idx)} className="rounded bg-blue-50 px-3 py-1.5 text-[10px] font-semibold text-blue-600">Edit</button><RemoveBtn onClick={()=>removeArticle(idx)}/></div>)}
+                  {activeProjectsSubTab==='directing'&&formData.projects.directing.items.map((it,idx)=><div key={it.id||idx} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-[#242424]"><ReorderHandle listKey="directing" idx={idx} count={formData.projects.directing.items.length}/><button type="button" onClick={()=>openProjectItem('directing',idx)} className="min-w-0 flex-1 text-left"><b className="block truncate text-xs">{it.title||`Video Work #${idx+1}`}</b><span className="mt-1 block text-[10px] text-gray-400">{[it.role,it.year,it.runtime].filter(Boolean).join(' · ')}</span></button><button type="button" onClick={()=>openProjectItem('directing',idx)} className="rounded bg-blue-50 px-3 py-1.5 text-[10px] font-semibold text-blue-600">Edit</button><RemoveBtn onClick={()=>removeDirectingItem(idx)}/></div>)}
+                  {activeProjectsSubTab==='poster'&&formData.projects.poster.items.map((it,idx)=><div key={it.id||idx} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-[#242424]"><ReorderHandle listKey="poster" idx={idx} count={formData.projects.poster.items.length}/>{it.imageUrl&&<img src={it.imageUrl} alt="" className="h-10 w-10 rounded object-cover"/>}<button type="button" onClick={()=>openProjectItem('poster',idx)} className="min-w-0 flex-1 text-left"><b className="block truncate text-xs">{it.title||`Poster #${idx+1}`}</b><span className="mt-1 block text-[10px] text-gray-400">{[it.category,it.dimensions].filter(Boolean).join(' · ')}</span></button><button type="button" onClick={()=>openProjectItem('poster',idx)} className="rounded bg-blue-50 px-3 py-1.5 text-[10px] font-semibold text-blue-600">Edit</button><RemoveBtn onClick={()=>removePosterItem(idx)}/></div>)}
+                  {activeProjectsSubTab.startsWith('custom:')&&(()=>{const si=formData.projects.customSections.findIndex(s=>`custom:${s.id}`===activeProjectsSubTab);if(si<0)return null;return formData.projects.customSections[si].items.map((it,idx)=><div key={it.id||idx} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-[#242424]"><ReorderHandle listKey={`custom:${si}`} idx={idx} count={formData.projects.customSections[si].items.length}/><button type="button" onClick={()=>openProjectItem('custom',idx,si)} className="min-w-0 flex-1 text-left"><b className="block truncate text-xs">{it.title||`Item #${idx+1}`}</b><span className="mt-1 block text-[10px] text-gray-400">{it.category||''}</span></button><button type="button" onClick={()=>openProjectItem('custom',idx,si)} className="rounded bg-blue-50 px-3 py-1.5 text-[10px] font-semibold text-blue-600">Edit</button><RemoveBtn onClick={()=>removeCustomItem(si,idx)}/></div>);})()}
+                </div>
+              </div>
+            )}
+
+            {activeProjectItem!==null&&(()=>{const {kind,idx,sectionIdx}=activeProjectItem;
+              if(kind==='article'){const it=formData.projects.articles[idx];if(!it)return null;return <div className="space-y-6"><button type="button" onClick={closeProjectItem} className="font-[Arial] text-xs text-gray-500 hover:text-blue-600">← Back to {projectSectionLabel()}</button><div><p className="font-[Arial] text-[9px] font-bold uppercase tracking-[.18em] text-blue-600">{projectSectionLabel()}</p><h2 className="mt-1 font-[Arial] text-xl font-bold">{it.title||`Article #${idx+1}`}</h2></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Information</p><input value={it.title||''} onChange={(e)=>setArticleField(idx,'title',e.target.value)} placeholder="Title Artikel" className={inputCls}/><div className="grid grid-cols-1 gap-3 md:grid-cols-3"><input value={it.date||''} onChange={(e)=>setArticleField(idx,'date',e.target.value)} placeholder="Date" className={inputCls}/><input value={it.category||''} onChange={(e)=>setArticleField(idx,'category',e.target.value)} placeholder="Category" className={inputCls}/><input value={it.author||''} onChange={(e)=>setArticleField(idx,'author',e.target.value)} placeholder="Author" className={inputCls}/></div><RichTextEditor fieldMode initialValue={it.snippet||''} onChange={(html) =>setArticleField(idx,'snippet',html)} placeholder="Cuplikan singkat" /></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Media</p>{it.image&&<img src={it.image} alt="" className="h-28 w-44 rounded object-cover"/>}<ImageDropzone value={it.image||''} onChange={(url)=>setArticleField(idx,'image',url)} profile="article" disabled={uploadingArticleImage===idx}/><input value={it.image||''} onChange={(e)=>setArticleField(idx,'image',e.target.value)} placeholder="Or paste an image URL" className={inputCls}/></div>{getProjectPresentation(it).mode !== 'studio' && <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424]"><p className="mb-4 font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Content</p><RichTextEditor key={it.id||idx} initialValue={it.content||''} onChange={(html)=>setArticleField(idx,'content',html)}/></div>}<div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderProjectPresentationStudio('article',idx,null,it)}</div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderUniversalProjectEditor('article',idx,null,it)}</div></div>}
+              if(kind==='directing'){const it=formData.projects.directing.items[idx];if(!it)return null;return <div className="space-y-6"><button type="button" onClick={closeProjectItem} className="font-[Arial] text-xs text-gray-500 hover:text-blue-600">← Back to {projectSectionLabel()}</button><div><p className="font-[Arial] text-[9px] font-bold uppercase tracking-[.18em] text-blue-600">{projectSectionLabel()}</p><h2 className="mt-1 font-[Arial] text-xl font-bold">{it.title||`Video Work #${idx+1}`}</h2></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Information</p><input value={it.title||''} onChange={(e)=>setDirectingItemField(idx,'title',e.target.value)} placeholder="Title karya" className={inputCls}/><RichTextEditor fieldMode initialValue={it.premise||''} onChange={(html) =>setDirectingItemField(idx,'premise',html)} placeholder="Premise" /><div className="grid grid-cols-1 gap-3 md:grid-cols-3"><input value={it.role||''} onChange={(e)=>setDirectingItemField(idx,'role',e.target.value)} placeholder="Role" className={inputCls}/><input value={it.year||''} onChange={(e)=>setDirectingItemField(idx,'year',e.target.value)} placeholder="Tahun" className={inputCls}/><input value={it.runtime||''} onChange={(e)=>setDirectingItemField(idx,'runtime',e.target.value)} placeholder="Durasi" className={inputCls}/></div></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Media</p><div className="grid grid-cols-1 gap-3 md:grid-cols-[.28fr_1fr_.28fr]"><select value={it.mediaType||'youtube'} onChange={(e)=>setDirectingItemField(idx,'mediaType',e.target.value)} className={inputCls}><option value="youtube">YouTube</option><option value="vimeo">Vimeo</option><option value="drive">Google Drive</option><option value="video">Direct MP4/WebM</option><option value="external">External Link</option></select><input value={it.mediaUrl||''} onChange={(e)=>setDirectingItemField(idx,'mediaUrl',e.target.value)} placeholder="URL media" className={inputCls}/><select value={it.videoRatio||'auto'} onChange={(e)=>setDirectingItemField(idx,'videoRatio',e.target.value)} className={inputCls} title="Video ratio"><option value="auto">Ratio: Auto</option><option value="16:9">16:9</option><option value="4:3">4:3</option><option value="9:16">9:16</option><option value="1:1">1:1</option></select></div><input value={it.posterImage||''} onChange={(e)=>setDirectingItemField(idx,'posterImage',e.target.value)} placeholder="Poster/thumbnail URL" className={inputCls}/><div className="rounded-lg border border-dashed border-gray-200 p-4 dark:border-gray-700"><div className="mb-3 flex items-center justify-between gap-3"><div><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.14em] text-gray-500">Video Snippets</p><p className="mt-1 text-[10px] text-gray-400">Optional frame previews shown directly under the video player.</p></div><button type="button" onClick={()=>setDirectingItemField(idx,'videoSnippets',[...(Array.isArray(it.videoSnippets)?it.videoSnippets:[]),{id:`snippet-${Date.now()}`,imageUrl:'',caption:'',timestamp:''}])} className="rounded bg-blue-50 px-3 py-1.5 text-[10px] font-semibold text-blue-600 dark:bg-blue-950/30 dark:text-blue-300">+ Add Frame</button></div><div className="space-y-3">{(Array.isArray(it.videoSnippets)?it.videoSnippets:[]).map((frame,frameIdx)=>{const frames=Array.isArray(it.videoSnippets)?it.videoSnippets:[];const updateFrame=(patch)=>setDirectingItemField(idx,'videoSnippets',frames.map((f,i)=>i===frameIdx?{...f,...patch}:f));const moveFrame=(dir)=>{const next=[...frames];const to=frameIdx+dir;if(to<0||to>=next.length)return;[next[frameIdx],next[to]]=[next[to],next[frameIdx]];setDirectingItemField(idx,'videoSnippets',next)};return <div key={frame.id||frameIdx} className="grid grid-cols-1 gap-2 rounded-lg bg-gray-50 p-3 dark:bg-[#1e1e1e] md:grid-cols-[88px_1fr_auto]"><div>{frame.imageUrl?<img src={frame.imageUrl} alt="" className="aspect-video w-full rounded object-cover"/>:<div className="flex aspect-video items-center justify-center rounded border border-dashed border-gray-300 text-[9px] text-gray-400 dark:border-gray-600">Frame</div>}</div><div className="space-y-2"><input value={frame.imageUrl||''} onChange={(e)=>updateFrame({imageUrl:e.target.value})} placeholder="Image URL" className={inputClsSm}/><div className="grid grid-cols-1 gap-2 sm:grid-cols-[.3fr_1fr]"><input value={frame.timestamp||''} onChange={(e)=>updateFrame({timestamp:e.target.value})} placeholder="00:42" className={inputClsSm}/><input value={frame.caption||''} onChange={(e)=>updateFrame({caption:e.target.value})} placeholder="Caption (optional)" className={inputClsSm}/></div><input type="file" accept="image/*" onChange={async(e)=>{const file=e.target.files?.[0];if(!file)return;const key=`directing-snippet-${idx}-${frameIdx}`;setUploadingGalleryImage(key);const url=await uploadImageToStorage(file);setUploadingGalleryImage(null);if(url)updateFrame({imageUrl:url});e.target.value='';}} className="w-full text-[10px]"/></div><div className="flex gap-1 md:flex-col"><button type="button" disabled={frameIdx===0} onClick={()=>moveFrame(-1)} className="rounded border px-2 py-1 text-[10px] disabled:opacity-30">↑</button><button type="button" disabled={frameIdx===frames.length-1} onClick={()=>moveFrame(1)} className="rounded border px-2 py-1 text-[10px] disabled:opacity-30">↓</button><button type="button" onClick={()=>setDirectingItemField(idx,'videoSnippets',frames.filter((_,i)=>i!==frameIdx))} className="rounded border border-red-200 px-2 py-1 text-[10px] text-red-500">×</button></div></div>})}</div></div></div>{getProjectPresentation(it).mode !== 'studio' && <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424]"><Field label="Contribution / What I did"><RichTextEditor key={`contribution-${it.id||idx}`} initialValue={it.contribution||''} onChange={(html)=>setDirectingItemField(idx,'contribution',html)}/></Field></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424]"><Field label="Credits"><RichTextEditor key={`credits-${it.id||idx}`} initialValue={it.credits||''} onChange={(html)=>setDirectingItemField(idx,'credits',html)}/></Field></div></div>}<div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderProjectPresentationStudio('directing',idx,null,it)}</div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderUniversalProjectEditor('directing',idx,null,it)}</div></div>}
+              if(kind==='poster'){const it=formData.projects.poster.items[idx];if(!it)return null;return <div className="space-y-6"><button type="button" onClick={closeProjectItem} className="font-[Arial] text-xs text-gray-500 hover:text-blue-600">← Back to {projectSectionLabel()}</button><div><p className="font-[Arial] text-[9px] font-bold uppercase tracking-[.18em] text-blue-600">{projectSectionLabel()}</p><h2 className="mt-1 font-[Arial] text-xl font-bold">{it.title||`Poster #${idx+1}`}</h2></div><div className="grid grid-cols-1 gap-4 md:grid-cols-[.8fr_1.2fr]"><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424]">{it.imageUrl?<img src={it.imageUrl} alt="" className="mx-auto max-h-[520px] rounded object-contain"/>:<div className="flex min-h-[260px] items-center justify-center rounded border-2 border-dashed border-gray-200 text-xs text-gray-400">None yet gambar</div>}</div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Information</p><input value={it.title||''} onChange={(e)=>setPosterItemField(idx,'title',e.target.value)} placeholder="Title" className={inputCls}/><div className="grid grid-cols-1 gap-3 md:grid-cols-2"><input value={it.category||''} onChange={(e)=>setPosterItemField(idx,'category',e.target.value)} placeholder="Category" className={inputCls}/><input value={it.dimensions||''} onChange={(e)=>setPosterItemField(idx,'dimensions',e.target.value)} placeholder="Dimensi" className={inputCls}/></div><input value={it.imageUrl||''} onChange={(e)=>setPosterItemField(idx,'imageUrl',e.target.value)} placeholder="Image URL" className={inputCls}/><RichTextEditor fieldMode initialValue={it.description||''} onChange={(html) =>setPosterItemField(idx,'description',html)} placeholder="Description" /></div></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderProjectPresentationStudio('poster',idx,null,it)}</div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderUniversalProjectEditor('poster',idx,null,it)}</div></div>}
+              if(kind==='custom'){const s=formData.projects.customSections[sectionIdx];const it=s?.items?.[idx];if(!s||!it)return null;const ct=s.contentType||(s.layout==='articles'?'writing':'image');return <div className="space-y-6"><button type="button" onClick={closeProjectItem} className="font-[Arial] text-xs text-gray-500 hover:text-blue-600">← Back to {s.label||'Project Tab'}</button><div><p className="font-[Arial] text-[9px] font-bold uppercase tracking-[.18em] text-blue-600">{s.label||'Project Tab'}</p><h2 className="mt-1 font-[Arial] text-xl font-bold">{it.title||`Item #${idx+1}`}</h2></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Information</p><input value={it.title||''} onChange={(e)=>setCustomItemField(sectionIdx,idx,'title',e.target.value)} placeholder="Title" className={inputCls}/><input value={it.category||''} onChange={(e)=>setCustomItemField(sectionIdx,idx,'category',e.target.value)} placeholder="Category" className={inputCls}/><RichTextEditor fieldMode initialValue={it.description||''} onChange={(html) =>setCustomItemField(sectionIdx,idx,'description',html)} placeholder="Description" /></div>{getProjectPresentation(it).mode !== 'studio' && <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Content / Media</p>{ct==='writing'&&<RichTextEditor key={`custom-${it.id||idx}`} initialValue={it.content||''} onChange={(html)=>setCustomItemField(sectionIdx,idx,'content',html)}/>}<input value={it.imageUrl||''} onChange={(e)=>setCustomItemField(sectionIdx,idx,'imageUrl',e.target.value)} placeholder="Image / cover URL" className={inputCls}/><input value={it.url||''} onChange={(e)=>setCustomItemField(sectionIdx,idx,'url',e.target.value)} placeholder="Work Link / URL" className={inputCls}/></div>}<div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderProjectPresentationStudio('custom',idx,sectionIdx,it)}</div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderUniversalProjectEditor('custom',idx,sectionIdx,it)}</div></div>}
+              return null;
+            })()}
           </div>
         )}
 
@@ -5657,36 +9821,36 @@ export default function CmsDashboard({ data, onSave }) {
         {activeTab === 'contact' && (
           <div className="space-y-5">
             <h2 className="text-sm font-bold border-b pb-2 border-gray-100 dark:border-gray-800 text-blue-600 dark:text-blue-400">Contact — New Collaboration Document</h2>
-            <Field label="Heading Utama" sourceValue={sourceFormData.contact.heading} cmsLanguage={cmsLanguage}><textarea rows={2} value={formData.contact.heading} onChange={(e) => setContactField('heading', e.target.value)} className={`${inputCls} resize-none`} /></Field>
-            <Field label="Subheading" sourceValue={sourceFormData.contact.subheading} cmsLanguage={cmsLanguage}><textarea rows={2} value={formData.contact.subheading} onChange={(e) => setContactField('subheading', e.target.value)} className={`${inputCls} resize-none`} /></Field>
+            <Field label="Main Heading" sourceValue={sourceFormData.contact.heading} cmsLanguage={cmsLanguage}><RichTextEditor fieldMode initialValue={formData.contact.heading} onChange={(html) => setContactField('heading', html)} /></Field>
+            <Field label="Subheading" sourceValue={sourceFormData.contact.subheading} cmsLanguage={cmsLanguage}><RichTextEditor fieldMode initialValue={formData.contact.subheading} onChange={(html) => setContactField('subheading', html)} /></Field>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <Field label="Judul formulir" sourceValue={sourceFormData.contact.formTitle || ''} cmsLanguage={cmsLanguage}><input value={formData.contact.formTitle || ''} onChange={(e) => setContactField('formTitle', e.target.value)} className={inputCls} /></Field>
-              <Field label="Judul properties" sourceValue={sourceFormData.contact.propertiesTitle || ''} cmsLanguage={cmsLanguage}><input value={formData.contact.propertiesTitle || ''} onChange={(e) => setContactField('propertiesTitle', e.target.value)} className={inputCls} /></Field>
+              <Field label="Form Title" sourceValue={sourceFormData.contact.formTitle || ''} cmsLanguage={cmsLanguage}><input value={formData.contact.formTitle || ''} onChange={(e) => setContactField('formTitle', e.target.value)} className={inputCls} /></Field>
+              <Field label="Properties Title" sourceValue={sourceFormData.contact.propertiesTitle || ''} cmsLanguage={cmsLanguage}><input value={formData.contact.propertiesTitle || ''} onChange={(e) => setContactField('propertiesTitle', e.target.value)} className={inputCls} /></Field>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Field label="Email Tujuan" sourceValue={sourceFormData.contact.email} cmsLanguage={cmsLanguage}><input type="email" value={formData.contact.email} onChange={(e) => setContactField('email', e.target.value)} className={inputCls} /></Field>
               <Field label="Lokasi Fallback" sourceValue={sourceFormData.contact.location} cmsLanguage={cmsLanguage}><input type="text" value={formData.contact.location} onChange={(e) => setContactField('location', e.target.value)} className={inputCls} /></Field>
               <Field label="Label Tombol Draft" sourceValue={sourceFormData.contact.draftButtonLabel} cmsLanguage={cmsLanguage}><input type="text" value={formData.contact.draftButtonLabel} onChange={(e) => setContactField('draftButtonLabel', e.target.value)} className={inputCls} /></Field>
-              <Field label="Notifikasi Setelah Klik" sourceValue={sourceFormData.contact.responseNote} cmsLanguage={cmsLanguage}><input type="text" value={formData.contact.responseNote} onChange={(e) => setContactField('responseNote', e.target.value)} className={inputCls} /></Field>
+              <Field label="Post-click Notification" sourceValue={sourceFormData.contact.responseNote} cmsLanguage={cmsLanguage}><input type="text" value={formData.contact.responseNote} onChange={(e) => setContactField('responseNote', e.target.value)} className={inputCls} /></Field>
             </div>
 
-            <CollapsibleSection sectionKey="contact-content-manager" title="Konten Contact" subtitle="Jalur inquiry, opsi, properties, sosial media, dan link tambahan">
-              <div><div className="mb-2 flex items-center justify-between"><label className="text-xs font-bold">Jalur Inquiry</label><AddBtn onClick={() => addContactListItem('inquiryPaths', { id: `path-${Date.now()}`, kind: 'hello', label: '', subject: '', enabled: true })} label="Tambah Jalur" /></div><div className="space-y-2">{formData.contact.inquiryPaths.map((item, idx) => <ContentCard key={item.id || idx} cardKey={`inquiry-${idx}`} listKey="inquiryPaths" idx={idx} count={formData.contact.inquiryPaths.length} title={item.label || `Jalur #${idx + 1}`} subtitle={item.subject || 'Subject belum diisi'} onRemove={() => removeContactListItem('inquiryPaths', idx)}><div className="grid grid-cols-1 gap-2 md:grid-cols-[0.8fr_1fr_1fr_auto]"><select value={item.kind || item.id} onChange={(e) => setContactListItem('inquiryPaths', idx, { kind: e.target.value })} className={inputClsSm}><option value="project">Proyek</option><option value="opportunity">Peluang Kerja</option><option value="hello">Pesan Bebas</option></select><input value={item.label} onChange={(e) => setContactListItem('inquiryPaths', idx, { label: e.target.value })} placeholder="Label" className={inputClsSm} /><input value={item.subject} onChange={(e) => setContactListItem('inquiryPaths', idx, { subject: e.target.value })} placeholder="Subject email" className={inputClsSm} /><label className="flex items-center gap-2 text-[10px]"><input type="checkbox" checked={item.enabled !== false} onChange={(e) => setContactListItem('inquiryPaths', idx, { enabled: e.target.checked })} /> Tampil</label></div></ContentCard>)}</div></div>
+            <CollapsibleSection sectionKey="contact-content-manager" title="Contact Content" subtitle="Inquiry paths, options, properties, social media, and additional links">
+              <div><div className="mb-2 flex items-center justify-between"><label className="text-xs font-bold">Inquiry Paths</label><AddBtn onClick={() => addContactListItem('inquiryPaths', { id: `path-${Date.now()}`, kind: 'hello', label: '', subject: '', enabled: true })} label="Add Path" /></div><div className="space-y-2">{formData.contact.inquiryPaths.map((item, idx) => <ContentCard key={item.id || idx} cardKey={`inquiry-${idx}`} listKey="inquiryPaths" idx={idx} count={formData.contact.inquiryPaths.length} title={item.label || `Jalur #${idx + 1}`} subtitle={item.subject || 'Subject belum diisi'} onRemove={() => removeContactListItem('inquiryPaths', idx)}><div className="grid grid-cols-1 gap-2 md:grid-cols-[0.8fr_1fr_1fr_auto]"><select value={item.kind || item.id} onChange={(e) => setContactListItem('inquiryPaths', idx, { kind: e.target.value })} className={inputClsSm}><option value="project">Proyek</option><option value="opportunity">Peluang Kerja</option><option value="hello">Pesan Bebas</option></select><input value={item.label} onChange={(e) => setContactListItem('inquiryPaths', idx, { label: e.target.value })} placeholder="Label" className={inputClsSm} /><input value={item.subject} onChange={(e) => setContactListItem('inquiryPaths', idx, { subject: e.target.value })} placeholder="Subject email" className={inputClsSm} /><label className="flex items-center gap-2 text-[10px]"><input type="checkbox" checked={item.enabled !== false} onChange={(e) => setContactListItem('inquiryPaths', idx, { enabled: e.target.checked })} /> Tampil</label></div></ContentCard>)}</div></div>
   
-              {[['serviceOptions', 'Pilihan Layanan'], ['stageOptions', 'Tahap Proyek'], ['timelineOptions', 'Pilihan Timeline']].map(([key, label]) => <div key={key}><div className="mb-2 flex items-center justify-between"><label className="text-xs font-bold">{label}</label><AddBtn onClick={() => addContactListItem(key, '')} label="Tambah Opsi" /></div><div className="space-y-2">{formData.contact[key].map((item, idx) => <ContentCard key={`${key}-${idx}`} cardKey={`${key}-${idx}`} listKey={key} idx={idx} count={formData.contact[key].length} title={item || `Opsi #${idx + 1}`} subtitle="Drag untuk mengubah urutan" onRemove={() => removeContactListItem(key, idx)}><input value={item} onChange={(e) => setStringListItem(key, idx, e.target.value)} className={inputClsSm} /></ContentCard>)}</div></div>)}
+              {[['serviceOptions', 'Service Options'], ['stageOptions', 'Project Stage'], ['timelineOptions', 'Timeline Options']].map(([key, label]) => <div key={key}><div className="mb-2 flex items-center justify-between"><label className="text-xs font-bold">{label}</label><AddBtn onClick={() => addContactListItem(key, '')} label="Add Option" /></div><div className="space-y-2">{formData.contact[key].map((item, idx) => <ContentCard key={`${key}-${idx}`} cardKey={`${key}-${idx}`} listKey={key} idx={idx} count={formData.contact[key].length} title={item || `Opsi #${idx + 1}`} subtitle="Drag untuk mengubah urutan" onRemove={() => removeContactListItem(key, idx)}><input value={item} onChange={(e) => setStringListItem(key, idx, e.target.value)} className={inputClsSm} /></ContentCard>)}</div></div>)}
   
-              <div><div className="mb-2 flex items-center justify-between"><label className="text-xs font-bold">Document Properties</label><AddBtn onClick={() => addContactListItem('properties', { id: `property-${Date.now()}`, label: '', value: '', enabled: true })} label="Tambah Property" /></div><div className="space-y-2">{formData.contact.properties.map((item, idx) => <ContentCard key={item.id || idx} cardKey={`property-${idx}`} listKey="properties" idx={idx} count={formData.contact.properties.length} title={item.label || `Property #${idx + 1}`} subtitle={item.value || 'Belum diisi'} onRemove={() => removeContactListItem('properties', idx)}><div className="grid grid-cols-1 gap-2 md:grid-cols-[0.7fr_1.3fr_auto]"><input value={item.label} onChange={(e) => setContactListItem('properties', idx, { label: e.target.value })} placeholder="Label" className={inputClsSm} /><input value={item.value} onChange={(e) => setContactListItem('properties', idx, { value: e.target.value })} placeholder="Isi" className={inputClsSm} /><label className="flex items-center gap-2 text-[10px]"><input type="checkbox" checked={item.enabled !== false} onChange={(e) => setContactListItem('properties', idx, { enabled: e.target.checked })} /> Tampil</label></div></ContentCard>)}</div></div>
+              <div><div className="mb-2 flex items-center justify-between"><label className="text-xs font-bold">Document Properties</label><AddBtn onClick={() => addContactListItem('properties', { id: `property-${Date.now()}`, label: '', value: '', enabled: true })} label="Add Property" /></div><div className="space-y-2">{formData.contact.properties.map((item, idx) => <ContentCard key={item.id || idx} cardKey={`property-${idx}`} listKey="properties" idx={idx} count={formData.contact.properties.length} title={item.label || `Property #${idx + 1}`} subtitle={item.value || 'Not filled in yet'} onRemove={() => removeContactListItem('properties', idx)}><div className="grid grid-cols-1 gap-2 md:grid-cols-[0.7fr_1.3fr_auto]"><input value={item.label} onChange={(e) => setContactListItem('properties', idx, { label: e.target.value })} placeholder="Label" className={inputClsSm} /><input value={item.value} onChange={(e) => setContactListItem('properties', idx, { value: e.target.value })} placeholder="Isi" className={inputClsSm} /><label className="flex items-center gap-2 text-[10px]"><input type="checkbox" checked={item.enabled !== false} onChange={(e) => setContactListItem('properties', idx, { enabled: e.target.checked })} /> Tampil</label></div></ContentCard>)}</div></div>
   
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-medium">Sosial Media</label>
-                  <AddBtn onClick={addSocial} label="Tambah Sosmed" />
+                  <AddBtn onClick={addSocial} label="Add Sosmed" />
                 </div>
                 <div className="space-y-2">
                   {formData.contact.socials.map((s, idx) => (
-                    <ContentCard key={idx} cardKey={`social-${idx}`} listKey="socials" idx={idx} count={formData.contact.socials.length} title={s.name || `Sosial Media #${idx + 1}`} subtitle={s.label || s.url || 'Belum diisi'} onRemove={() => removeSocial(idx)}>
+                    <ContentCard key={idx} cardKey={`social-${idx}`} listKey="socials" idx={idx} count={formData.contact.socials.length} title={s.name || `Sosial Media #${idx + 1}`} subtitle={s.label || s.url || 'Not filled in yet'} onRemove={() => removeSocial(idx)}>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
-                      <input type="text" value={s.name} onChange={(e) => setSocialField(idx, 'name', e.target.value)} placeholder="Nama (mis. LinkedIn)" className={inputClsSm} />
+                      <input type="text" value={s.name} onChange={(e) => setSocialField(idx, 'name', e.target.value)} placeholder="Name (e.g. LinkedIn)" className={inputClsSm} />
                       <input type="text" value={s.url} onChange={(e) => setSocialField(idx, 'url', e.target.value)} placeholder="URL" className={inputClsSm} />
                       <input type="text" value={s.label} onChange={(e) => setSocialField(idx, 'label', e.target.value)} placeholder="Label (mis. Connect on LinkedIn)" className={inputClsSm} />
                     </div>
@@ -5697,8 +9861,8 @@ export default function CmsDashboard({ data, onSave }) {
   
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-medium">Link Tambahan (mis. Download Résumé)</label>
-                  <AddBtn onClick={addActionButton} label="Tambah Tombol" />
+                  <label className="block text-xs font-medium">Link Addan (mis. Download Résumé)</label>
+                  <AddBtn onClick={addActionButton} label="Add Tombol" />
                 </div>
                 <p className="text-[10px] text-gray-400 mb-2">
                   Buat tombol "Download Resume": isi Label-nya, terus di kolom Link tinggal upload file
@@ -5706,10 +9870,10 @@ export default function CmsDashboard({ data, onSave }) {
                 </p>
                 <div className="space-y-2">
                   {formData.contact.actionButtons.map((btn, idx) => (
-                    <ContentCard key={idx} cardKey={`action-${idx}`} listKey="actionButtons" idx={idx} count={formData.contact.actionButtons.length} title={btn.label || `Tombol Aksi #${idx + 1}`} subtitle={btn.url || 'Belum ada link'} onRemove={() => removeActionButton(idx)}>
+                    <ContentCard key={idx} cardKey={`action-${idx}`} listKey="actionButtons" idx={idx} count={formData.contact.actionButtons.length} title={btn.label || `Action Button #${idx + 1}`} subtitle={btn.url || 'No link yet'} onRemove={() => removeActionButton(idx)}>
                       <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-center">
                         <input type="text" value={btn.label} onChange={(e) => setActionButtonField(idx, 'label', e.target.value)} placeholder="Label Tombol" className={inputClsSm} />
-                        <input type="text" value={btn.url} onChange={(e) => setActionButtonField(idx, 'url', e.target.value)} placeholder="Link (atau upload file di bawah)" className={inputClsSm} />
+                        <input type="text" value={btn.url} onChange={(e) => setActionButtonField(idx, 'url', e.target.value)} placeholder="Link (or upload a file below)" className={inputClsSm} />
                         <span className="text-[10px] text-gray-400">Footer link</span>
                       </div>
                       <div className="flex items-center gap-2 pl-0.5">
@@ -5750,22 +9914,22 @@ export default function CmsDashboard({ data, onSave }) {
           <div className="space-y-5">
             <div>
               <h2 className="border-b border-gray-100 pb-2 text-sm font-bold text-blue-600 dark:border-gray-800 dark:text-blue-400">Visitor Introduction / Printed Takeover</h2>
-              <p className="mt-2 text-xs leading-relaxed text-gray-500">Printer muncul di area abu-abu kiri Home. Saat ditekan, kertas berkembang memenuhi layar dan menjelaskan isi portofolio.</p>
+              <p className="mt-2 text-xs leading-relaxed text-gray-500">The printer appears in the gray area on the left side of Home. When pressed, the paper expands to fill the screen and introduces the portfolio.</p>
             </div>
             <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={formData.home.visitorIntroduction.enabled !== false} onChange={(e) => setVisitorIntroduction('enabled', e.target.checked)} className="h-4 w-4 accent-[#2B579A]" />Aktifkan Visitor’s Copy</label>
 
-            <ContentCard cardKey="visitor-trigger" listKey="visitor-introduction" idx={0} count={1} title="Printer di margin kiri" subtitle={formData.home.visitorIntroduction.triggerTitle || 'New to this document?'}>
+            <ContentCard cardKey="visitor-trigger" listKey="visitor-introduction" idx={0} count={1} title="Printer in the left margin" subtitle={formData.home.visitorIntroduction.triggerTitle || 'New to this document?'}>
               <div className="grid gap-3 md:grid-cols-2">
                 <Field label="Label kecil" sourceValue={sourceFormData.home.visitorIntroduction.triggerEyebrow || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.triggerEyebrow || ''} onChange={(e) => setVisitorIntroduction('triggerEyebrow', e.target.value)} className={inputCls} /></Field>
-                <Field label="Judul printer" sourceValue={sourceFormData.home.visitorIntroduction.triggerTitle || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.triggerTitle || ''} onChange={(e) => setVisitorIntroduction('triggerTitle', e.target.value)} className={inputCls} /></Field>
+                <Field label="Printer Title" sourceValue={sourceFormData.home.visitorIntroduction.triggerTitle || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.triggerTitle || ''} onChange={(e) => setVisitorIntroduction('triggerTitle', e.target.value)} className={inputCls} /></Field>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
-                <Field label="Ajakan sebelum dicetak" sourceValue={sourceFormData.home.visitorIntroduction.triggerAction || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.triggerAction || ''} onChange={(e) => setVisitorIntroduction('triggerAction', e.target.value)} className={inputCls} /></Field>
-                <Field label="Label setelah pernah dibuka" sourceValue={sourceFormData.home.visitorIntroduction.printedLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.printedLabel || ''} onChange={(e) => setVisitorIntroduction('printedLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Pre-print Prompt" sourceValue={sourceFormData.home.visitorIntroduction.triggerAction || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.triggerAction || ''} onChange={(e) => setVisitorIntroduction('triggerAction', e.target.value)} className={inputCls} /></Field>
+                <Field label="Label After First Open" sourceValue={sourceFormData.home.visitorIntroduction.printedLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.printedLabel || ''} onChange={(e) => setVisitorIntroduction('printedLabel', e.target.value)} className={inputCls} /></Field>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
-                <Field label="Judul Quick View" sourceValue={sourceFormData.home.visitorIntroduction.quickViewLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.quickViewLabel || ''} onChange={(e) => setVisitorIntroduction('quickViewLabel', e.target.value)} className={inputCls} /></Field>
-                <Field label="Judul Document Index" sourceValue={sourceFormData.home.visitorIntroduction.documentIndexLabel ?? 'Document index'} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.documentIndexLabel ?? 'Document index'} onChange={(e) => setVisitorIntroduction('documentIndexLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Quick View Title" sourceValue={sourceFormData.home.visitorIntroduction.quickViewLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.quickViewLabel || ''} onChange={(e) => setVisitorIntroduction('quickViewLabel', e.target.value)} className={inputCls} /></Field>
+                <Field label="Document Index Title" sourceValue={sourceFormData.home.visitorIntroduction.documentIndexLabel ?? 'Document index'} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.documentIndexLabel ?? 'Document index'} onChange={(e) => setVisitorIntroduction('documentIndexLabel', e.target.value)} className={inputCls} /></Field>
                 <Field label="Tombol Projects" sourceValue={sourceFormData.home.visitorIntroduction.selectedWorksLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.selectedWorksLabel || ''} onChange={(e) => setVisitorIntroduction('selectedWorksLabel', e.target.value)} className={inputCls} /></Field>
                 <Field label="Tombol Careers" sourceValue={sourceFormData.home.visitorIntroduction.experienceLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.experienceLabel || ''} onChange={(e) => setVisitorIntroduction('experienceLabel', e.target.value)} className={inputCls} /></Field>
                 <Field label="Tombol Contact" sourceValue={sourceFormData.home.visitorIntroduction.contactLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.contactLabel || ''} onChange={(e) => setVisitorIntroduction('contactLabel', e.target.value)} className={inputCls} /></Field>
@@ -5775,13 +9939,13 @@ export default function CmsDashboard({ data, onSave }) {
             <ContentCard cardKey="visitor-sheet" listKey="visitor-introduction" idx={0} count={1} title="Isi lembar fullscreen" subtitle={formData.home.visitorIntroduction.documentCode || 'Visitor’s Copy'}>
               <div className="grid gap-3 md:grid-cols-2">
                 <Field label="Kode dokumen" sourceValue={sourceFormData.home.visitorIntroduction.documentCode || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.documentCode || ''} onChange={(e) => setVisitorIntroduction('documentCode', e.target.value)} className={inputCls} /></Field>
-                <Field label="Dicetak untuk" sourceValue={sourceFormData.home.visitorIntroduction.recipient || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.recipient || ''} onChange={(e) => setVisitorIntroduction('recipient', e.target.value)} className={inputCls} /></Field>
+                <Field label="Printed For" sourceValue={sourceFormData.home.visitorIntroduction.recipient || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.recipient || ''} onChange={(e) => setVisitorIntroduction('recipient', e.target.value)} className={inputCls} /></Field>
               </div>
-              <Field label="Label pembuka" sourceValue={sourceFormData.home.visitorIntroduction.kicker || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.kicker || ''} onChange={(e) => setVisitorIntroduction('kicker', e.target.value)} className={inputCls} /></Field>
-              <Field label="Judul besar" sourceValue={sourceFormData.home.visitorIntroduction.title || ''} cmsLanguage={cmsLanguage}><textarea rows={3} value={formData.home.visitorIntroduction.title || ''} onChange={(e) => setVisitorIntroduction('title', e.target.value)} className={`${inputCls} resize-y font-serif`} /></Field>
-              <Field label="Penjelasan portofolio" sourceValue={sourceFormData.home.visitorIntroduction.body || ''} cmsLanguage={cmsLanguage}><textarea rows={5} value={formData.home.visitorIntroduction.body || ''} onChange={(e) => setVisitorIntroduction('body', e.target.value)} className={`${inputCls} resize-y`} /></Field>
-              <Field label="Kalimat penutup" sourceValue={sourceFormData.home.visitorIntroduction.closing || ''} cmsLanguage={cmsLanguage}><textarea rows={3} value={formData.home.visitorIntroduction.closing || ''} onChange={(e) => setVisitorIntroduction('closing', e.target.value)} className={`${inputCls} resize-y`} /></Field>
-              <Field label="Tulisan tombol Close" sourceValue={sourceFormData.home.visitorIntroduction.closeLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.closeLabel || ''} onChange={(e) => setVisitorIntroduction('closeLabel', e.target.value)} className={inputCls} /></Field>
+              <Field label="Opening Label" sourceValue={sourceFormData.home.visitorIntroduction.kicker || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.kicker || ''} onChange={(e) => setVisitorIntroduction('kicker', e.target.value)} className={inputCls} /></Field>
+              <Field label="Main Title" sourceValue={sourceFormData.home.visitorIntroduction.title || ''} cmsLanguage={cmsLanguage}><RichTextEditor fieldMode initialValue={formData.home.visitorIntroduction.title || ''} onChange={(html) => setVisitorIntroduction('title', html)} /></Field>
+              <Field label="Penjelasan portofolio" sourceValue={sourceFormData.home.visitorIntroduction.body || ''} cmsLanguage={cmsLanguage}><RichTextEditor fieldMode initialValue={formData.home.visitorIntroduction.body || ''} onChange={(html) => setVisitorIntroduction('body', html)} /></Field>
+              <Field label="Kalimat penutup" sourceValue={sourceFormData.home.visitorIntroduction.closing || ''} cmsLanguage={cmsLanguage}><RichTextEditor fieldMode initialValue={formData.home.visitorIntroduction.closing || ''} onChange={(html) => setVisitorIntroduction('closing', html)} /></Field>
+              <Field label="Close Button Label" sourceValue={sourceFormData.home.visitorIntroduction.closeLabel || ''} cmsLanguage={cmsLanguage}><input value={formData.home.visitorIntroduction.closeLabel || ''} onChange={(e) => setVisitorIntroduction('closeLabel', e.target.value)} className={inputCls} /></Field>
             </ContentCard>
           </div>
         )}
@@ -5801,7 +9965,7 @@ export default function CmsDashboard({ data, onSave }) {
               <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 pb-3 dark:border-gray-800">
                 <div>
                   <h2 className="text-sm font-bold text-blue-600 dark:text-blue-400">Leaderboard Systems</h2>
-                  <p className="mt-1 max-w-2xl text-xs leading-relaxed text-gray-500">Satu pusat klasemen untuk seluruh Mini Game. Setiap game tetap punya ranking sendiri; panel ini dipakai untuk melihat pemain, personal best, attempts, dan moderasi nama.</p>
+                  <p className="mt-1 max-w-2xl text-xs leading-relaxed text-gray-500">One leaderboard hub for all Mini Games. Each game keeps its own ranking; use this panel to review players, personal bests, attempts, and name moderation.</p>
                 </div>
                 <button type="button" onClick={loadLeaderboardSystems} disabled={leaderboardLoading} className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-600 hover:border-blue-500 hover:text-blue-600 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300">{leaderboardLoading ? 'Memuat…' : 'Refresh'}</button>
               </div>
@@ -5809,43 +9973,43 @@ export default function CmsDashboard({ data, onSave }) {
               {leaderboardError && <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/20 dark:text-red-300">{leaderboardError}</div>}
 
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => setLeaderboardGameFilter('all')} className={`rounded-full border px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-wider ${leaderboardGameFilter === 'all' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 text-gray-500 dark:border-gray-600'}`}>Semua Game · {leaderboardRows.length}</button>
-                {gameIds.map((gameId) => <button key={gameId} type="button" onClick={() => setLeaderboardGameFilter(gameId)} className={`rounded-full border px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-wider ${leaderboardGameFilter === gameId ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 text-gray-500 dark:border-gray-600'}`}>{gameId.replace(/-/g, ' ')} · {leaderboardRows.filter((row) => (row.gameId || 'red-pen') === gameId).length}</button>)}
+                <button type="button" onClick={() => setLeaderboardGameFilter('all')} className={`rounded-full border px-3 py-1.5 font-[Arial] text-[10px] font-bold uppercase tracking-wider ${leaderboardGameFilter === 'all' ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 text-gray-500 dark:border-gray-600'}`}>Semua Game · {leaderboardRows.length}</button>
+                {gameIds.map((gameId) => <button key={gameId} type="button" onClick={() => setLeaderboardGameFilter(gameId)} className={`rounded-full border px-3 py-1.5 font-[Arial] text-[10px] font-bold uppercase tracking-wider ${leaderboardGameFilter === gameId ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 text-gray-500 dark:border-gray-600'}`}>{gameId.replace(/-/g, ' ')} · {leaderboardRows.filter((row) => (row.gameId || 'red-pen') === gameId).length}</button>)}
               </div>
 
               <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
                 <table className="w-full min-w-[780px] border-collapse text-left text-xs">
-                  <thead className="bg-gray-50 font-mono text-[10px] uppercase tracking-wider text-gray-500 dark:bg-[#282828]">
-                    <tr><th className="px-3 py-3">Rank</th><th className="px-3 py-3">Pemain</th><th className="px-3 py-3">Game</th><th className="px-3 py-3">Score</th><th className="px-3 py-3">Accuracy</th><th className="px-3 py-3">Attempts</th><th className="px-3 py-3">Active Time</th><th className="px-3 py-3 text-right">Moderasi</th></tr>
+                  <thead className="bg-gray-50 font-[Arial] text-[10px] uppercase tracking-wider text-gray-500 dark:bg-[#282828]">
+                    <tr><th className="px-3 py-3">Rank</th><th className="px-3 py-3">Player</th><th className="px-3 py-3">Game</th><th className="px-3 py-3">Score</th><th className="px-3 py-3">Accuracy</th><th className="px-3 py-3">Attempts</th><th className="px-3 py-3">Active Time</th><th className="px-3 py-3 text-right">Moderation</th></tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                     {rankedRows.map((row) => <tr key={row.id} className="bg-white dark:bg-[#242424]">
-                      <td className="px-3 py-3 font-mono font-bold">#{row.rank}</td>
-                      <td className="px-3 py-3"><strong className="block max-w-48 truncate">{row.playerName || 'Anonymous'}</strong><span className="mt-0.5 block max-w-48 truncate font-mono text-[9px] text-gray-400">{row.playerId || 'legacy'}</span></td>
-                      <td className="px-3 py-3 font-mono uppercase">{(row.gameId || 'red-pen').replace(/-/g, ' ')}</td>
-                      <td className="px-3 py-3 font-mono font-bold">{row.score}</td>
+                      <td className="px-3 py-3 font-[Arial] font-bold">#{row.rank}</td>
+                      <td className="px-3 py-3"><strong className="block max-w-48 truncate">{row.playerName || 'Anonymous'}</strong><span className="mt-0.5 block max-w-48 truncate font-[Arial] text-[9px] text-gray-400">{row.playerId || 'legacy'}</span></td>
+                      <td className="px-3 py-3 font-[Arial] uppercase">{(row.gameId || 'red-pen').replace(/-/g, ' ')}</td>
+                      <td className="px-3 py-3 font-[Arial] font-bold">{row.score}</td>
                       <td className="px-3 py-3">{row.accuracy}%</td>
                       <td className="px-3 py-3">{row.attempts}</td>
-                      <td className="px-3 py-3 font-mono">{Math.floor((row.activeSeconds || 0) / 60)}:{String((row.activeSeconds || 0) % 60).padStart(2, '0')}</td>
-                      <td className="px-3 py-3 text-right"><button type="button" disabled={deletingLeaderboardId === row.id} onClick={() => requestRemoveLeaderboardEntry(row)} className="rounded border border-red-200 px-2.5 py-1.5 text-[10px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:hover:bg-red-950/20">{deletingLeaderboardId === row.id ? 'Menghapus…' : 'Hapus'}</button></td>
+                      <td className="px-3 py-3 font-[Arial]">{Math.floor((row.activeSeconds || 0) / 60)}:{String((row.activeSeconds || 0) % 60).padStart(2, '0')}</td>
+                      <td className="px-3 py-3 text-right"><button type="button" disabled={deletingLeaderboardId === row.id} onClick={() => requestRemoveLeaderboardEntry(row)} className="rounded border border-red-200 px-2.5 py-1.5 text-[10px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:hover:bg-red-950/20">{deletingLeaderboardId === row.id ? 'Removing…' : 'Remove'}</button></td>
                     </tr>)}
-                    {!leaderboardLoading && !rankedRows.length && <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500">Belum ada pemain di klasemen ini.</td></tr>}
-                    {leaderboardLoading && !rankedRows.length && <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500">Memuat klasemen…</td></tr>}
+                    {!leaderboardLoading && !rankedRows.length && <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500">No players on this leaderboard yet.</td></tr>}
+                    {leaderboardLoading && !rankedRows.length && <tr><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500">Loading leaderboard…</td></tr>}
                   </tbody>
                 </table>
               </div>
               {leaderboardDeleteTarget && <div className="fixed inset-0 z-[9999] grid place-items-center bg-black/45 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !deletingLeaderboardId) setLeaderboardDeleteTarget(null); }}>
                 <div role="dialog" aria-modal="true" aria-labelledby="leaderboard-delete-title" className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-5 shadow-2xl dark:border-gray-700 dark:bg-[#242424]">
-                  <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-blue-600">Leaderboard Systems</p>
-                  <h3 id="leaderboard-delete-title" className="mt-2 text-base font-bold text-gray-900 dark:text-white">Hapus {leaderboardDeleteTarget.playerName || 'pemain ini'} dari klasemen {(leaderboardDeleteTarget.gameId || 'Mini Game').replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())}?</h3>
-                  <p className="mt-2 text-xs leading-relaxed text-gray-500">Entry pemain ini untuk game tersebut akan dihapus dari klasemen.</p>
+                  <p className="font-[Arial] text-[10px] font-bold uppercase tracking-[0.16em] text-blue-600">Leaderboard Systems</p>
+                  <h3 id="leaderboard-delete-title" className="mt-2 text-base font-bold text-gray-900 dark:text-white">Remove {leaderboardDeleteTarget.playerName || 'this player'} from leaderboard {(leaderboardDeleteTarget.gameId || 'Mini Game').replace(/-/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())}?</h3>
+                  <p className="mt-2 text-xs leading-relaxed text-gray-500">This player entry for the selected game will be removed from the leaderboard.</p>
                   <div className="mt-5 flex justify-end gap-2">
                     <button type="button" disabled={Boolean(deletingLeaderboardId)} onClick={() => setLeaderboardDeleteTarget(null)} className="rounded border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-600 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300">Batal</button>
-                    <button type="button" disabled={Boolean(deletingLeaderboardId)} onClick={confirmRemoveLeaderboardEntry} className="rounded border border-red-600 bg-red-600 px-3 py-2 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50">{deletingLeaderboardId ? 'Menghapus…' : 'Hapus Pemain'}</button>
+                    <button type="button" disabled={Boolean(deletingLeaderboardId)} onClick={confirmRemoveLeaderboardEntry} className="rounded border border-red-600 bg-red-600 px-3 py-2 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50">{deletingLeaderboardId ? 'Removing…' : 'Remove Player'}</button>
                   </div>
                 </div>
               </div>}
-              <p className="text-[10px] leading-relaxed text-gray-400">Ranking mengikuti urutan yang sama dengan game: score tertinggi, accuracy tertinggi, active time tercepat, lalu record lebih awal. Hapus hanya menghapus entry klasemen pemain tersebut untuk game terkait.</p>
+              <p className="text-[10px] leading-relaxed text-gray-400">Ranking follows the same order as the game: highest score, highest accuracy, fastest active time, then earlier records. Remove deletes only that player’s leaderboard entry for the selected game.</p>
             </div>
           );
         })()}
@@ -5898,6 +10062,47 @@ export default function CmsDashboard({ data, onSave }) {
             }));
           };
 
+          const updateContextualLabel = (root, key, value) => {
+            const path = `${root}.${key}`;
+            if (cmsLanguage === 'en') {
+              setSourceFormData((previous) => {
+                const sourceValue = previous?.[root]?.[key] ?? '';
+                const nextTranslations = {
+                  ...(previous.translations || {}),
+                  en: { ...(previous.translations?.en || {}) },
+                };
+                if (String(value).trim() && value !== sourceValue) nextTranslations.en[path] = value;
+                else delete nextTranslations.en[path];
+                return { ...previous, translations: nextTranslations };
+              });
+              return;
+            }
+            setSourceFormData((previous) => ({
+              ...previous,
+              [root]: { ...(previous?.[root] || {}), [key]: value },
+            }));
+          };
+
+          const contextualField = (label, root, key, fallback) => {
+            const localizedRoot = root === 'books' ? formData.books : formData[root];
+            const sourceRoot = root === 'books' ? sourceFormData.books : sourceFormData[root];
+            const localizedValue = localizedRoot?.[key];
+            const sourceValue = sourceRoot?.[key] ?? fallback;
+            return (
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold text-gray-600 dark:text-gray-300">{label}</span>
+                <input
+                  type="text"
+                  value={cmsLanguage === 'en' ? (localizedValue || '') : (localizedValue ?? fallback)}
+                  data-id-source={sourceValue}
+                  onChange={(event) => updateContextualLabel(root, key, event.target.value)}
+                  placeholder={cmsLanguage === 'en' ? 'Write the English version here…' : ''}
+                  className={inputCls}
+                />
+              </label>
+            );
+          };
+
           const field = (label, group, key, fallback) => {
             const localizedValue = group === 'top' ? top[key] : quick[key];
             const sourceGroup = sourceFormData.home?.navigationLabels?.[group] || {};
@@ -5911,7 +10116,7 @@ export default function CmsDashboard({ data, onSave }) {
                   value={cmsLanguage === 'en' ? (localizedValue || '') : (localizedValue ?? fallback)}
                   data-id-source={sourceValue}
                   onChange={(event) => updateNavigationLabel(group, key, event.target.value)}
-                  placeholder={cmsLanguage === 'en' ? 'Tulis versi English di sini…' : ''}
+                  placeholder={cmsLanguage === 'en' ? 'Write the English version here…' : ''}
                   className={inputCls}
                 />
               </label>
@@ -5940,8 +10145,18 @@ export default function CmsDashboard({ data, onSave }) {
                 </div>
               </CollapsibleSection>
 
+              <CollapsibleSection sectionKey="navigation-labels-contextual" title="Contextual Back Labels">
+                <p className="mb-3 text-[10px] leading-relaxed text-gray-400">One place for public Back labels that used to be scattered across page editors. This changes text only; navigation behavior stays locked.</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {contextualField('Projects — Back to Index', 'projects', 'backLabel', 'Back')}
+                  {contextualField('Career — Back', 'career', 'backLabel', 'Back')}
+                  {contextualField('Career — Credentials Back', 'career', 'credentialsBackLabel', 'Back')}
+                  {contextualField('Books — Back', 'books', 'backLabel', 'Back')}
+                </div>
+              </CollapsibleSection>
+
               <CollapsibleSection sectionKey="navigation-labels-quick-views" title="Quick Views / A4 Navigation">
-                <div className="mb-3 rounded border border-gray-200 bg-white px-3 py-2 font-mono text-[10px] leading-relaxed text-gray-400 dark:border-gray-700 dark:bg-[#202020]">
+                <div className="mb-3 rounded border border-gray-200 bg-white px-3 py-2 font-[Arial] text-[10px] leading-relaxed text-gray-400 dark:border-gray-700 dark:bg-[#202020]">
                   FIXED ORDER: Selected Works → Experience → Contact → divider → Wassup? → Mini Games
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -5969,13 +10184,13 @@ export default function CmsDashboard({ data, onSave }) {
           <div className="space-y-3">
             <h2 className="text-sm font-bold border-b pb-2 border-gray-100 dark:border-gray-800 text-blue-600 dark:text-blue-400">Tab General</h2>
             <p className="text-xs text-gray-500 italic">
-              Pengaturan situs secara keseluruhan — bukan punya satu halaman tertentu, jadi
+              Settings situs secara keseluruhan — bukan punya satu halaman tertentu, jadi
               kepisah dari 6 tab konten di atas.
             </p>
 
             <CollapsibleSection sectionKey="general-mechanical-sound" title="Mechanical Interaction Sound">
 
-              <div><h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">Mechanical Interaction Sound</h3><p className="text-[11px] text-gray-400 mt-0.5">Suara klik mekanis setelah pengunjung berinteraksi pertama kali. Pengunjung tetap bisa mematikannya dari Title Bar.</p></div>
+              <div><h3 className="text-xs font-bold text-gray-800 dark:text-gray-100">Mechanical Interaction Sound</h3><p className="text-[11px] text-gray-400 mt-0.5">Mechanical click sound after the visitor’s first interaction. Visitors can still turn it off from the Title Bar.</p></div>
               <button type="button" onClick={() => setFormData((previous) => ({ ...previous, general: { ...previous.general, soundEffects: !previous.general.soundEffects } }))} className={`shrink-0 w-11 h-6 rounded-full transition-colors relative ${formData.general.soundEffects ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
                 <span className={`absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${formData.general.soundEffects ? 'translate-x-5' : 'translate-x-0'}`} />
               </button>
@@ -5999,7 +10214,7 @@ export default function CmsDashboard({ data, onSave }) {
                   className={`shrink-0 w-11 h-6 rounded-full transition-colors relative ${
                     formData.general.welcomeNotification.enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
                   }`}
-                  title={formData.general.welcomeNotification.enabled ? 'Aktif — klik buat matiin' : 'Mati — klik buat nyalain'}
+                  title={formData.general.welcomeNotification.enabled ? 'Active — click to turn off' : 'Off — click to turn on'}
                 >
                   <span
                     className={`absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
@@ -6009,12 +10224,12 @@ export default function CmsDashboard({ data, onSave }) {
                 </button>
               </div>
 
-              <Field label="Kode versi patch" sourceValue={sourceFormData.general.welcomeNotification.version || ''} cmsLanguage={cmsLanguage}>
+              <Field label="Patch Version Code" sourceValue={sourceFormData.general.welcomeNotification.version || ''} cmsLanguage={cmsLanguage}>
                 <input
                   type="text"
                   value={formData.general.welcomeNotification.version || ''}
                   onChange={(e) => setWelcomeNotification('version', e.target.value)}
-                  placeholder="Contoh: 1.1.0 atau 23-09-2026"
+                  placeholder="Example: 1.1.0 or 23-09-2026"
                   className={inputCls}
                 />
                 <p className="mt-1 text-[10px] text-gray-400">
@@ -6022,7 +10237,7 @@ export default function CmsDashboard({ data, onSave }) {
                 </p>
               </Field>
 
-              <Field label="Judul update" sourceValue={sourceFormData.general.welcomeNotification.title} cmsLanguage={cmsLanguage}>
+              <Field label="Update Title" sourceValue={sourceFormData.general.welcomeNotification.title} cmsLanguage={cmsLanguage}>
                 <input
                   type="text"
                   value={formData.general.welcomeNotification.title}
@@ -6032,7 +10247,7 @@ export default function CmsDashboard({ data, onSave }) {
                 />
               </Field>
 
-              <Field label="Daftar update">
+              <Field label="Update List">
                 <div className="max-h-[360px] overflow-y-auto pr-1 space-y-2">
                   {(formData.general.welcomeNotification.items || []).map((item, index) => (
                     <div key={`patch-item-${index}`} className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-[#242424]">
@@ -6043,29 +10258,23 @@ export default function CmsDashboard({ data, onSave }) {
                         <div className="flex items-center gap-1">
                           <button type="button" onClick={() => moveWelcomePatchItem(index, -1)} disabled={index === 0} className="px-1 text-[10px] text-gray-400 hover:text-gray-700 disabled:opacity-20 dark:hover:text-gray-200">▲</button>
                           <button type="button" onClick={() => moveWelcomePatchItem(index, 1)} disabled={index === (formData.general.welcomeNotification.items || []).length - 1} className="px-1 text-[10px] text-gray-400 hover:text-gray-700 disabled:opacity-20 dark:hover:text-gray-200">▼</button>
-                          <button type="button" onClick={() => removeWelcomePatchItem(index)} className="ml-1 text-[10px] font-semibold text-red-500 hover:text-red-600">Hapus</button>
+                          <button type="button" onClick={() => removeWelcomePatchItem(index)} className="ml-1 text-[10px] font-semibold text-red-500 hover:text-red-600">Remove</button>
                         </div>
                       </div>
                       <input
                         type="text"
                         value={item?.title || ''}
                         onChange={(e) => setWelcomePatchItem(index, 'title', e.target.value)}
-                        placeholder="Judul update"
+                        placeholder="Update Title"
                         className={inputCls}
                       />
-                      <textarea
-                        rows={2}
-                        value={item?.description || ''}
-                        onChange={(e) => setWelcomePatchItem(index, 'description', e.target.value)}
-                        placeholder="Apa yang berubah?"
-                        className={`${inputCls} mt-2 resize-y`}
-                      />
+                      <RichTextEditor fieldMode initialValue={item?.description || ''} onChange={(html) => setWelcomePatchItem(index, 'description', html)} placeholder="What changed?" />
                     </div>
                   ))}
                 </div>
                 {(formData.general.welcomeNotification.items || []).length === 0 && (
                   <p className="mb-2 text-[10px] text-gray-400">
-                    Belum ada daftar update. Selama kosong, notifikasi publik tetap memakai Isi Patch lama agar data lama tidak hilang.
+                    None yet daftar update. Selama kosong, notifikasi publik tetap memakai Isi Patch lama agar data lama tidak hilang.
                   </p>
                 )}
                 <button
@@ -6073,24 +10282,18 @@ export default function CmsDashboard({ data, onSave }) {
                   onClick={addWelcomePatchItem}
                   className="mt-2 text-xs px-3 py-1.5 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-300 rounded font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/40"
                 >
-                  + Tambah Update
+                  + Add Update
                 </button>
               </Field>
 
               <Field label="Isi patch lama (fallback)" sourceValue={sourceFormData.general.welcomeNotification.message} cmsLanguage={cmsLanguage}>
-                <textarea
-                  rows={2}
-                  value={formData.general.welcomeNotification.message}
-                  onChange={(e) => setWelcomeNotification('message', e.target.value)}
-                  placeholder="Dipakai hanya kalau Daftar Update masih kosong."
-                  className={`${inputCls} resize-y`}
-                />
+                <RichTextEditor fieldMode initialValue={formData.general.welcomeNotification.message} onChange={(html) => setWelcomeNotification('message', html)} placeholder="Used only when the Update List is still empty." />
                 <p className="mt-1 text-[10px] text-gray-400">
                   Disimpan untuk kompatibilitas data lama. Kalau Daftar Update sudah berisi item, tampilan publik memakai daftar di atas.
                 </p>
               </Field>
 
-              <Field label="Muncul setelah (detik)" sourceValue={sourceFormData.general.welcomeNotification.delaySeconds} cmsLanguage={cmsLanguage}>
+              <Field label="Appear after (seconds)" sourceValue={sourceFormData.general.welcomeNotification.delaySeconds} cmsLanguage={cmsLanguage}>
                 <input
                   type="number"
                   min={0}

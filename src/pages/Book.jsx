@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import InteractiveText from '../components/InteractiveText';
+import RichContent from '../components/RichContent';
 
 const STATUS_STYLE = {
   published: { label: 'Published', className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800' },
@@ -55,7 +56,13 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
   const bookData = data || {};
   const heading = bookData.heading ?? '';
   const subheading = bookData.subheading ?? '';
-  const items = useMemo(() => (Array.isArray(bookData.items) ? bookData.items : []), [bookData.items]);
+  const backButtonLabel = String(bookData.backLabel || 'Back').trim() || 'Back';
+  const worksTabLabel = String(bookData.worksTabLabel || 'My Books').trim() || 'My Books';
+  const readingTabLabel = String(bookData.readingTabLabel || 'Books I Read').trim() || 'Books I Read';
+  const workItems = useMemo(() => (Array.isArray(bookData.items) ? bookData.items : []), [bookData.items]);
+  const readingItems = useMemo(() => (Array.isArray(bookData.readingItems) ? bookData.readingItems : []), [bookData.readingItems]);
+  const [bookTab, setBookTab] = useState('works');
+  const items = bookTab === 'reading' ? readingItems : workItems;
   const [selectedId, setSelectedId] = useState(null);
   const [detailId, setDetailId] = useState(null);
   const coverSwipeStart = useRef(null);
@@ -74,12 +81,18 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
 
   useEffect(() => {
     if (!initialBookId || !navigationRequestKey) return;
-    const target = items.find((item) => item.id === initialBookId);
+    const target = workItems.find((item) => item.id === initialBookId);
     if (target) {
+      setBookTab('works');
       setSelectedId(target.id);
       setDetailId(target.id);
     }
-  }, [initialBookId, navigationRequestKey, items]);
+  }, [initialBookId, navigationRequestKey, workItems]);
+
+  useEffect(() => {
+    setSelectedId(null);
+    setDetailId(null);
+  }, [bookTab]);
 
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -89,8 +102,16 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  const bookTabs = (
+    <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label="Book sections">
+      {[['works', worksTabLabel], ['reading', readingTabLabel]].map(([key, label]) => (
+        <button key={key} type="button" role="tab" aria-selected={bookTab === key} onClick={() => setBookTab(key)} className={`shrink-0 rounded px-3 py-2 font-mono text-[0.625em] font-bold uppercase tracking-[0.14em] transition ${bookTab === key ? 'bg-[#2B579A] text-white' : 'bg-gray-100 text-gray-500 hover:text-[#2B579A] dark:bg-[#252525] dark:text-gray-400'}`}>{label}</button>
+      ))}
+    </div>
+  );
+
   if (!items.length) {
-    return <div className="py-14 text-center text-gray-900 dark:text-gray-100"><h1 className="text-[1.5em] font-bold"><InteractiveText text={heading} rules={interactiveWords} page="Book" onNavigate={onNavigate} /></h1><p className="mt-3 text-[0.875em] italic text-gray-400">Belum ada publikasi.</p></div>;
+    return <div className="view-reveal w-full py-3 text-gray-900 dark:text-gray-100"><div className="mb-6">{bookTabs}</div><div className="py-14 text-center"><h1 className="text-[1.5em] font-bold"><InteractiveText text={heading} rules={interactiveWords} page="Book" onNavigate={onNavigate} /></h1><p className="mt-3 text-[0.875em] italic text-gray-400">{bookTab === 'reading' ? 'Belum ada buku bacaan.' : 'Belum ada publikasi.'}</p></div></div>;
   }
 
   if (detailBook) {
@@ -98,7 +119,7 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
     const detailRoles = parseRoles(detailBook.myRoles);
     return (
       <article className="view-reveal w-full py-3 text-gray-900 dark:text-gray-100">
-        <button type="button" onClick={() => setDetailId(null)} className="mb-6 inline-flex items-center gap-2 rounded font-mono text-[0.6875em] font-bold uppercase tracking-wider text-gray-500 hover:text-[#2B579A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:text-gray-400 dark:hover:text-[#6FA8DC]">← Publications</button>
+        <button type="button" onClick={() => setDetailId(null)} className="mb-6 inline-flex items-center gap-2 rounded font-mono text-[0.6875em] font-bold uppercase tracking-wider text-gray-500 hover:text-[#2B579A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:text-gray-400 dark:hover:text-[#6FA8DC]">← {backButtonLabel}</button>
         <div className="grid grid-cols-1 gap-8 md:grid-cols-[16rem_minmax(0,1fr)] md:items-start md:gap-10">
           <div>
             <div className="mx-auto flex max-w-[14rem] justify-center">
@@ -113,7 +134,7 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
             <div className="mt-3 flex flex-wrap items-center gap-2"><StatusBadge status={status} />{detailBook.category && <span className="font-mono text-[0.625em] uppercase tracking-widest text-gray-400">{detailBook.category}</span>}</div>
             <h1 className="mt-4 max-w-2xl text-[1.875em] font-semibold leading-[1.08] tracking-tight sm:text-[2.35em]">{detailBook.title}</h1>
             {detailBook.author && <p className="mt-2 text-[0.875em] text-gray-500 dark:text-gray-400">written by <span className="font-semibold text-gray-800 dark:text-gray-100">{detailBook.author}</span></p>}
-            {detailBook.pitch && <p className="mt-4 max-w-2xl text-[1em] leading-relaxed text-gray-600 dark:text-gray-300">{detailBook.pitch}</p>}
+            {detailBook.pitch && <RichContent value={detailBook.pitch} className="mt-4 max-w-2xl text-[1em] leading-relaxed text-gray-600 dark:text-gray-300" />}
 
             <dl className="mt-6 grid grid-cols-2 gap-x-5 gap-y-4 border-y border-gray-200 py-5 sm:grid-cols-3 dark:border-gray-700">
               {[
@@ -130,8 +151,8 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
             </dl>
 
             <div className="mt-6 space-y-6">
-              <section><h2 className="font-mono text-[0.625em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">About this work</h2><p className="mt-3 max-w-2xl text-[0.875em] leading-[1.75] text-gray-600 dark:text-gray-300">{detailBook.fullDescription || detailBook.summary}</p></section>
-              {detailBook.whyWritten && <section className="border-l-2 border-[#2B579A]/30 pl-4 dark:border-[#6FA8DC]/30"><h2 className="font-mono text-[0.625em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">Why I wrote this</h2><p className="mt-2 max-w-2xl text-[0.875em] italic leading-[1.75] text-gray-600 dark:text-gray-300">{detailBook.whyWritten}</p></section>}
+              <section><h2 className="font-mono text-[0.625em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">About this work</h2><RichContent value={detailBook.fullDescription || detailBook.summary} className="mt-3 max-w-2xl text-[0.875em] leading-[1.75] text-gray-600 dark:text-gray-300" /></section>
+              {detailBook.whyWritten && <section className="border-l-2 border-[#2B579A]/30 pl-4 dark:border-[#6FA8DC]/30"><h2 className="font-mono text-[0.625em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">Why I wrote this</h2><RichContent value={detailBook.whyWritten} className="mt-2 max-w-2xl text-[0.875em] italic leading-[1.75] text-gray-600 dark:text-gray-300" /></section>}
             </div>
 
             <div className="mt-7 flex flex-wrap gap-3">
@@ -180,6 +201,7 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
   ].filter((note) => note.value).slice(0, 4);
   return (
     <div className="view-reveal w-full py-3 text-gray-900 dark:text-gray-100">
+      <div className="mb-6">{bookTabs}</div>
       {(heading || subheading) && <header className="border-b border-gray-200 pb-5 dark:border-gray-700">
         {heading && <h1 className="text-[1.75em] font-semibold tracking-tight sm:text-[2.2em]"><InteractiveText text={heading} rules={interactiveWords} page="Book" onNavigate={onNavigate} /></h1>}
         {subheading && <p className="mt-2 max-w-2xl text-[0.8125em] leading-relaxed text-gray-500 dark:text-gray-400"><InteractiveText text={subheading} rules={interactiveWords} page="Book" onNavigate={onNavigate} /></p>}
@@ -198,11 +220,11 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:contents">
-            {autopsyNotes.map((note, index) => <article key={note.label} className={`relative rounded-md border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-[#202020]/70 ${note.position}`}><span aria-hidden="true" className={`absolute top-1/2 hidden h-px w-8 bg-gray-300 md:block dark:bg-gray-700 ${index % 2 === 0 ? '-right-8' : '-left-8'}`} /><p className="font-mono text-[0.5625em] font-bold uppercase tracking-[0.2em] text-gray-400">{note.label}</p><p className="mt-2 text-[0.8125em] leading-relaxed text-gray-600 dark:text-gray-300">{note.value}</p></article>)}
+            {autopsyNotes.map((note, index) => <article key={note.label} className={`relative rounded-md border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-[#202020]/70 ${note.position}`}><span aria-hidden="true" className={`absolute top-1/2 hidden h-px w-8 bg-gray-300 md:block dark:bg-gray-700 ${index % 2 === 0 ? '-right-8' : '-left-8'}`} /><p className="font-mono text-[0.5625em] font-bold uppercase tracking-[0.2em] text-gray-400">{note.label}</p><RichContent value={note.value} className="mt-2 text-[0.8125em] leading-relaxed text-gray-600 dark:text-gray-300" /></article>)}
           </div>
         </div>
 
-        <div className="mx-auto mt-8 max-w-3xl border-t border-gray-200 pt-6 text-center dark:border-gray-700"><h2 className="text-[1.75em] font-semibold leading-tight tracking-tight sm:text-[2.25em]">{selectedBook.title}</h2>{selectedBook.author && <p className="mt-2 text-[0.8125em] text-gray-500 dark:text-gray-400">Written by <span className="font-semibold text-gray-800 dark:text-gray-100">{selectedBook.author}</span>{selectedBook.publisher ? ` · ${selectedBook.publisher}` : ''}</p>}{selectedRoles.length > 0 && <div className="mt-3 flex flex-wrap items-center justify-center gap-2"><span className="mr-1 font-mono text-[0.5625em] font-bold uppercase tracking-[0.18em] text-gray-400">My contribution</span>{selectedRoles.map((role) => <span key={role} className="rounded-full border border-[#2B579A]/30 bg-[#2B579A]/[0.04] px-2.5 py-1 font-mono text-[0.5625em] font-bold uppercase tracking-wider text-[#2B579A] dark:border-[#6FA8DC]/35 dark:bg-[#6FA8DC]/[0.06] dark:text-[#6FA8DC]">{role}</span>)}</div>}<p className="mx-auto mt-3 max-w-2xl text-[0.875em] leading-relaxed text-gray-600 dark:text-gray-300">{selectedBook.pitch || selectedBook.summary}</p><div className="mt-4 flex flex-wrap justify-center gap-x-5 gap-y-2 font-mono text-[0.625em] uppercase tracking-wider text-gray-400">{(selectedBook.publicationDate || selectedBook.year) && <span>{selectedBook.publicationDate || selectedBook.year}</span>}{(selectedBook.format || selectedBook.category) && <span>{selectedBook.format || selectedBook.category}</span>}{selectedBook.language && <span>{selectedBook.language}</span>}{selectedBook.pageCount && <span>{selectedBook.pageCount} pages</span>}{selectedBook.edition && <span>{selectedBook.edition}</span>}</div><button type="button" onClick={() => setDetailId(selectedBook.id)} className="mt-6 rounded-sm bg-[#2B579A] px-4 py-2.5 font-mono text-[0.6875em] font-bold uppercase tracking-wider text-white hover:bg-[#1e3f73] dark:bg-[#6FA8DC] dark:text-[#171717]">Open document →</button></div>
+        <div className="mx-auto mt-8 max-w-3xl border-t border-gray-200 pt-6 text-center dark:border-gray-700"><h2 className="text-[1.75em] font-semibold leading-tight tracking-tight sm:text-[2.25em]">{selectedBook.title}</h2>{selectedBook.author && <p className="mt-2 text-[0.8125em] text-gray-500 dark:text-gray-400">Written by <span className="font-semibold text-gray-800 dark:text-gray-100">{selectedBook.author}</span>{selectedBook.publisher ? ` · ${selectedBook.publisher}` : ''}</p>}{selectedRoles.length > 0 && <div className="mt-3 flex flex-wrap items-center justify-center gap-2"><span className="mr-1 font-mono text-[0.5625em] font-bold uppercase tracking-[0.18em] text-gray-400">My contribution</span>{selectedRoles.map((role) => <span key={role} className="rounded-full border border-[#2B579A]/30 bg-[#2B579A]/[0.04] px-2.5 py-1 font-mono text-[0.5625em] font-bold uppercase tracking-wider text-[#2B579A] dark:border-[#6FA8DC]/35 dark:bg-[#6FA8DC]/[0.06] dark:text-[#6FA8DC]">{role}</span>)}</div>}<RichContent value={selectedBook.pitch || selectedBook.summary} className="mx-auto mt-3 max-w-2xl text-[0.875em] leading-relaxed text-gray-600 dark:text-gray-300" /><div className="mt-4 flex flex-wrap justify-center gap-x-5 gap-y-2 font-mono text-[0.625em] uppercase tracking-wider text-gray-400">{(selectedBook.publicationDate || selectedBook.year) && <span>{selectedBook.publicationDate || selectedBook.year}</span>}{(selectedBook.format || selectedBook.category) && <span>{selectedBook.format || selectedBook.category}</span>}{selectedBook.language && <span>{selectedBook.language}</span>}{selectedBook.pageCount && <span>{selectedBook.pageCount} pages</span>}{selectedBook.edition && <span>{selectedBook.edition}</span>}</div><button type="button" onClick={() => setDetailId(selectedBook.id)} className="mt-6 rounded-sm bg-[#2B579A] px-4 py-2.5 font-mono text-[0.6875em] font-bold uppercase tracking-wider text-white hover:bg-[#1e3f73] dark:bg-[#6FA8DC] dark:text-[#171717]">Open document →</button></div>
         {isMobileLayout && loosePage && <div className="mx-auto mt-8 max-w-sm">{loosePage}</div>}
       </section>
 
