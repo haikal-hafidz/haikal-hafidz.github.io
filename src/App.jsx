@@ -1128,7 +1128,7 @@ export default function App() {
               {isMobileLayout ? (
                 // ===== DI HP: full-width & fluid, TANPA efek "kertas Word" & TANPA di-scale.
                 <div
-                  className="portfolio-public relative w-full px-5 py-5 text-gray-900 dark:text-gray-100 bg-white dark:bg-[#202020] space-y-12"
+                  className="portfolio-public relative w-full px-5 py-5 text-gray-900 dark:text-gray-100 bg-white dark:bg-[#202020] space-y-6"
                   style={{
                     fontFamily,
                     fontSize: `${fontSize * 0.95}pt`,
@@ -1179,22 +1179,27 @@ export default function App() {
                   </Suspense>
                 </div>
               ) : (
-                <div ref={desktopStageRef} className="relative w-full flex flex-col items-center gap-6 py-2">
+                <div ref={desktopStageRef} className="relative w-full flex flex-col items-center gap-5 py-2">
                   <Suspense fallback={null}>
-                    {VALID_TABS.map((tab) => (
-                      <section key={tab} id={`section-${tab}`} className="w-full flex justify-center scroll-mt-24">
+                    {VALID_TABS.map((tab) => {
+                      const scaleFactor = (zoomLevel / 100) * BASE_VIEW_SCALE;
+                      return (
+                      <section
+                        key={tab}
+                        id={`section-${tab}`}
+                        className="w-full flex justify-center scroll-mt-24"
+                      >
                         <div
                           ref={tab === activeTab ? desktopPageRef : null}
                           className={`portfolio-public relative transition-all duration-300 text-gray-900 dark:text-gray-100 ${railPrintedTab === tab ? 'rail-page-print-in' : ''} ${
                             viewMode === 'print'
                               ? 'word-page'
-                              : `w-full max-w-4xl bg-white dark:bg-[#202020] p-8 sm:p-12 ${tab === 'Home' ? 'min-h-[450px]' : 'min-h-[600px]'} rounded shadow-xl border border-gray-300 dark:border-gray-700`
+                              : `w-full max-w-4xl bg-white dark:bg-[#202020] p-8 sm:p-12 rounded shadow-xl border border-gray-300 dark:border-gray-700`
                           }`}
                           style={{
                             fontFamily: fontFamily,
                             fontSize: `${fontSize}pt`,
-                            transform: `scale(${(zoomLevel / 100) * BASE_VIEW_SCALE})`,
-                            transformOrigin: 'top center'
+                            zoom: scaleFactor
                           }}
                         >
                           <div key={`public-language-${language}-${tab}`} data-public-language={language} className={`relative z-10 w-full h-full ${isBold ? 'font-bold' : ''} ${isItalic ? 'italic' : ''} ${isUnderline ? 'underline' : ''}`}>
@@ -1236,7 +1241,8 @@ export default function App() {
                           </div>
                         </div>
                       </section>
-                    ))}
+                    );
+                    })}
                   </Suspense>
                 </div>
               )}
