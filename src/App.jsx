@@ -456,7 +456,7 @@ export default function App() {
   // Baca deep-link dari URL pas app pertama kali dibuka (mis. ?tab=Projects&article=art-1),
   // dipakai buat fitur Share artikel — biar link yang di-share beneran ngarah ke artikel
   // yang dimaksud, bukan cuma mendarat di Home. `initialArticleId` diteruskan ke Projects.jsx.
-  const VALID_TABS = ['Home', 'About', 'Projects', 'Career', 'Book', 'Contact'];
+  const VALID_TABS = useMemo(() => ['Home', 'About', 'Projects', 'Career', 'Book', 'Contact'], []);
   const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const urlTab = urlParams?.get('tab');
   const initialArticleId = urlParams?.get('article') || null;
@@ -464,19 +464,84 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(
     VALID_TABS.includes(urlTab) ? urlTab : 'Home'
   );
+
+  const sectionRefs = useRef({});
+  const ignoreObserverRef = useRef(false);
+
+  const handleNavigate = useCallback((tab) => {
+    if (!VALID_TABS.includes(tab)) return;
+    setActiveTab(tab);
+    const el = document.getElementById(`section-${tab}`);
+    if (el) {
+      ignoreObserverRef.current = true;
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(() => {
+        ignoreObserverRef.current = false;
+      }, 1000);
+    }
+  }, [VALID_TABS]);
+
   const openPrintedTab = useCallback((tab) => {
     if (railPrintTimerRef.current) window.clearTimeout(railPrintTimerRef.current);
     setRailPrintedTab(tab);
-    setActiveTab(tab);
+    handleNavigate(tab);
     railPrintTimerRef.current = window.setTimeout(() => {
       setRailPrintedTab(null);
       railPrintTimerRef.current = null;
     }, 680);
-  }, []);
+  }, [handleNavigate]);
 
   useEffect(() => () => {
     if (railPrintTimerRef.current) window.clearTimeout(railPrintTimerRef.current);
   }, []);
+
+  // Update activeTab as user scrolls through the continuous sections
+  useEffect(() => {
+    if (isAdminMode || isLoading) return;
+
+    const handleScroll = () => {
+      if (ignoreObserverRef.current) return;
+
+      const viewportCenter = window.innerHeight / 2;
+      let closestSection = null;
+      let minDistance = Infinity;
+
+      VALID_TABS.forEach((key) => {
+        const el = document.getElementById(`section-${key}`);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          // Find section whose top is closest to the middle of the viewport
+          const distance = Math.abs(rect.top - viewportCenter / 2);
+          if (rect.top <= viewportCenter + 150 && rect.bottom >= 100) {
+            if (distance < minDistance) {
+              minDistance = distance;
+              closestSection = key;
+            }
+          }
+        }
+      });
+
+      if (closestSection && VALID_TABS.includes(closestSection)) {
+        setActiveTab((prev) => (prev !== closestSection ? closestSection : prev));
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isAdminMode, isLoading, VALID_TABS]);
+
+  // Scroll to initial section on load if specified in URL
+  useEffect(() => {
+    if (isLoading) return;
+    if (urlTab && VALID_TABS.includes(urlTab)) {
+      setTimeout(() => {
+        const el = document.getElementById(`section-${urlTab}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 150);
+    }
+  }, [isLoading, urlTab, VALID_TABS]);
 
   const [workNavigation, setWorkNavigation] = useState(null);
 
@@ -509,10 +574,11 @@ export default function App() {
     })
     .filter(Boolean), [publicPortfolioData]);
 
-  const openFeaturedWork = (work) => {
+  const openFeaturedWork = useCallback((work) => {
     setWorkNavigation({ ...work, requestKey: Date.now() });
-    setActiveTab(work.type === 'book' ? 'Book' : 'Projects');
-  };
+    const targetTab = work.type === 'book' ? 'Book' : 'Projects';
+    handleNavigate(targetTab);
+  }, [handleNavigate]);
 
   // Featured Works navigation is a one-shot request. Keep it alive while the visitor
   // is on the destination page so Projects/Book can consume it, then discard it as
@@ -1026,7 +1092,7 @@ export default function App() {
             <div className="w-full sticky top-0 z-40 shadow-sm">
               <Ribbon 
                 activeTab={activeTab}
-                setActiveTab={setActiveTab}
+                setActiveTab={handleNavigate}
                 fontFamily={fontFamily}
                 setFontFamily={setFontFamily}
                 fontSize={fontSize}
@@ -1057,35 +1123,117 @@ export default function App() {
             }>
               {isMobileLayout ? (
                 // ===== DI HP: full-width & fluid, TANPA efek "kertas Word" & TANPA di-scale.
-                // Ini yang paling nentuin — versi lama maksa lebar/skala dokumen dekstop
-                // ke layar kecil, itu penyebab utama tampilannya berantakan pas dibuka di HP.
                 <div
-                  className="portfolio-public relative w-full px-5 py-5 text-gray-900 dark:text-gray-100 bg-white dark:bg-[#202020]"
+                  className="portfolio-public relative w-full px-5 py-5 text-gray-900 dark:text-gray-100 bg-white dark:bg-[#202020] space-y-12"
                   style={{
                     fontFamily,
                     fontSize: `${fontSize * 0.95}pt`,
                   }}
                 >
-                  {documentBody}
+                  <Suspense fallback={null}>
+                    <section id="section-Home" className="w-full scroll-mt-24">
+                      <Home
+                        data={publicPortfolioData.home}
+                        zineData={normalizeZine(publicPortfolioData.zine)}
+                        miniGameData={normalizeMiniGame(publicPortfolioData.miniGame)}
+                        featuredWorks={featuredWorks}
+                        onOpenWork={openFeaturedWork}
+                        interactiveWords={publicPortfolioData.interactiveWords}
+                        onNavigate={handleNavigate}
+                        showcaseOpenSound={playShowcaseOpenSound}
+                        soundEnabled={soundEnabled}/>
+                    </section>
+                    <section id="section-About" className="w-full scroll-mt-24">
+                      <About data={publicPortfolioData.about} interactiveWords={publicPortfolioData.interactiveWords} onNavigate={handleNavigate} />
+                    </section>
+                    <section id="section-Projects" className="w-full scroll-mt-24">
+                      <Projects
+                        data={publicPortfolioData.projects}
+                        interactiveWords={publicPortfolioData.interactiveWords}
+                        onNavigate={handleNavigate}
+                        initialArticleId={initialArticleId}
+                        initialWorkTarget={workNavigation?.type !== 'book' ? workNavigation : null}
+                        navigationRequestKey={workNavigation?.requestKey}
+                      />
+                    </section>
+                    <section id="section-Career" className="w-full scroll-mt-24">
+                      <Career data={publicPortfolioData.career} interactiveWords={publicPortfolioData.interactiveWords} onNavigate={handleNavigate} railStyle={null} darkMode={darkMode} />
+                    </section>
+                    <section id="section-Book" className="w-full scroll-mt-24">
+                      <Book
+                        data={publicPortfolioData.books}
+                        interactiveWords={publicPortfolioData.interactiveWords}
+                        onNavigate={handleNavigate}
+                        initialBookId={workNavigation?.type === 'book' ? workNavigation.itemId : null}
+                        navigationRequestKey={workNavigation?.requestKey}
+                        isMobileLayout={isMobileLayout}
+                      />
+                    </section>
+                    <section id="section-Contact" className="w-full scroll-mt-24">
+                      <Contact data={publicPortfolioData.contact} interactiveWords={publicPortfolioData.interactiveWords} onNavigate={handleNavigate} isMobileLayout={isMobileLayout} />
+                    </section>
+                  </Suspense>
                 </div>
               ) : (
-                <div ref={desktopStageRef} className="relative w-full flex justify-center">
-                  <div 
-                    ref={desktopPageRef}
-                    className={`portfolio-public relative transition-all duration-300 text-gray-900 dark:text-gray-100 ${railPrintedTab === activeTab ? 'rail-page-print-in' : ''} ${
-                      viewMode === 'print' 
-                        ? 'word-page' 
-                        : 'w-full max-w-4xl bg-white dark:bg-[#202020] p-8 min-h-[500px] rounded shadow-xl border border-gray-300 dark:border-gray-700'
-                    }`}
-                    style={{ 
-                      fontFamily: fontFamily, 
-                      fontSize: `${fontSize}pt`,
-                      transform: `scale(${(zoomLevel / 100) * BASE_VIEW_SCALE})`,
-                      transformOrigin: 'top center'
-                    }}
-                  >
-                    {documentBody}
-                  </div>
+                <div ref={desktopStageRef} className="relative w-full flex flex-col items-center gap-12 py-4">
+                  <Suspense fallback={null}>
+                    {VALID_TABS.map((tab) => (
+                      <section key={tab} id={`section-${tab}`} className="w-full flex justify-center scroll-mt-28">
+                        <div
+                          ref={tab === activeTab ? desktopPageRef : null}
+                          className={`portfolio-public relative transition-all duration-300 text-gray-900 dark:text-gray-100 ${railPrintedTab === tab ? 'rail-page-print-in' : ''} ${
+                            viewMode === 'print'
+                              ? 'word-page'
+                              : 'w-full max-w-4xl bg-white dark:bg-[#202020] p-8 sm:p-12 min-h-[1050px] rounded shadow-xl border border-gray-300 dark:border-gray-700'
+                          }`}
+                          style={{
+                            fontFamily: fontFamily,
+                            fontSize: `${fontSize}pt`,
+                            transform: `scale(${(zoomLevel / 100) * BASE_VIEW_SCALE})`,
+                            transformOrigin: 'top center'
+                          }}
+                        >
+                          <div key={`public-language-${language}-${tab}`} data-public-language={language} className={`relative z-10 w-full h-full ${isBold ? 'font-bold' : ''} ${isItalic ? 'italic' : ''} ${isUnderline ? 'underline' : ''}`}>
+                            {tab === 'Home' && (
+                              <Home
+                                data={publicPortfolioData.home}
+                                zineData={normalizeZine(publicPortfolioData.zine)}
+                                miniGameData={normalizeMiniGame(publicPortfolioData.miniGame)}
+                                featuredWorks={featuredWorks}
+                                onOpenWork={openFeaturedWork}
+                                interactiveWords={publicPortfolioData.interactiveWords}
+                                onNavigate={handleNavigate}
+                                showcaseOpenSound={playShowcaseOpenSound}
+                                soundEnabled={soundEnabled}/>
+                            )}
+                            {tab === 'About' && <About data={publicPortfolioData.about} interactiveWords={publicPortfolioData.interactiveWords} onNavigate={handleNavigate} />}
+                            {tab === 'Projects' && (
+                              <Projects
+                                data={publicPortfolioData.projects}
+                                interactiveWords={publicPortfolioData.interactiveWords}
+                                onNavigate={handleNavigate}
+                                initialArticleId={initialArticleId}
+                                initialWorkTarget={workNavigation?.type !== 'book' ? workNavigation : null}
+                                navigationRequestKey={workNavigation?.requestKey}
+                              />
+                            )}
+                            {tab === 'Career' && <Career data={publicPortfolioData.career} interactiveWords={publicPortfolioData.interactiveWords} onNavigate={handleNavigate} railStyle={!isAdminMode && !isMobileLayout && activeTab === 'Career' ? desktopRailStyle : null} darkMode={darkMode} />}
+                            {tab === 'Book' && (
+                              <Book
+                                data={publicPortfolioData.books}
+                                interactiveWords={publicPortfolioData.interactiveWords}
+                                onNavigate={handleNavigate}
+                                initialBookId={workNavigation?.type === 'book' ? workNavigation.itemId : null}
+                                navigationRequestKey={workNavigation?.requestKey}
+                                isMobileLayout={isMobileLayout}
+                              />
+                            )}
+                            {tab === 'Contact' && <Contact data={publicPortfolioData.contact} interactiveWords={publicPortfolioData.interactiveWords} onNavigate={handleNavigate} isMobileLayout={isMobileLayout} />}
+                          </div>
+                        </div>
+                      </section>
+                    ))}
+                  </Suspense>
                 </div>
               )}
             </div>
