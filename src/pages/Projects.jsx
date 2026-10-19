@@ -85,8 +85,8 @@ function ThreeColumnIndexListing({
   items,
   onOpen,
   hintPrefix,
-  getMeta = (item) => item.date || item.year || '',
-  getGenre = (item) => item.category || item.genre || item.type || '',
+  getMeta = (item) => item.date || item.year || item.created_at || item.publishedDate || item.published_at || (item.year ? String(item.year) : '2026'),
+  getGenre = (item) => item.category || item.genre || item.type || 'General',
 }) {
   if (!items || items.length === 0) return null;
 
@@ -1155,9 +1155,9 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
   const customSections = useMemo(() => projectsData.customSections || [], [projectsData.customSections]);
   // Label tab navigasi buat Articles & Poster — bisa diganti bebas lewat CMS, kosong
   // berarti pakai nama bawaan.
-  const articlesLabel = projectsData.articlesLabel ?? '';
+  const articlesLabel = projectsData.articlesLabel?.trim() || 'Articles';
   const directingLabel = projectsData.directingLabel?.trim() || 'Directing';
-  const posterLabel = projectsData.posterLabel ?? '';
+  const posterLabel = projectsData.posterLabel?.trim() || 'Poster';
   const backButtonLabel = projectsData.backLabel?.trim() || 'Back';
 
   // Semua tab navigasi jadi 1 daftar: Articles & Poster bawaan, diikuti tab tambahan
@@ -1269,7 +1269,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     })),
   ], [articles, articlesLabel, directingItems, directingLabel, posterItems, posterLabel, customSections, projectsData.articlesDescription, projectsData.directingDescription, projectsData.posterDescription]);
   const visibleProjectSections = useMemo(
-    () => projectSections.filter((section) => section.count > 0),
+    () => projectSections.filter((section) => section.label?.trim()),
     [projectSections]
   );
 
@@ -1677,49 +1677,18 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
       {activeCategory === 'overview' && (
         <section className="view-reveal py-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {visibleProjectSections.map((section) => {
-              if (section.key === 'poster') {
-                return (
-                  <button
-                    key={section.key}
-                    type="button"
-                    onClick={() => setActiveCategory(section.key)}
-                    className="group relative flex flex-col justify-between p-5 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#222] hover:border-[#2B579A] dark:hover:border-[#6FA8DC] transition-all rounded-md text-left"
-                  >
-                    <div>
-                      <span className="font-mono text-[0.625em] uppercase tracking-widest text-gray-400 block mb-1">
-                        {String(section.count).padStart(2, '0')} works
-                      </span>
-                      <span className="text-[1.2em] font-bold text-gray-900 dark:text-white group-hover:text-[#2B579A] dark:group-hover:text-[#6FA8DC]">
-                        {section.label}
-                      </span>
-                    </div>
-                    {section.image && (
-                      <div className="mt-3 aspect-[16/9] w-full overflow-hidden rounded bg-gray-200 dark:bg-gray-800">
-                        <img
-                          src={projectThumbnail(section.image, 360)}
-                          alt=""
-                          className="h-full w-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                        />
-                      </div>
-                    )}
-                  </button>
-                );
-              }
-
-              return (
-                <button
-                  key={section.key}
-                  type="button"
-                  onClick={() => setActiveCategory(section.key)}
-                  className="flex items-center justify-center p-6 border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#222222] hover:border-gray-400 dark:hover:border-gray-500 transition-colors rounded-none text-center cursor-pointer min-h-[5rem]"
-                >
-                  <span className="text-[1.125em] font-semibold text-gray-900 dark:text-gray-100">
-                    {section.label}
-                  </span>
-                </button>
-              );
-            })}
+            {visibleProjectSections.map((section) => (
+              <button
+                key={section.key}
+                type="button"
+                onClick={() => setActiveCategory(section.key)}
+                className="flex items-center justify-center p-6 border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#222222] hover:border-gray-400 dark:hover:border-gray-500 transition-colors rounded-none text-center cursor-pointer min-h-[5rem]"
+              >
+                <span className="text-[1.125em] font-semibold text-gray-900 dark:text-gray-100">
+                  {section.label}
+                </span>
+              </button>
+            ))}
           </div>
         </section>
       )}
