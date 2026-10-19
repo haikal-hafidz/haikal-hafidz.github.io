@@ -885,17 +885,18 @@ export default function App() {
   }, [activeTab, isMobileLayout, viewMode, zoomLevel, isLoading]);
 
   useLayoutEffect(() => {
-    if (isMobileLayout || !['Home', 'About'].includes(activeTab)) {
+    if (isMobileLayout) {
       setDesktopLeftRailStyle(null);
       return undefined;
     }
     const measureLeftRail = () => {
-      const page = desktopPageRef.current;
-      if (!page) return;
-      const pageRect = page.getBoundingClientRect();
+      const stage = desktopStageRef.current;
+      if (!stage) return;
+      const stageRect = stage.getBoundingClientRect();
       const gap = 18;
       const outerMargin = 18;
-      const width = Math.floor(pageRect.left - gap - outerMargin);
+      const pageLeft = stageRect.left + (stageRect.width - Math.min(stageRect.width, 896)) / 2;
+      const width = Math.floor(pageLeft - gap - outerMargin);
       if (width < 150) {
         setDesktopLeftRailStyle(null);
         return;
@@ -904,7 +905,7 @@ export default function App() {
         position: 'fixed',
         left: outerMargin,
         width: Math.min(width, 280),
-        top: Math.max(18, Math.ceil(pageRect.top + 28)),
+        top: 140,
         fontFamily,
         fontSize: `${fontSize}pt`,
       });
@@ -1178,16 +1179,16 @@ export default function App() {
                   </Suspense>
                 </div>
               ) : (
-                <div ref={desktopStageRef} className="relative w-full flex flex-col items-center gap-12 py-4">
+                <div ref={desktopStageRef} className="relative w-full flex flex-col items-center gap-6 py-2">
                   <Suspense fallback={null}>
                     {VALID_TABS.map((tab) => (
-                      <section key={tab} id={`section-${tab}`} className="w-full flex justify-center scroll-mt-28">
+                      <section key={tab} id={`section-${tab}`} className="w-full flex justify-center scroll-mt-24">
                         <div
                           ref={tab === activeTab ? desktopPageRef : null}
                           className={`portfolio-public relative transition-all duration-300 text-gray-900 dark:text-gray-100 ${railPrintedTab === tab ? 'rail-page-print-in' : ''} ${
                             viewMode === 'print'
                               ? 'word-page'
-                              : 'w-full max-w-4xl bg-white dark:bg-[#202020] p-8 sm:p-12 min-h-[1050px] rounded shadow-xl border border-gray-300 dark:border-gray-700'
+                              : `w-full max-w-4xl bg-white dark:bg-[#202020] p-8 sm:p-12 ${tab === 'Home' ? 'min-h-[450px]' : 'min-h-[600px]'} rounded shadow-xl border border-gray-300 dark:border-gray-700`
                           }`}
                           style={{
                             fontFamily: fontFamily,
@@ -1259,19 +1260,7 @@ export default function App() {
           />
         )}
 
-        {!isAdminMode && activeTab === 'About' && (isMobileLayout || desktopLeftRailStyle) && (
-          <LastFmFootnote
-            data={normalizeAbout(portfolioData.about).listeningFootnote}
-            style={isMobileLayout ? undefined : {
-              ...desktopLeftRailStyle,
-              fontFamily,
-              fontSize: `${fontSize}pt`,
-            }}
-            darkMode={darkMode}
-          />
-        )}
-
-        {!isAdminMode && !isMobileLayout && activeTab === 'Home' && desktopLeftRailStyle && (
+        {!isAdminMode && !isMobileLayout && desktopLeftRailStyle && (
           <VisitorIntroduction
             data={normalizeHome(publicPortfolioData.home).visitorIntroduction}
             style={desktopLeftRailStyle}
@@ -1279,13 +1268,26 @@ export default function App() {
             soundEnabled={soundEnabled && portfolioData.general?.soundEffects !== false}
             hintActive={hintActive}
             homeNavigation={{
-              onNavigate: setActiveTab,
+              onNavigate: handleNavigate,
               onPrintNavigate: openPrintedTab,
               zineEnabled: normalizeZine(portfolioData.zine).enabled !== false,
               zineLabel: normalizeZine(portfolioData.zine).menuLabel || '',
               gameEnabled: normalizeMiniGame(portfolioData.miniGame).enabled !== false,
               gameLabel: normalizeMiniGame(portfolioData.miniGame).menuLabel || '',
             }}
+          />
+        )}
+
+        {!isAdminMode && (isMobileLayout || (activeTab === 'About' && desktopLeftRailStyle)) && (
+          <LastFmFootnote
+            data={normalizeAbout(portfolioData.about).listeningFootnote}
+            style={isMobileLayout ? undefined : {
+              ...desktopLeftRailStyle,
+              top: desktopLeftRailStyle.top ? desktopLeftRailStyle.top + 330 : 360,
+              fontFamily,
+              fontSize: `${fontSize}pt`,
+            }}
+            darkMode={darkMode}
           />
         )}
 
