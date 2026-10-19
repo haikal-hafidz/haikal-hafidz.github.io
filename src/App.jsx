@@ -1161,56 +1161,62 @@ export default function App() {
                 : 'w-full flex justify-center py-2 sm:py-4 px-0 sm:px-2 overflow-x-auto overflow-y-visible'
             }>
               {isMobileLayout ? (
-                // ===== DI HP: full-width & fluid, TANPA efek "kertas Word" & TANPA di-scale.
-                <div
-                  className="portfolio-public relative w-full px-5 py-5 text-gray-900 dark:text-gray-100 bg-white dark:bg-[#202020] space-y-6"
-                  style={{
-                    fontFamily,
-                    fontSize: `${fontSize * 0.95}pt`,
-                  }}
-                >
+                // ===== DI HP: A4-inspired sheet cards with outer margins, inner padding, and sheet shadows
+                <div className="w-full px-3 py-3 space-y-5">
                   <Suspense fallback={null}>
-                    <section id="section-Home" className="w-full scroll-mt-24">
-                      <Home
-                        data={publicPortfolioData.home}
-                        zineData={normalizeZine(publicPortfolioData.zine)}
-                        miniGameData={normalizeMiniGame(publicPortfolioData.miniGame)}
-                        featuredWorks={featuredWorks}
-                        onOpenWork={openFeaturedWork}
-                        interactiveWords={publicPortfolioData.interactiveWords}
-                        onNavigate={handleNavigate}
-                        showcaseOpenSound={playShowcaseOpenSound}
-                        soundEnabled={soundEnabled}/>
-                    </section>
-                    <section id="section-About" className="w-full scroll-mt-24">
-                      <About data={publicPortfolioData.about} interactiveWords={publicPortfolioData.interactiveWords} onNavigate={handleNavigate} />
-                    </section>
-                    <section id="section-Projects" className="w-full scroll-mt-24">
-                      <Projects
-                        data={publicPortfolioData.projects}
-                        interactiveWords={publicPortfolioData.interactiveWords}
-                        onNavigate={handleNavigate}
-                        initialArticleId={initialArticleId}
-                        initialWorkTarget={workNavigation?.type !== 'book' ? workNavigation : null}
-                        navigationRequestKey={workNavigation?.requestKey}
-                      />
-                    </section>
-                    <section id="section-Career" className="w-full scroll-mt-24">
-                      <Career data={publicPortfolioData.career} interactiveWords={publicPortfolioData.interactiveWords} onNavigate={handleNavigate} railStyle={null} darkMode={darkMode} />
-                    </section>
-                    <section id="section-Book" className="w-full scroll-mt-24">
-                      <Book
-                        data={publicPortfolioData.books}
-                        interactiveWords={publicPortfolioData.interactiveWords}
-                        onNavigate={handleNavigate}
-                        initialBookId={workNavigation?.type === 'book' ? workNavigation.itemId : null}
-                        navigationRequestKey={workNavigation?.requestKey}
-                        isMobileLayout={isMobileLayout}
-                      />
-                    </section>
-                    <section id="section-Contact" className="w-full scroll-mt-24">
-                      <Contact data={publicPortfolioData.contact} interactiveWords={publicPortfolioData.interactiveWords} onNavigate={handleNavigate} isMobileLayout={isMobileLayout} />
-                    </section>
+                    {VALID_TABS.map((tab) => (
+                      <section
+                        key={tab}
+                        id={`section-${tab}`}
+                        className="w-full scroll-mt-24"
+                      >
+                        <div
+                          className="portfolio-public relative w-full px-5 py-6 text-gray-900 dark:text-gray-100 bg-white dark:bg-[#202020] rounded-md shadow-md border border-gray-200 dark:border-gray-700"
+                          style={{
+                            fontFamily,
+                            fontSize: `${fontSize * 0.95}pt`,
+                          }}
+                        >
+                          {tab === 'Home' && (
+                            <Home
+                              data={publicPortfolioData.home}
+                              zineData={normalizeZine(publicPortfolioData.zine)}
+                              miniGameData={normalizeMiniGame(publicPortfolioData.miniGame)}
+                              featuredWorks={featuredWorks}
+                              onOpenWork={openFeaturedWork}
+                              interactiveWords={publicPortfolioData.interactiveWords}
+                              onNavigate={handleNavigate}
+                              showcaseOpenSound={playShowcaseOpenSound}
+                              soundEnabled={soundEnabled}/>
+                          )}
+                          {tab === 'About' && <About data={publicPortfolioData.about} interactiveWords={publicPortfolioData.interactiveWords} onNavigate={handleNavigate} />}
+                          {tab === 'Projects' && (
+                            <Projects
+                              data={publicPortfolioData.projects}
+                              interactiveWords={publicPortfolioData.interactiveWords}
+                              onNavigate={handleNavigate}
+                              initialArticleId={initialArticleId}
+                              initialWorkTarget={workNavigation?.type !== 'book' ? workNavigation : null}
+                              navigationRequestKey={workNavigation?.requestKey}
+                              readingWorkId={readingWorkId}
+                              onSetReadingWorkId={setReadingWorkId}
+                            />
+                          )}
+                          {tab === 'Career' && <Career data={publicPortfolioData.career} interactiveWords={publicPortfolioData.interactiveWords} onNavigate={handleNavigate} railStyle={null} darkMode={darkMode} />}
+                          {tab === 'Book' && (
+                            <Book
+                              data={publicPortfolioData.books}
+                              interactiveWords={publicPortfolioData.interactiveWords}
+                              onNavigate={handleNavigate}
+                              initialBookId={workNavigation?.type === 'book' ? workNavigation.itemId : null}
+                              navigationRequestKey={workNavigation?.requestKey}
+                              isMobileLayout={isMobileLayout}
+                            />
+                          )}
+                          {tab === 'Contact' && <Contact data={publicPortfolioData.contact} interactiveWords={publicPortfolioData.interactiveWords} onNavigate={handleNavigate} isMobileLayout={isMobileLayout} />}
+                        </div>
+                      </section>
+                    ))}
                   </Suspense>
                 </div>
               ) : (

@@ -110,7 +110,7 @@ function ThreeColumnIndexListing({
                 onOpen(item);
               }
             }}
-            className="group grid cursor-pointer grid-cols-[1fr_auto_auto] items-baseline gap-4 py-2 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]"
+            className="group grid cursor-pointer grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-2.5 sm:gap-4 py-2 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]"
           >
             <div className="min-w-0 pr-2">
               <h2 className="text-[0.9375em] sm:text-[1.0em] font-normal text-gray-900 dark:text-gray-100 transition group-hover:text-[#2B579A] dark:group-hover:text-[#6FA8DC] truncate">
