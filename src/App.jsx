@@ -269,6 +269,8 @@ const normalizeAbout = (raw) => ({
   },
 });
 
+const VALID_TABS = ['Home', 'About', 'Projects', 'Career', 'Book', 'Contact'];
+
 export default function App() {
   const desktopStageRef = useRef(null);
   const desktopPageRef = useRef(null);
@@ -456,7 +458,7 @@ export default function App() {
   // Baca deep-link dari URL pas app pertama kali dibuka (mis. ?tab=Projects&article=art-1),
   // dipakai buat fitur Share artikel — biar link yang di-share beneran ngarah ke artikel
   // yang dimaksud, bukan cuma mendarat di Home. `initialArticleId` diteruskan ke Projects.jsx.
-  const VALID_TABS = useMemo(() => ['Home', 'About', 'Projects', 'Career', 'Book', 'Contact'], []);
+
   const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const urlTab = urlParams?.get('tab');
   const initialArticleId = urlParams?.get('article') || null;
@@ -479,7 +481,7 @@ export default function App() {
         ignoreObserverRef.current = false;
       }, 1000);
     }
-  }, [VALID_TABS]);
+  }, []);
 
   const openPrintedTab = useCallback((tab) => {
     if (railPrintTimerRef.current) window.clearTimeout(railPrintTimerRef.current);
@@ -495,42 +497,6 @@ export default function App() {
     if (railPrintTimerRef.current) window.clearTimeout(railPrintTimerRef.current);
   }, []);
 
-  // Update activeTab as user scrolls through the continuous sections
-  useEffect(() => {
-    if (isAdminMode || isLoading) return;
-
-    const handleScroll = () => {
-      if (ignoreObserverRef.current) return;
-
-      const viewportCenter = window.innerHeight / 2;
-      let closestSection = null;
-      let minDistance = Infinity;
-
-      VALID_TABS.forEach((key) => {
-        const el = document.getElementById(`section-${key}`);
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          // Find section whose top is closest to the middle of the viewport
-          const distance = Math.abs(rect.top - viewportCenter / 2);
-          if (rect.top <= viewportCenter + 150 && rect.bottom >= 100) {
-            if (distance < minDistance) {
-              minDistance = distance;
-              closestSection = key;
-            }
-          }
-        }
-      });
-
-      if (closestSection && VALID_TABS.includes(closestSection)) {
-        setActiveTab((prev) => (prev !== closestSection ? closestSection : prev));
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isAdminMode, isLoading, VALID_TABS]);
 
   // Scroll to initial section on load if specified in URL
   useEffect(() => {
@@ -541,7 +507,7 @@ export default function App() {
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 150);
     }
-  }, [isLoading, urlTab, VALID_TABS]);
+  }, [isLoading, urlTab]);
 
   const [workNavigation, setWorkNavigation] = useState(null);
 
@@ -610,6 +576,43 @@ export default function App() {
 
   const [darkMode, setDarkMode] = useState(false);
   const [isAdminMode, setIsAdminModeRaw] = useState(false);
+
+  // Update activeTab as user scrolls through the continuous sections
+  useEffect(() => {
+    if (isAdminMode || isLoading) return;
+
+    const handleScroll = () => {
+      if (ignoreObserverRef.current) return;
+
+      const viewportCenter = window.innerHeight / 2;
+      let closestSection = null;
+      let minDistance = Infinity;
+
+      VALID_TABS.forEach((key) => {
+        const el = document.getElementById(`section-${key}`);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          // Find section whose top is closest to the middle of the viewport
+          const distance = Math.abs(rect.top - viewportCenter / 2);
+          if (rect.top <= viewportCenter + 150 && rect.bottom >= 100) {
+            if (distance < minDistance) {
+              minDistance = distance;
+              closestSection = key;
+            }
+          }
+        }
+      });
+
+      if (closestSection && VALID_TABS.includes(closestSection)) {
+        setActiveTab((prev) => (prev !== closestSection ? closestSection : prev));
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isAdminMode, isLoading]);
 
   // Status login admin SEKARANG ngikutin session Supabase Auth yang beneran (JWT
   // tervalidasi server), BUKAN lagi sessionStorage flag polos yang dulu ada di sini.
