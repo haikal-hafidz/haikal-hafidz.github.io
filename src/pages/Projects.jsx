@@ -81,21 +81,21 @@ function richTextToPlainText(value = '') {
 // (`image`/`snippet`/`date`+`author`) sama item tab tambahan (`imageUrl`/`description`,
 // belum ada field tanggal/penulis) — kalau getter-nya balikin falsy, bagian itu simply
 // gak dirender (sama kayak perilaku field opsional di tempat lain di file ini).
-function ArticleStyleListing({
+function ThreeColumnIndexListing({
   items,
   onOpen,
   hintPrefix,
-  getMeta = (item) => item.date,
-  getGenre = (item) => item.category || item.genre || item.type,
+  getMeta = (item) => item.date || item.year || '',
+  getGenre = (item) => item.category || item.genre || item.type || '',
 }) {
   if (!items || items.length === 0) return null;
 
   return (
-    <div className="divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+    <div className="w-full space-y-1 py-2">
       {items.map((item) => {
         const title = item.title || item.name || 'Untitled';
         const genre = getGenre(item) || '';
-        const date = getMeta(item) || item.year || item.date || '';
+        const date = getMeta(item) || '';
 
         return (
           <article
@@ -110,22 +110,22 @@ function ArticleStyleListing({
                 onOpen(item);
               }
             }}
-            className="group grid cursor-pointer grid-cols-[1fr_auto_auto] items-center gap-4 py-3 sm:py-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]"
+            className="group grid cursor-pointer grid-cols-[1fr_auto_auto] items-baseline gap-4 py-2 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]"
           >
             <div className="min-w-0 pr-2">
-              <h2 className="text-[0.9375em] sm:text-[1.05em] font-semibold text-gray-900 dark:text-white transition group-hover:text-[#2B579A] dark:group-hover:text-[#6FA8DC] truncate">
+              <h2 className="text-[0.9375em] sm:text-[1.0em] font-normal text-gray-900 dark:text-gray-100 transition group-hover:text-[#2B579A] dark:group-hover:text-[#6FA8DC] truncate">
                 {title}
               </h2>
             </div>
 
             <div className="text-right">
-              <span className="text-[0.75em] sm:text-[0.8125em] text-gray-500 dark:text-gray-400 font-mono whitespace-nowrap">
+              <span className="text-[0.8125em] text-gray-500 dark:text-gray-400 font-mono whitespace-nowrap">
                 {genre}
               </span>
             </div>
 
             <div className="text-right min-w-[4rem] sm:min-w-[5.5rem]">
-              <span className="text-[0.75em] sm:text-[0.8125em] text-gray-400 dark:text-gray-500 font-mono whitespace-nowrap">
+              <span className="text-[0.8125em] text-gray-400 dark:text-gray-500 font-mono whitespace-nowrap">
                 {date}
               </span>
             </div>
@@ -134,6 +134,10 @@ function ArticleStyleListing({
       })}
     </div>
   );
+}
+
+function ArticleStyleListing(props) {
+  return <ThreeColumnIndexListing {...props} />;
 }
 
 function ProjectPager({ page, totalPages, onPageChange }) {
@@ -1138,7 +1142,7 @@ function ProjectStudioRenderer({ item = {}, type = 'project' }) {
   );
 }
 
-export default function Projects({ data, initialArticleId, initialWorkTarget, navigationRequestKey, interactiveWords = [], onNavigate }) {
+export default function Projects({ data, initialArticleId, initialWorkTarget, navigationRequestKey, interactiveWords = [], onNavigate, readingWorkId, onSetReadingWorkId }) {
   const projectsData = data || {};
   const heading = projectsData.heading ?? '';
   const subheading = projectsData.subheading ?? '';
@@ -1265,7 +1269,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     })),
   ], [articles, articlesLabel, directingItems, directingLabel, posterItems, posterLabel, customSections, projectsData.articlesDescription, projectsData.directingDescription, projectsData.posterDescription]);
   const visibleProjectSections = useMemo(
-    () => projectSections.filter((section) => section.label?.trim()),
+    () => projectSections.filter((section) => section.count > 0),
     [projectSections]
   );
 
@@ -1329,6 +1333,21 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     }
   }, [navigationRequestKey, initialWorkTarget, articles, directingItems, posterItems, customSections]);
 
+  const readingWork = useMemo(() => {
+    if (!readingWorkId) return null;
+    let found = articles.find((a) => a.id === readingWorkId);
+    if (found) return found;
+    found = directingItems.find((d) => d.id === readingWorkId);
+    if (found) return found;
+    found = posterItems.find((p) => p.id === readingWorkId);
+    if (found) return found;
+    for (const section of customSections) {
+      found = (section.items || []).find((item) => item.id === readingWorkId);
+      if (found) return found;
+    }
+    return null;
+  }, [readingWorkId, articles, directingItems, posterItems, customSections]);
+
   // Deep-link: kalau app dibuka lewat link hasil Share (?tab=Projects&article=ID),
   // otomatis langsung buka artikel yang dimaksud begitu data artikel-nya kebaca.
   useEffect(() => {
@@ -1340,6 +1359,31 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialArticleId, articles.length]);
+
+  const openWork = (item) => {
+    if (!item) return;
+    // Directing item: open directing detail
+    if (activeCategory === 'directing') {
+      const idx = directingItems.indexOf(item);
+      if (idx >= 0) setSelectedDirectingIndex(idx);
+      return;
+    }
+    // Custom non-text item: open custom item detail
+    if (activeCategory.startsWith('custom:') && (activeCustomType === 'video' || activeCustomType === 'image' || activeCustomFamily === 'audio')) {
+      const idx = activeCustomItems.indexOf(item);
+      if (idx >= 0) setSelectedCustomIndex(idx);
+      return;
+    }
+    // Text-based work: trigger Reading Mode if supported
+    if (onSetReadingWorkId && item.id) {
+      onSetReadingWorkId(item.id);
+      const url = new URL(window.location.href);
+      url.searchParams.set('work', item.id);
+      window.history.pushState(null, '', url);
+      return;
+    }
+    openArticle(item);
+  };
 
   // Sinkronin URL browser tiap kali buka/tutup artikel — INI yang bikin link Share
   // beneran ngarah ke artikel yang tepat (bukan cuma mendarat di halaman awal).
@@ -1487,6 +1531,27 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     return () => window.removeEventListener('keydown', handler);
   }, [selectedGalleryIndex, activeGalleryItems.length]);
 
+  if (readingWork) {
+    const workTitle = readingWork.title || readingWork.name || 'Untitled';
+    const rawBody = readingWork.content || readingWork.wordContent || readingWork.description || readingWork.snippet || readingWork.premise || '';
+
+    return (
+      <div className="min-h-screen w-full bg-white dark:bg-[#181818] py-12 px-4 sm:px-8 flex justify-center select-text">
+        <article className="max-w-2xl w-full space-y-8">
+          <header className="border-b border-gray-200 dark:border-gray-700 pb-6">
+            <h1 className="text-[1.85em] sm:text-[2.2em] font-serif font-extrabold text-gray-900 dark:text-white leading-tight">
+              {workTitle}
+            </h1>
+          </header>
+          <div
+            className={`${ARTICLE_TEXT_CLASS} space-y-4 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
+            dangerouslySetInnerHTML={{ __html: rawBody }}
+          />
+        </article>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full text-gray-900 dark:text-gray-100 select-text py-4">
 
@@ -1537,18 +1602,49 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
       {activeCategory === 'overview' && (
         <section className="view-reveal py-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {visibleProjectSections.map((section) => (
-              <button
-                key={section.key}
-                type="button"
-                onClick={() => setActiveCategory(section.key)}
-                className="flex items-center justify-center p-6 border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#222222] hover:border-gray-400 dark:hover:border-gray-500 transition-colors rounded-none text-center cursor-pointer"
-              >
-                <span className="text-[1.125em] font-semibold text-gray-900 dark:text-gray-100">
-                  {section.label}
-                </span>
-              </button>
-            ))}
+            {visibleProjectSections.map((section) => {
+              if (section.key === 'poster') {
+                return (
+                  <button
+                    key={section.key}
+                    type="button"
+                    onClick={() => setActiveCategory(section.key)}
+                    className="group relative flex flex-col justify-between p-5 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#222] hover:border-[#2B579A] dark:hover:border-[#6FA8DC] transition-all rounded-md text-left"
+                  >
+                    <div>
+                      <span className="font-mono text-[0.625em] uppercase tracking-widest text-gray-400 block mb-1">
+                        {String(section.count).padStart(2, '0')} works
+                      </span>
+                      <span className="text-[1.2em] font-bold text-gray-900 dark:text-white group-hover:text-[#2B579A] dark:group-hover:text-[#6FA8DC]">
+                        {section.label}
+                      </span>
+                    </div>
+                    {section.image && (
+                      <div className="mt-3 aspect-[16/9] w-full overflow-hidden rounded bg-gray-200 dark:bg-gray-800">
+                        <img
+                          src={projectThumbnail(section.image, 360)}
+                          alt=""
+                          className="h-full w-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                        />
+                      </div>
+                    )}
+                  </button>
+                );
+              }
+
+              return (
+                <button
+                  key={section.key}
+                  type="button"
+                  onClick={() => setActiveCategory(section.key)}
+                  className="flex items-center justify-center p-6 border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#222222] hover:border-gray-400 dark:hover:border-gray-500 transition-colors rounded-none text-center cursor-pointer min-h-[5rem]"
+                >
+                  <span className="text-[1.125em] font-semibold text-gray-900 dark:text-gray-100">
+                    {section.label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </section>
       )}
@@ -1565,7 +1661,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
               <>
                 <ArticleStyleListing
                   items={articles.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage)}
-                  onOpen={openArticle}
+                  onOpen={openWork}
                   hintPrefix="projects-article"
                 />
                 <ProjectPager page={listPage} totalPages={Math.max(1, Math.ceil(articles.length / itemsPerPage))} onPageChange={setListPage} />
@@ -1650,13 +1746,22 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
             <p className="text-[0.875em] text-gray-400 italic py-10 text-center">Belum ada video work yang ditambahkan.</p>
           ) : !selectedDirectingItem ? (
             <div>
-              <ArticleStyleListing
-                items={directingItems.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage)}
-                onOpen={(item) => openWork(item)}
-                hintPrefix="projects-directing"
-                getMeta={(item) => item.year || item.date}
-                getGenre={(item) => item.type || item.category || 'Directing'}
-              />
+              <div className="divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+                {directingItems.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage).map((item, pageIndex) => { const index = ((listPage - 1) * itemsPerPage) + pageIndex; return (
+                  <button key={item.id || index} type="button" onClick={() => setSelectedDirectingIndex(index)} {...(item.hintEnabled !== false ? { 'data-hint-id': `projects-directing-${item.id || index}` } : {})} className="group grid w-full grid-cols-1 gap-4 py-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] sm:grid-cols-[minmax(11rem,0.58fr)_minmax(0,1fr)] sm:items-center sm:gap-6 dark:focus-visible:ring-[#6FA8DC]">
+                    <div className="relative aspect-video overflow-hidden rounded-md bg-gray-950 sm:max-h-[170px]">
+                      {getProjectCover(item) ? <img src={projectThumbnail(getProjectCover(item), 800)} alt={`Poster ${item.title || 'video work'}`} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025] group-hover:opacity-75" style={{ objectPosition: getCoverPosition(item) }} loading="lazy" decoding="async" /> : <div className="h-full w-full bg-gradient-to-br from-[#2B579A] to-[#101827]" />}
+                      <span className="absolute inset-0 flex items-center justify-center"><span className="flex h-11 w-11 items-center justify-center rounded-full border border-white/60 bg-black/35 text-white backdrop-blur-sm transition group-hover:scale-110">▶</span></span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-mono text-[0.625em] uppercase tracking-[0.18em] text-gray-400">{[item.year, item.runtime].filter(Boolean).join(' · ') || 'Motion work'}</p>
+                      <h3 className="mt-1.5 text-[1.05em] font-bold leading-tight transition group-hover:text-[#2B579A] sm:text-[1.1em] dark:group-hover:text-[#6FA8DC]">{item.title}</h3>
+                      {item.premise && <p className="mt-3 line-clamp-2 text-[0.8125em] leading-relaxed text-gray-500 dark:text-gray-400">{richTextToPlainText(item.premise)}</p>}
+                      <span className="mt-3 inline-block font-mono text-[0.65em] font-bold uppercase tracking-wide text-[#2B579A] dark:text-[#6FA8DC]">Watch project ↗</span>
+                    </div>
+                  </button>
+                );})}
+              </div>
               <ProjectPager page={listPage} totalPages={Math.max(1, Math.ceil(directingItems.length / itemsPerPage))} onPageChange={setListPage} />
             </div>
           ) : (
@@ -1733,16 +1838,68 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
           {activeGalleryItems.length === 0 ? (
             <p className="py-10 text-center text-[0.875em] italic text-gray-400">Belum ada poster yang ditambahkan.</p>
           ) : !selectedGalleryItem ? (
-            <div>
-              <ArticleStyleListing
-                items={activeGalleryItems.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage)}
-                onOpen={(item) => openWork(item)}
-                hintPrefix="projects-poster"
-                getMeta={(item) => item.year || item.date}
-                getGenre={(item) => item.category || 'Poster'}
-              />
-              <ProjectPager page={listPage} totalPages={Math.max(1, Math.ceil(activeGalleryItems.length / itemsPerPage))} onPageChange={setListPage} />
-            </div>
+            <>
+              {(() => {
+                const pageItems = activeGalleryItems.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage);
+                const baseIndex = (listPage - 1) * itemsPerPage;
+                const localSpotlight = Math.min(Math.max(posterSpotlightIndex - baseIndex, 0), Math.max(pageItems.length - 1, 0));
+                const featured = pageItems[localSpotlight] || pageItems[0];
+                const featuredIndex = baseIndex + localSpotlight;
+                if (!featured) return null;
+
+                const moveSpotlight = (direction) => {
+                  const nextIndex = (featuredIndex + direction + activeGalleryItems.length) % activeGalleryItems.length;
+                  const nextPage = Math.floor(nextIndex / itemsPerPage) + 1;
+                  if (nextPage !== listPage) setListPage(nextPage);
+                  setPosterSpotlightIndex(nextIndex);
+                };
+
+                return (
+                  <section className="mx-auto max-w-[58rem]">
+                    <div className="grid items-center gap-8 md:grid-cols-[minmax(0,0.88fr)_minmax(19rem,1.12fr)] md:gap-12">
+                      <div className="min-w-0 md:pr-3">
+                        <div className="mb-5 h-px w-8 bg-gray-500/70 dark:bg-gray-400/70" />
+                        {featured.title && <h2 className="text-[1.65em] font-bold leading-tight tracking-[-0.025em] text-gray-900 dark:text-white sm:text-[2em]">{featured.title}</h2>}
+                        {featured.description && <p className="mt-4 max-w-[31rem] text-[0.875em] leading-[1.7] text-gray-600 dark:text-gray-300">{richTextToPlainText(featured.description)}</p>}
+
+                        {activeGalleryItems.length > 1 && (
+                          <div ref={posterThumbRailRef} className="mt-6 flex max-w-full gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                            {activeGalleryItems.map((item, idx) => {
+                              const isActive = idx === featuredIndex;
+                              return (
+                                <button
+                                  key={item.id || idx}
+                                  type="button"
+                                  onClick={() => {
+                                    const nextPage = Math.floor(idx / itemsPerPage) + 1;
+                                    if (nextPage !== listPage) setListPage(nextPage);
+                                    setPosterSpotlightIndex(idx);
+                                  }}
+                                  data-poster-thumb-active={isActive ? 'true' : 'false'}
+                                  aria-label={`Sorot ${item.title || `poster ${idx + 1}`}`}
+                                  className={`group shrink-0 overflow-hidden rounded-[8px] border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] ${isActive ? 'border-[#2B579A] shadow-sm dark:border-[#6FA8DC]' : 'border-gray-200 dark:border-gray-700'}`}
+                                >
+                                  <img src={projectThumbnail(item.imageUrl, 360)} alt="" aria-hidden="true" loading="lazy" decoding="async" className={`block h-28 w-auto max-w-none rounded-[7px] object-contain transition ${isActive ? 'opacity-100' : 'opacity-65 group-hover:opacity-100'}`} style={{ objectPosition: item.coverPosition || item.imagePosition || item.objectPosition || '50% 50%' }} />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="relative flex min-w-0 items-center justify-center px-12">
+                        <button type="button" onClick={() => moveSpotlight(-1)} aria-label="Poster sebelumnya" className="absolute left-0 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-[1.45em] text-gray-700 shadow-sm transition hover:-translate-x-0.5 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:border-gray-700 dark:bg-[#202020]/90 dark:text-gray-200 dark:hover:bg-[#202020] dark:focus-visible:ring-[#6FA8DC]">‹</button>
+                        <button type="button" onClick={() => setSelectedGalleryIndex(featuredIndex)} className="group flex w-full items-center justify-center rounded-[10px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]" aria-label={`Buka ${featured.title || `poster ${featuredIndex + 1}`}`}>
+                          <img src={projectThumbnail(featured.imageUrl, 1200)} alt={featured.title} loading="lazy" decoding="async" className="block max-h-[35rem] w-auto max-w-full rounded-[10px] object-contain shadow-sm transition duration-300 group-hover:scale-[1.008]" style={{ objectPosition: featured.coverPosition || featured.imagePosition || featured.objectPosition || '50% 50%' }} />
+                        </button>
+                        <button type="button" onClick={() => moveSpotlight(1)} aria-label="Poster berikutnya" className="absolute right-0 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-[1.45em] text-gray-700 shadow-sm transition hover:translate-x-0.5 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:border-gray-700 dark:bg-[#202020]/90 dark:text-gray-200 dark:hover:bg-[#202020] dark:focus-visible:ring-[#6FA8DC]">›</button>
+                      </div>
+                    </div>
+                  </section>
+                );
+              })()}
+
+            </>
           ) : (
             <div className="space-y-6 view-reveal">
               {hasStudioPresentation(selectedGalleryItem) ? (
@@ -1772,13 +1929,84 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
             </p>
           ) : selectedCustomIndex === null ? (
             <>
-              <ArticleStyleListing
-                items={activeCustomItems.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage)}
-                onOpen={(item) => openWork(item)}
-                hintPrefix="projects-custom"
-                getMeta={(item) => item.date || item.year}
-                getGenre={(item) => item.category || activeCustomSection?.label || 'Project'}
-              />
+              {activeCustomFamily === 'audio' ? (
+                /* AUDIO = voice-note shelf. NO thumbnail/image by design. */
+                <div className="divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+                  {activeCustomItems.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage).map((item, pageIndex) => {
+                    const idx = ((listPage - 1) * itemsPerPage) + pageIndex;
+                    const audioUrl = getItemAudio(item);
+                    return (
+                      <div key={item.id || idx} className="grid grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-3 py-4 sm:grid-cols-[2.75rem_minmax(0,1fr)_auto] sm:gap-4">
+                        <button type="button" onClick={() => setSelectedCustomIndex(idx)} className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-[0.75em] text-[#2B579A] transition hover:bg-[#2B579A] hover:text-white dark:border-gray-600 dark:text-[#6FA8DC]" aria-label={`Buka ${item.title}`}>▶</button>
+                        <button type="button" onClick={() => setSelectedCustomIndex(idx)} className="min-w-0 text-left">
+                          <h3 className="truncate text-[0.9em] font-bold text-gray-900 hover:text-[#2B579A] dark:text-white dark:hover:text-[#6FA8DC]">{item.title}</h3>
+                          <p className="mt-1 font-mono text-[0.625em] text-gray-400">{[item.runtime || item.duration, item.date || item.year].filter(Boolean).join(' · ') || 'Voice note'}</p>
+                        </button>
+                        <div className="col-span-2 hidden min-w-[9rem] items-center gap-1 sm:col-span-1 sm:flex" aria-hidden="true">
+                          {[3,6,9,5,11,7,4,10,6,8,4,9,5,7,3,6].map((h, i) => <span key={i} className="w-[2px] rounded-full bg-gray-300 dark:bg-gray-600" style={{ height: `${h}px` }} />)}
+                          {audioUrl && <span className="ml-2 font-mono text-[0.5625em] text-gray-400">VN</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : activeCustomFamily === 'script' ? (
+                <div className="divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+                  {activeCustomItems.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage).map((item, pageIndex) => {
+                    const idx = ((listPage - 1) * itemsPerPage) + pageIndex;
+                    return (
+                      <button key={item.id || idx} type="button" onClick={() => setSelectedCustomIndex(idx)} className="group grid w-full grid-cols-[4rem_minmax(0,1fr)] gap-4 py-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] sm:grid-cols-[5rem_minmax(0,1fr)_auto]">
+                        <div className="aspect-[3/4] overflow-hidden rounded-sm border border-[#e6e0d4] bg-[#f5f0e6] p-2 font-mono text-[0.38em] leading-relaxed text-gray-500 dark:border-gray-700 dark:bg-[#2b2925] dark:text-gray-400">
+                          FADE IN:<br/>INT. SCENE<br/><br/>DIALOG<br/>...
+                        </div>
+                        <div className="min-w-0 self-center">
+                          <h3 className="text-[0.95em] font-bold leading-snug text-gray-900 transition group-hover:text-[#2B579A] dark:text-white dark:group-hover:text-[#6FA8DC]">{item.title}</h3>
+                          <p className="mt-1.5 font-mono text-[0.625em] text-gray-400">{item.category || 'Script / Naskah'}</p>
+                        </div>
+                        <span className="hidden self-center font-mono text-[0.6875em] text-gray-400 sm:block">↗</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : activeCustomFamily === 'story' ? (
+                <div className="divide-y divide-gray-200 border-y border-gray-200 dark:divide-gray-700 dark:border-gray-700">
+                  {activeCustomItems.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage).map((item, pageIndex) => {
+                    const idx = ((listPage - 1) * itemsPerPage) + pageIndex;
+                    return (
+                      <button key={item.id || idx} type="button" onClick={() => setSelectedCustomIndex(idx)} className="group grid w-full grid-cols-[6rem_minmax(0,1fr)] gap-4 py-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-6">
+                        <div className="aspect-[16/9] overflow-hidden rounded-md bg-[#eeeae2] dark:bg-[#242424]">
+                          {getProjectCover(item) ? <img src={projectThumbnail(getProjectCover(item), 520)} alt={item.title} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.025]" style={{ objectPosition: getCoverPosition(item) }} loading="lazy" decoding="async" /> : <div className="h-full w-full bg-gradient-to-br from-[#d8d2c8] to-[#f4f1ea] dark:from-[#333] dark:to-[#222]" />}
+                        </div>
+                        <div className="min-w-0 self-center">
+                          <h3 className="text-[0.95em] font-bold leading-snug text-gray-900 transition group-hover:text-[#2B579A] dark:text-white dark:group-hover:text-[#6FA8DC]">{item.title}</h3>
+                          {item.description && <p className="mt-2 line-clamp-2 text-[0.75em] leading-relaxed text-gray-500 dark:text-gray-400">{richTextToPlainText(item.description)}</p>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : activeCustomType === 'writing' ? (
+                <ArticleStyleListing
+                  items={activeCustomItems.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage)}
+                  onOpen={(item) => setSelectedCustomIndex(activeCustomItems.indexOf(item))}
+                  hintPrefix="projects-custom"
+                  getImage={(item) => getProjectCover(item)}
+                  getSnippet={(item) => item.description}
+                  getMeta={() => null}
+                />
+              ) : (
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                  {activeCustomItems.slice((listPage - 1) * itemsPerPage, listPage * itemsPerPage).map((item, pageIndex) => { const idx = ((listPage - 1) * itemsPerPage) + pageIndex; return (
+                    <button key={item.id || idx} type="button" onClick={() => setSelectedCustomIndex(idx)} className="group min-w-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]">
+                      <div className={`relative ${activeCustomType === 'video' ? 'aspect-video' : 'aspect-[4/3]'} flex items-center justify-center overflow-hidden rounded-md bg-gray-100 dark:bg-black/40`}>
+                        {getProjectCover(item) ? <img src={projectThumbnail(getProjectCover(item), 720)} alt={item.title} loading="lazy" decoding="async" className="h-full w-full object-contain transition duration-300 group-hover:scale-[1.02]" style={{ objectPosition: getCoverPosition(item) }} /> : <span className="font-mono text-[0.6875em] uppercase tracking-widest text-gray-400">Project</span>}
+                        {activeCustomType === 'video' && <span className="pointer-events-none absolute inset-0 flex items-center justify-center"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-white">▶</span></span>}
+                      </div>
+                      <div className="mt-3 flex items-start justify-between gap-3"><h3 className="min-w-0 text-[0.9em] font-bold leading-snug text-gray-900 transition group-hover:text-[#2B579A] dark:text-white dark:group-hover:text-[#6FA8DC]">{item.title}</h3><span className="shrink-0 font-mono text-[0.6875em] text-gray-400">↗</span></div>
+                    </button>
+                  );})}
+                </div>
+              )}
               <ProjectPager page={listPage} totalPages={Math.max(1, Math.ceil(activeCustomItems.length / itemsPerPage))} onPageChange={setListPage} />
             </>
           ) : (

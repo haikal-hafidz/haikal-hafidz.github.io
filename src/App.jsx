@@ -462,6 +462,18 @@ export default function App() {
   const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const urlTab = urlParams?.get('tab');
   const initialArticleId = urlParams?.get('article') || null;
+  const initialWorkId = urlParams?.get('work') || null;
+
+  const [readingWorkId, setReadingWorkId] = useState(initialWorkId);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      setReadingWorkId(params.get('work') || null);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const [activeTab, setActiveTab] = useState(
     VALID_TABS.includes(urlTab) ? urlTab : 'Home'
@@ -470,7 +482,9 @@ export default function App() {
   const sectionRefs = useRef({});
   const ignoreObserverRef = useRef(false);
 
-  const handleNavigate = useCallback((tab) => {
+  const handleNavigate = useCallback((tabInput) => {
+    const tabMap = { Careers: 'Career', Books: 'Book' };
+    const tab = tabMap[tabInput] || tabInput;
     if (!VALID_TABS.includes(tab)) return;
     setActiveTab(tab);
     const el = document.getElementById(`section-${tab}`);
@@ -936,6 +950,27 @@ export default function App() {
     return <DocumentLoader onFinished={() => { try { sessionStorage.setItem(PORTFOLIO_SPLASH_SEEN_KEY, '1'); } catch {} setIsSplashDone(true); }} />;
   }
 
+  if (readingWorkId) {
+    return (
+      <div className={darkMode ? 'dark' : ''}>
+        <div className="min-h-screen bg-white dark:bg-[#181818] text-gray-900 dark:text-gray-100 selection:bg-blue-500 selection:text-white">
+          <Suspense fallback={null}>
+            <Projects
+              data={publicPortfolioData.projects}
+              interactiveWords={publicPortfolioData.interactiveWords}
+              onNavigate={handleNavigate}
+              initialArticleId={initialArticleId}
+              initialWorkTarget={workNavigation?.type !== 'book' ? workNavigation : null}
+              navigationRequestKey={workNavigation?.requestKey}
+              readingWorkId={readingWorkId}
+              onSetReadingWorkId={setReadingWorkId}
+            />
+          </Suspense>
+        </div>
+      </div>
+    );
+  }
+
   const documentBody = (
     <Suspense fallback={null}>
     <div key={`public-language-${language}`} data-public-language={language} className={`relative z-10 w-full h-full ${isBold ? 'font-bold' : ''} ${isItalic ? 'italic' : ''} ${isUnderline ? 'underline' : ''}`}>
@@ -1224,6 +1259,8 @@ export default function App() {
                                 initialArticleId={initialArticleId}
                                 initialWorkTarget={workNavigation?.type !== 'book' ? workNavigation : null}
                                 navigationRequestKey={workNavigation?.requestKey}
+                                readingWorkId={readingWorkId}
+                                onSetReadingWorkId={setReadingWorkId}
                               />
                             )}
                             {tab === 'Career' && <Career data={publicPortfolioData.career} interactiveWords={publicPortfolioData.interactiveWords} onNavigate={handleNavigate} railStyle={!isAdminMode && !isMobileLayout && activeTab === 'Career' ? desktopRailStyle : null} darkMode={darkMode} />}
