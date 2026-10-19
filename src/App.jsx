@@ -390,6 +390,7 @@ export default function App() {
               ...(data.data.website || {}),
               title: data.data.website?.title || 'Haikal A. Hafidz — Content Writer & Editor',
               description: data.data.website?.description || 'Portfolio Haikal A. Hafidz — writing, editing, creative work, and selected projects.',
+              url: data.data.website?.url || 'https://haikal-hafidz.github.io/',
               favicon: data.data.website?.favicon || '',
               shareImage: data.data.website?.shareImage || '',
             },
@@ -727,6 +728,7 @@ export default function App() {
       title: portfolioData.website?.title,
       description: portfolioData.website?.description,
       shareImage: portfolioData.website?.shareImage,
+      url: portfolioData.website?.url,
     });
     const tabMeta = {
       Home: {
