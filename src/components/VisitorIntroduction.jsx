@@ -101,9 +101,9 @@ export default function VisitorIntroduction({ data, style, darkMode, soundEnable
               <span className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-[#2B579A] shadow-[0_0_0_2px_rgba(43,87,154,.14)] transition group-hover:bg-green-500" />
             </div>
             <div className="relative border border-gray-300 bg-white px-3 pb-3 pt-4 shadow-[0_7px_16px_rgba(0,0,0,.08)] transition duration-300 group-hover:translate-y-1.5 dark:border-gray-600 dark:bg-[#f5f3ec] dark:text-[#172033]">
-              <p className="font-mono text-[0.5em] uppercase tracking-[0.18em] text-[#2B579A]">{content.triggerEyebrow}</p>
+              <p className="font-mono text-[0.5625em] uppercase tracking-[0.18em] text-[#2B579A]">{content.triggerEyebrow}</p>
               <h2 className="mt-1.5 font-serif text-[0.92em] leading-tight">{content.triggerTitle}</h2>
-              <p className="mt-3 font-mono text-[0.5em] uppercase tracking-[0.1em] text-gray-500">{printed ? content.printedLabel : `${content.triggerAction} →`}</p>
+              <p className="mt-3 font-sans text-[0.625em] font-medium text-gray-500">{printed ? content.printedLabel : `${content.triggerAction} →`}</p>
             </div>
           </div>
           {hintActive && <p className="mt-3 text-center font-mono text-[0.58em] uppercase tracking-[0.14em] text-[#2B579A]">An introduction is waiting here.</p>}
