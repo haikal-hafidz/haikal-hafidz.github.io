@@ -541,30 +541,49 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
   return (
     <section className="relative px-5 pb-8 pt-6 sm:min-h-[65vh] sm:px-10 sm:py-12" aria-label="Home introduction">
       <div className="relative sm:min-h-[52vh]">
-        {/* Author identity header on mobile */}
-        <div className="mb-6 border-b border-gray-200/80 pb-4 dark:border-gray-700/80 sm:hidden">
-          <p className="mb-1 font-mono text-[0.7em] uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-            <InteractiveText text={signatureRole} rules={interactiveWords} page="Home" onNavigate={onNavigate} />
-          </p>
-          <h1 className="font-serif text-[1.65em] font-normal leading-none tracking-tight text-gray-900 dark:text-white">
-            {data?.name || 'Haikal A. Hafidz'}
-          </h1>
-        </div>
-
         <div className="mx-auto w-full max-w-[60rem] lg:absolute lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2">
           <DynamicStatement settings={data?.dynamicStatement} />
         </div>
 
-        <nav className="mx-auto mt-8 w-full md:hidden" aria-label="Home routes and interactive features">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <button type="button" onClick={() => onNavigate?.('Projects')} data-hint-id="home-selected-work" className={homeRouteClass}><span>{data?.navigationLabels?.quickViews?.selectedWorks || 'Selected Works'}</span><span aria-hidden="true">→</span></button>
-            <button type="button" onClick={() => onNavigate?.('Career')} data-hint-id="home-experience" className={homeRouteClass}><span>{data?.navigationLabels?.quickViews?.experience || 'Experience'}</span><span aria-hidden="true">→</span></button>
-            <button type="button" onClick={() => onNavigate?.('Contact')} data-hint-id="home-contact" className={homeRouteClass}><span>{data?.navigationLabels?.quickViews?.contact || 'Contact'}</span><span aria-hidden="true">→</span></button>
-          </div>
-          <div className="my-4 border-t border-gray-300/80 dark:border-gray-600/80" aria-hidden="true" />
-          <div className="grid gap-2 sm:grid-cols-2">
-            {zineData?.enabled !== false && <button type="button" onClick={openZine} data-hint-id="home-wassup" className={homeRouteClass}><span>{data?.navigationLabels?.quickViews?.wassup || zineData?.menuLabel || 'Wassup?'}</span><span aria-hidden="true">→</span></button>}
-            {miniGameData?.enabled !== false && <button type="button" onClick={openGame} data-hint-id="home-mini-game" className={homeRouteClass}><span>{data?.navigationLabels?.quickViews?.miniGames || miniGameData?.menuLabel || 'Mini Games'}</span><span aria-hidden="true">→</span></button>}
+        {/* Author signature immediately below dynamic statement on mobile */}
+        <div className="mt-5 border-t border-gray-200/80 pt-3 dark:border-gray-700/80 sm:hidden">
+          <p className="mb-0.5 font-mono text-[0.68em] uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+            <InteractiveText text={signatureRole} rules={interactiveWords} page="Home" onNavigate={onNavigate} />
+          </p>
+          <h1 className="font-serif text-[1.45em] font-normal leading-none tracking-tight text-gray-900 dark:text-white">
+            {data?.name || 'Haikal A. Hafidz'}
+          </h1>
+        </div>
+
+        <nav className="mx-auto mt-6 w-full md:hidden" aria-label="Home routes and interactive features">
+          <div className="flex flex-wrap items-center justify-between gap-1.5 border-t border-b border-gray-200/90 py-2.5 text-[0.8125em] font-serif text-gray-700 dark:border-gray-700/90 dark:text-gray-300">
+            <button type="button" onClick={() => onNavigate?.('Projects')} data-hint-id="home-selected-work" className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors">
+              {data?.navigationLabels?.quickViews?.selectedWorks || 'Selected Works'}
+            </button>
+            <span className="text-gray-300 dark:text-gray-600">•</span>
+            <button type="button" onClick={() => onNavigate?.('Career')} data-hint-id="home-experience" className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors">
+              {data?.navigationLabels?.quickViews?.experience || 'Experience'}
+            </button>
+            <span className="text-gray-300 dark:text-gray-600">•</span>
+            <button type="button" onClick={() => onNavigate?.('Contact')} data-hint-id="home-contact" className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors">
+              {data?.navigationLabels?.quickViews?.contact || 'Contact'}
+            </button>
+            {zineData?.enabled !== false && (
+              <>
+                <span className="text-gray-300 dark:text-gray-600">•</span>
+                <button type="button" onClick={openZine} data-hint-id="home-wassup" className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors">
+                  {data?.navigationLabels?.quickViews?.wassup || zineData?.menuLabel || 'Wassup?'}
+                </button>
+              </>
+            )}
+            {miniGameData?.enabled !== false && (
+              <>
+                <span className="text-gray-300 dark:text-gray-600">•</span>
+                <button type="button" onClick={openGame} data-hint-id="home-mini-game" className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors">
+                  {data?.navigationLabels?.quickViews?.miniGames || miniGameData?.menuLabel || 'Mini Games'}
+                </button>
+              </>
+            )}
           </div>
         </nav>
       </div>
