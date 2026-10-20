@@ -1676,13 +1676,13 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
 
       {activeCategory === 'overview' && (
         <section className="view-reveal py-3 sm:py-4">
-          <div className="flex sm:grid sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-4 overflow-x-auto sm:overflow-visible snap-x snap-mandatory scrollbar-none py-1 -mx-1 px-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4">
             {visibleProjectSections.map((section) => (
               <button
                 key={section.key}
                 type="button"
                 onClick={() => setActiveCategory(section.key)}
-                className="flex shrink-0 w-[calc(46%-0.25rem)] sm:w-auto snap-start items-center justify-center py-3 px-3.5 sm:p-6 border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#222222] hover:border-gray-400 dark:hover:border-gray-500 transition-colors rounded-none text-center cursor-pointer min-h-[3.25rem] sm:min-h-[5rem]"
+                className="flex w-full items-center justify-center py-2.5 px-3.5 sm:p-6 border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#222222] hover:border-gray-400 dark:hover:border-gray-500 transition-colors rounded-none text-center cursor-pointer min-h-[2.85rem] sm:min-h-[5rem]"
               >
                 <span className="text-[0.875em] sm:text-[1.125em] font-semibold text-gray-900 dark:text-gray-100 truncate">
                   {section.label}
