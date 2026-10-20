@@ -27,12 +27,12 @@ export default function DocumentLoader({ isDataReady = true, onFinished }) {
     };
   }, []);
 
-  // Act 4 -> Act 5 (Final 'd' struggles and pulls background down) at 12000ms when isDataReady is true
+  // Act 4 -> Act 5 (Final 'd' loses grip after 1.5s freeze and pulls background down) at 11000ms when isDataReady is true
   useEffect(() => {
     if (act >= 4 && isDataReady && act < 5) {
       const timer4 = setTimeout(() => {
         setAct(5);
-      }, 3000); // 9000 + 3000 = 12000ms
+      }, 2000); // 9000 + 2000 = 11000ms
       return () => clearTimeout(timer4);
     }
   }, [act, isDataReady]);
@@ -229,7 +229,7 @@ export default function DocumentLoader({ isDataReady = true, onFinished }) {
         }
 
         .act-3 .letter-d {
-          animation: breakFreeD 2.2s cubic-bezier(0.34, 1.3, 0.64, 1) forwards;
+          animation: breakFreeD 3.0s cubic-bezier(0.25, 1, 0.5, 1) forwards;
         }
         .act-3 .letter-a {
           animation: shiftA 2.0s ease forwards;
@@ -240,7 +240,7 @@ export default function DocumentLoader({ isDataReady = true, onFinished }) {
 
         @keyframes breakFreeD {
           0% { transform: translate3d(12px, 0, 0) rotate(16deg); }
-          100% { transform: translate3d(20px, -28px, 0) rotate(-38deg); }
+          100% { transform: translate3d(10px, -35px, 0) rotate(-10deg) scale(1.08); }
         }
         @keyframes shiftA {
           0% { transform: translate3d(-5px, 2px, 0) rotate(-10deg); }
@@ -259,17 +259,15 @@ export default function DocumentLoader({ isDataReady = true, onFinished }) {
         .act-4 .letter-n, .act-5 .letter-n { animation: freefallN 2.6s cubic-bezier(0.55, 0.085, 0.68, 0.53) 0.12s forwards; }
         .act-4 .letter-g, .act-5 .letter-g { animation: freefallG 2.6s cubic-bezier(0.55, 0.085, 0.68, 0.53) 0.2s forwards; }
 
-        /* The instigator 'd' is the final letter standing, desperately clinging to the background */
+        /* The instigator 'd' rises into apex pose in 0.5s, then holds frozen for exactly 1.5s (25% to 100% of 2.0s duration) */
         .act-4 .letter-d {
-          animation: hangD 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+          animation: hangD 2.0s cubic-bezier(0.25, 1, 0.5, 1) forwards;
         }
 
         @keyframes hangD {
-          0% { transform: translate3d(20px, -28px, 0) rotate(-38deg); }
-          /* Desperately clings, slips slightly, and regains grip at top (9-11.5s) */
-          40% { transform: translate3d(15px, -45px, 0) rotate(-22deg) scale(1.1); }
-          70% { transform: translate3d(12px, -38px, 0) rotate(-28deg) scale(1.12); } /* slip & regain grip */
-          100% { transform: translate3d(10px, -52px, 0) rotate(-15deg) scale(1.2); }
+          0% { transform: translate3d(10px, -35px, 0) rotate(-10deg) scale(1.08); }
+          25% { transform: translate3d(10px, -52px, 0) rotate(-18deg) scale(1.15); }
+          100% { transform: translate3d(10px, -52px, 0) rotate(-18deg) scale(1.15); }
         }
 
         @keyframes freefallL {
@@ -303,19 +301,18 @@ export default function DocumentLoader({ isDataReady = true, onFinished }) {
           100% { transform: translate3d(45px, 110vh, 0) rotate(-340deg); opacity: 0.9; }
         }
 
-        /* ACT 5: The final 'd' struggles, loses grip, and drags the background down vertically (12-15s) */
+        /* ACT 5: The final 'd' falls immediately after the 1.5s hold, dragging the background down vertically (11-13s) */
         .act-5 .letter-d {
-          animation: pullDownD 2.2s cubic-bezier(0.7, 0, 0.2, 1) forwards;
+          animation: pullDownD 1.8s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards;
         }
 
         @keyframes pullDownD {
-          0% { transform: translate3d(10px, -52px, 0) rotate(-15deg) scale(1.2); }
-          25% { transform: translate3d(10px, -20px, 0) rotate(18deg) scale(1.3) scaleY(1.4); } /* stretch, strain, slip */
-          100% { transform: translate3d(10px, 120vh, 0) rotate(45deg) scale(1); }
+          0% { transform: translate3d(10px, -52px, 0) rotate(-18deg) scale(1.15); }
+          100% { transform: translate3d(10px, 110vh, 0) rotate(25deg) scale(1); }
         }
 
         .loader-vertical-pull-active {
-          animation: pullDownOverlay 2.2s cubic-bezier(0.7, 0, 0.2, 1) forwards;
+          animation: pullDownOverlay 1.8s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards;
         }
 
         @keyframes pullDownOverlay {
