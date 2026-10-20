@@ -24,6 +24,7 @@ import Ribbon from './components/Ribbon';
 import Ruler from './components/Ruler';
 import StatusBar from './components/StatusBar';
 import WelcomeToast from './components/WelcomeToast';
+import StageOrnaments from './components/StageOrnaments';
 import HintToggle from './components/HintToggle';
 import DocumentLoader from './components/DocumentLoader';
 
@@ -1017,7 +1018,8 @@ export default function App() {
 
   return (
     <div className={darkMode ? 'dark' : ''}>
-      <div className={`min-h-screen bg-[#e6e6e6] dark:bg-[#181818] flex flex-col justify-between selection:bg-blue-500 selection:text-white ${hintActive ? 'hint-mode-active' : ''}`}>
+      <div className={`min-h-screen bg-[#e6e6e6] dark:bg-[#181818] flex flex-col justify-between selection:bg-blue-500 selection:text-white relative ${hintActive ? 'hint-mode-active' : ''}`}>
+        <StageOrnaments />
 
         {/* Pesan error kalau gagal konek/simpen ke Supabase */}
         {(loadError || saveError) && (
