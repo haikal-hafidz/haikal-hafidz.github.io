@@ -947,15 +947,19 @@ export default function App() {
     [activeTab, portfolioData]
   );
 
-  // Sementara data masih di-fetch dari Supabase, tampilin loading simpel
-  // biar gak kelihatan "flash" dari data default ke data asli.
-  if (isLoading) {
-    return <DocumentLoader onFinished={() => { try { sessionStorage.setItem(PORTFOLIO_SPLASH_SEEN_KEY, '1'); } catch {} setIsSplashDone(true); }} />;
-  }
-
   if (readingWorkId) {
     return (
       <div className={darkMode ? 'dark' : ''}>
+        {isLoading && (
+          <DocumentLoader
+            isDataReady={isDataReady}
+            onFinished={() => {
+              try { sessionStorage.setItem(PORTFOLIO_SPLASH_SEEN_KEY, '1'); } catch {}
+              setIsSplashDone(true);
+              setIsLoading(false);
+            }}
+          />
+        )}
         <div className="min-h-screen bg-white dark:bg-[#181818] text-gray-900 dark:text-gray-100 selection:bg-blue-500 selection:text-white">
           <Suspense fallback={null}>
             <Projects
@@ -1018,6 +1022,16 @@ export default function App() {
 
   return (
     <div className={darkMode ? 'dark' : ''}>
+      {isLoading && (
+        <DocumentLoader
+          isDataReady={isDataReady}
+          onFinished={() => {
+            try { sessionStorage.setItem(PORTFOLIO_SPLASH_SEEN_KEY, '1'); } catch {}
+            setIsSplashDone(true);
+            setIsLoading(false);
+          }}
+        />
+      )}
       <div className={`min-h-screen bg-[#e6e6e6] dark:bg-[#181818] flex flex-col justify-between selection:bg-blue-500 selection:text-white relative ${hintActive ? 'hint-mode-active' : ''}`}>
         <StageOrnaments />
 
