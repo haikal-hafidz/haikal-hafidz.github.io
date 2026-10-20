@@ -141,7 +141,7 @@ export default function TitleBar({
   }, [recordingPreview?.url]);
 
   return (
-    <div className="bg-[#2b579a] dark:bg-[#1e1e1e] text-white flex justify-between items-center px-2 sm:px-3 py-1.5 text-[10pt] leading-4 select-none transition-colors duration-200 border-b border-black/10">
+    <div className="bg-[#2b579a] text-white flex justify-between items-center px-2 sm:px-3 py-1.5 text-[10pt] leading-4 select-none transition-colors duration-200 border-b border-black/10">
       
       {/* BAGIAN KIRI: kosong di halaman publik; quick controls hanya muncul di Admin. */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
