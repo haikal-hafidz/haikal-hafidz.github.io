@@ -115,7 +115,7 @@ export default function Ribbon({
             return (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => { setActiveTab(tab.key); document.getElementById(tab.key)?.scrollIntoView({ behavior: 'smooth' }); }}
                 data-hint-id={`navigation-${tab.key.toLowerCase()}`}
                 className={`px-3 sm:px-4 py-1.5 transition-colors font-medium text-[10pt] leading-4 whitespace-nowrap shrink-0 rounded-t-md ${
                   isCurrent

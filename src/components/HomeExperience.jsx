@@ -17,7 +17,7 @@ const safeLocalJson = (key, fallback) => {
 };
 
 const focusableSelector = 'button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
-const homeRouteClass = 'group flex min-h-12 w-full items-center justify-between rounded-sm border border-gray-300 bg-white px-4 py-3 text-left font-mono text-[10pt] font-bold uppercase leading-4 tracking-[0.08em] text-gray-800 transition hover:border-[#2B579A] hover:bg-[#2B579A] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] focus-visible:ring-offset-2 dark:border-gray-600 dark:bg-[#202020] dark:text-white dark:hover:border-[#6FA8DC] dark:hover:bg-[#6FA8DC] dark:hover:text-[#171717]';
+const homeRouteClass = 'group flex min-h-11 w-full items-center justify-between rounded-sm border border-gray-200/90 bg-white/90 px-4 py-2.5 text-left font-serif text-[0.9375em] font-normal leading-snug text-gray-800 transition hover:border-[#2B579A] hover:bg-[#2B579A] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:border-gray-700 dark:bg-[#202020] dark:text-gray-100 dark:hover:border-[#6FA8DC] dark:hover:bg-[#6FA8DC] dark:hover:text-[#171717]';
 
 const shuffle = (items) => {
   const result = [...items];
@@ -539,25 +539,58 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
   };
 
   return (
-    <section className="relative px-5 pb-8 pt-7 sm:min-h-[65vh] sm:px-10 sm:py-12" aria-label="Home introduction">
+    <section className="relative px-5 pb-8 pt-6 sm:min-h-[65vh] sm:px-10 sm:py-12" aria-label="Home introduction">
       <div className="relative sm:min-h-[52vh]">
-        <div className="mx-auto w-full max-w-[60rem] lg:absolute lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2"><DynamicStatement settings={data?.dynamicStatement} /></div>
+        <div className="mx-auto w-full max-w-[60rem] lg:absolute lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2">
+          <DynamicStatement settings={data?.dynamicStatement} />
+        </div>
+
+        {/* Author signature with ample breathing room, right-aligned on mobile */}
+        <div className="mt-8 border-t border-gray-200/80 pt-4 text-right dark:border-gray-700/80 sm:hidden">
+          <p className="mb-0.5 font-mono text-[0.68em] uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+            <InteractiveText text={signatureRole} rules={interactiveWords} page="Home" onNavigate={onNavigate} />
+          </p>
+          <h1 className="font-serif text-[1.45em] font-normal leading-none tracking-tight text-gray-900 dark:text-white">
+            {data?.name || 'Haikal A. Hafidz'}
+          </h1>
+        </div>
+
         <nav className="mx-auto mt-8 w-full md:hidden" aria-label="Home routes and interactive features">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <button type="button" onClick={() => onNavigate?.('Projects')} data-hint-id="home-selected-work" className={homeRouteClass}><span>{data?.navigationLabels?.quickViews?.selectedWorks || 'Selected Works'}</span><span aria-hidden="true">→</span></button>
-            <button type="button" onClick={() => onNavigate?.('Career')} data-hint-id="home-experience" className={homeRouteClass}><span>{data?.navigationLabels?.quickViews?.experience || 'Experience'}</span><span aria-hidden="true">→</span></button>
-            <button type="button" onClick={() => onNavigate?.('Contact')} data-hint-id="home-contact" className={homeRouteClass}><span>{data?.navigationLabels?.quickViews?.contact || 'Contact'}</span><span aria-hidden="true">→</span></button>
-          </div>
-          <div className="my-4 border-t border-gray-300/80 dark:border-gray-600/80" aria-hidden="true" />
-          <div className="grid gap-2 sm:grid-cols-2">
-            {zineData?.enabled !== false && <button type="button" onClick={openZine} data-hint-id="home-wassup" className={homeRouteClass}><span>{data?.navigationLabels?.quickViews?.wassup || zineData?.menuLabel || 'Wassup?'}</span><span aria-hidden="true">→</span></button>}
-            {miniGameData?.enabled !== false && <button type="button" onClick={openGame} data-hint-id="home-mini-game" className={homeRouteClass}><span>{data?.navigationLabels?.quickViews?.miniGames || miniGameData?.menuLabel || 'Mini Games'}</span><span aria-hidden="true">→</span></button>}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200/90 pt-3.5 text-[0.8125em] font-serif text-gray-700 dark:border-gray-700/90 dark:text-gray-300">
+            <button type="button" onClick={() => onNavigate?.('Projects')} data-hint-id="home-selected-work" className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors">
+              {data?.navigationLabels?.quickViews?.selectedWorks || 'Selected Works'}
+            </button>
+            <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">•</span>
+            <button type="button" onClick={() => onNavigate?.('Career')} data-hint-id="home-experience" className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors">
+              {data?.navigationLabels?.quickViews?.experience || 'Experience'}
+            </button>
+            <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">•</span>
+            <button type="button" onClick={() => onNavigate?.('Contact')} data-hint-id="home-contact" className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors">
+              {data?.navigationLabels?.quickViews?.contact || 'Contact'}
+            </button>
+            {zineData?.enabled !== false && (
+              <>
+                <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">•</span>
+                <button type="button" onClick={openZine} data-hint-id="home-wassup" className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors">
+                  {data?.navigationLabels?.quickViews?.wassup || zineData?.menuLabel || 'Wassup?'}
+                </button>
+              </>
+            )}
+            {miniGameData?.enabled !== false && (
+              <>
+                <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">•</span>
+                <button type="button" onClick={openGame} data-hint-id="home-mini-game" className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors">
+                  {data?.navigationLabels?.quickViews?.miniGames || miniGameData?.menuLabel || 'Mini Games'}
+                </button>
+              </>
+            )}
           </div>
         </nav>
       </div>
-      <div className="mt-9 border-t border-gray-200 pt-5 text-right dark:border-gray-700 sm:absolute sm:bottom-10 sm:right-12 sm:mt-0 sm:max-w-[70%] sm:border-0 sm:pt-0">
+
+      <div className="hidden sm:block sm:absolute sm:bottom-10 sm:right-12 sm:max-w-[70%] text-right">
         <p className="mb-1 font-mono text-[0.75em] uppercase tracking-[0.18em] text-gray-600 dark:text-gray-300"><InteractiveText text={signatureRole} rules={interactiveWords} page="Home" onNavigate={onNavigate} /></p>
-        <h1 className="font-serif text-[1.9em] font-normal leading-none tracking-tight text-gray-900 dark:text-white sm:text-[2.25em]">{data?.name || 'Haikal A. Hafidz'}</h1>
+        <h1 className="font-serif text-[2.25em] font-normal leading-none tracking-tight text-gray-900 dark:text-white">{data?.name || 'Haikal A. Hafidz'}</h1>
       </div>
 
       {modalOpen && createPortal(

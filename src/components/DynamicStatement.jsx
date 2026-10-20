@@ -91,10 +91,10 @@ export default function DynamicStatement({ settings }) {
 
   if (settings?.enabled === false || !pairs.length) return null;
   const sizeClass = settings?.size === 'small'
-    ? 'text-[clamp(1.7rem,8vw,2.05rem)] sm:text-[2.15em]'
+    ? 'text-[clamp(1.45rem,6vw,1.95rem)] sm:text-[2.15em]'
     : settings?.size === 'medium'
-      ? 'text-[clamp(1.85rem,8.6vw,2.25rem)] sm:text-[2.65em]'
-      : 'text-[clamp(2rem,9.2vw,2.45rem)] sm:text-[3.15em]';
+      ? 'text-[clamp(1.55rem,6.5vw,2.15rem)] sm:text-[2.65em]'
+      : 'text-[clamp(1.65rem,7vw,2.35rem)] sm:text-[3.15em]';
   const sourceSelected = phase === 'selectSource' || phase === 'deleteSource';
   const resultSelected = phase === 'selectResult' || phase === 'deleteResult';
   const currentPair = pairs[pairIndex % pairs.length];

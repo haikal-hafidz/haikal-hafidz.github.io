@@ -24,7 +24,7 @@
 // Poin 2 butuh akses ke index.html / netlify.toml yang belum ada di sini — kalau mau
 // dikerjain juga, tinggal kirim file-nya.
 
-const SITE_URL = 'https://haikal-hafidz.github.io/';
+let canonicalSiteUrl = 'https://haikal-hafidz.github.io/';
 let siteName = 'Haikal A. Hafidz — Content Writer & Editor';
 let browserTitle = siteName;
 let defaultShareImage = '';
@@ -45,13 +45,16 @@ function metaPlainText(value = '') {
 }
 
 
-export function setSiteIdentity({ name, role, title, description, shareImage } = {}) {
+export function setSiteIdentity({ name, role, title, description, shareImage, url } = {}) {
   const cleanName = String(name || '').trim();
   const cleanRole = String(role || '').trim();
   siteName = [cleanName, cleanRole].filter(Boolean).join(' — ') || siteName;
   browserTitle = String(title || '').trim() || siteName;
   defaultDescription = metaPlainText(description);
   defaultShareImage = String(shareImage || '').trim();
+  if (url && String(url).trim()) {
+    canonicalSiteUrl = String(url).trim();
+  }
 }
 
 function upsertMeta(attr, key, content) {
@@ -90,7 +93,7 @@ export function setPageMeta({ title, description, image, url } = {}) {
   upsertMeta('property', 'og:title', fullTitle);
   upsertMeta('property', 'og:description', resolvedDescription);
   upsertMeta('property', 'og:image', resolvedImage);
-  upsertMeta('property', 'og:url', url || SITE_URL);
+  upsertMeta('property', 'og:url', url || canonicalSiteUrl);
   upsertMeta('property', 'og:type', 'website');
   upsertMeta('name', 'twitter:card', title && resolvedImage ? 'summary_large_image' : 'summary');
   upsertMeta('name', 'twitter:title', fullTitle);

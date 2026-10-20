@@ -95,7 +95,7 @@ const TAB_META = {
   navigationLabels: { label: 'Navigation & Labels', desc: 'Top navbar text and Quick Views inside the A4 page' },
   interactiveWords: { label: 'Interactive Words', desc: 'Frasa klik, tujuan, warna & spellcheck underline' },
   general: { label: 'Update Patch', desc: 'Patch updates, sounds & site update settings' },
-  websikee: { label: 'Websikee!', desc: 'Title, description, favicon & social preview image' },
+  websikee: { label: 'Website Sharing Preview', desc: 'Title, description, canonical URL, favicon & social preview image' },
 };
 
 const DEV_NOTES_STORAGE_KEY = 'portfolio_cms_dev_notes';
@@ -113,6 +113,7 @@ const writeLocalDevNotes = (value) => {
 const DEFAULT_WEBSITE = {
   title: 'Haikal A. Hafidz — Content Writer & Editor',
   description: 'Portfolio Haikal A. Hafidz — writing, editing, creative work, and selected projects.',
+  url: 'https://haikal-hafidz.github.io/',
   favicon: '',
   shareImage: '',
   devNotes: '',
@@ -121,6 +122,7 @@ const DEFAULT_WEBSITE = {
 const normalizeWebsite = (raw) => ({
   ...DEFAULT_WEBSITE,
   ...(raw || {}),
+  url: raw?.url || DEFAULT_WEBSITE.url,
 });
 
 const DEFAULT_GENERAL = {
@@ -8746,95 +8748,219 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
           </div>
         </div>
 
-        {/* ================= WEBSIKEE! ================= */}
+        {/* ================= WEBSITE SHARING PREVIEW ================= */}
         {activeTab === 'websikee' && (
-          <section className="space-y-5">
+          <section className="space-y-6">
             <div>
-              <h2 className="font-[Arial] text-lg font-bold">Websikee!</h2>
-              <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">Website metadata. Website Title is stored through the CMS. The Share Preview Image below overwrites one fixed file in Supabase so GitHub Pages and social crawlers use the same image source.</p>
+              <p className="font-[Arial] text-[9px] font-bold uppercase tracking-[0.18em] text-blue-600">CMS SETTINGS</p>
+              <h2 className="font-[Arial] text-xl font-bold text-gray-900 dark:text-white">Website Sharing Preview</h2>
+              <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+                Configure the title, description, preview image, and canonical URL displayed when your portfolio link is shared across social media platforms, WhatsApp, Discord, and messaging apps.
+              </p>
             </div>
 
-            <Field label="Website Title" sourceValue={sourceFormData.website?.title || ''} cmsLanguage={cmsLanguage}>
-              <input
-                type="text"
-                value={formData.website?.title || ''}
-                onChange={(e) => setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), title: e.target.value } }))}
-                className={inputCls}
-                placeholder="Haikal A. Hafidz — Content Writer & Editor"
-              />
-            </Field>
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-[#242424]">
+                <h3 className="font-[Arial] text-xs font-bold uppercase tracking-[0.14em] text-gray-700 dark:text-gray-200">
+                  Sharing Metadata Settings
+                </h3>
 
-            <Field label="Website Description" sourceValue={sourceFormData.website?.description || ''} cmsLanguage={cmsLanguage}>
-              <RichTextEditor fieldMode initialValue={formData.website?.description || ''} onChange={(html) => setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), description: html } }))} placeholder="Short description shown in metadata and link previews when the portfolio is shared." />
-            </Field>
+                <Field label="1. Website Title" sourceValue={sourceFormData.website?.title || ''} cmsLanguage={cmsLanguage}>
+                  <input
+                    type="text"
+                    value={formData.website?.title || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), title: val } }));
+                      setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), title: val } }));
+                    }}
+                    className={inputCls}
+                    placeholder="Haikal A. Hafidz — Content Writer & Editor"
+                  />
+                  <p className="mt-1 text-[10px] text-gray-400">Title displayed when someone shares the website link.</p>
+                </Field>
 
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Favicon / Website Icon</p>
-              <p className="text-[10px] leading-relaxed text-gray-400">Small browser-tab icon beside the Website Title. Use a square image. The file overwrites the fixed website/favicon.png path in Supabase.</p>
-              {sourceFormData.website?.favicon && (
-                <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-[#282828]">
-                  <img src={sourceFormData.website.favicon} alt="Favicon website" className="h-12 w-12 rounded border border-gray-300 object-cover dark:border-gray-600" />
-                  <p className="min-w-0 break-all font-[Arial] text-[9px] text-gray-400">{sourceFormData.website.favicon}</p>
+                <Field label="2. Website Description" sourceValue={sourceFormData.website?.description || ''} cmsLanguage={cmsLanguage}>
+                  <RichTextEditor
+                    fieldMode
+                    initialValue={formData.website?.description || ''}
+                    onChange={(html) => {
+                      setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), description: html } }));
+                      setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), description: html } }));
+                    }}
+                    placeholder="Short description displayed in the link sharing preview card."
+                  />
+                  <p className="mt-1 text-[10px] text-gray-400">Short description displayed in link previews when shared.</p>
+                </Field>
+
+                <Field label="3. Website Canonical URL" sourceValue={sourceFormData.website?.url || 'https://haikal-hafidz.github.io/'} cmsLanguage={cmsLanguage}>
+                  <input
+                    type="url"
+                    value={formData.website?.url || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), url: val } }));
+                      setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), url: val } }));
+                    }}
+                    className={inputCls}
+                    placeholder="https://haikal-hafidz.github.io/"
+                  />
+                  <p className="mt-1 text-[10px] text-gray-400">The canonical public website URL (must be a valid URL starting with http:// or https://).</p>
+                </Field>
+
+                <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">4. Preview Image</p>
+                  <p className="text-[10px] leading-relaxed text-gray-400">Upload a new image or paste a URL. Uploading overwrites the fixed <code className="text-blue-600">website/share-preview.jpg</code> file in Supabase storage so static social crawlers fetch the updated preview image.</p>
+                  {(sourceFormData.website?.shareImage || formData.website?.shareImage) && (
+                    <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-[#282828]">
+                      <img src={sourceFormData.website?.shareImage || formData.website?.shareImage} alt="Preview link website" className="h-20 w-32 rounded border border-gray-300 object-cover dark:border-gray-600" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: '' } }));
+                          setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: '' } }));
+                        }}
+                        className="text-xs font-semibold text-red-500 hover:text-red-600"
+                      >
+                        Remove image
+                      </button>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={uploadingWebsitePreview}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setUploadingWebsitePreview(true);
+                      const url = await uploadWebsiteSharePreview(file);
+                      setUploadingWebsitePreview(false);
+                      if (url) {
+                        setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: url } }));
+                        setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: url } }));
+                      }
+                      e.target.value = '';
+                    }}
+                    className="w-full text-[10px]"
+                  />
+                  {uploadingWebsitePreview && <p className="text-[10px] text-blue-500 animate-pulse">Uploading preview image…</p>}
+                  <input
+                    type="text"
+                    value={formData.website?.shareImage || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: val } }));
+                      setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: val } }));
+                    }}
+                    className={inputCls}
+                    placeholder="Or paste an image URL directly"
+                  />
                 </div>
-              )}
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                disabled={uploadingWebsitePreview}
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  setUploadingWebsitePreview(true);
-                  const url = await uploadWebsiteFavicon(file);
-                  setUploadingWebsitePreview(false);
-                  if (url) setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), favicon: url } }));
-                  e.target.value = '';
-                }}
-                className="w-full text-[10px]"
-              />
-              {uploadingWebsitePreview && <p className="text-[10px] text-blue-500">Uploading image…</p>}
-              <input
-                type="text"
-                value={sourceFormData.website?.favicon || ''}
-                onChange={(e) => setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), favicon: e.target.value } }))}
-                className={inputCls}
-                placeholder="Or paste a favicon URL"
-              />
+
+                <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Favicon / Website Icon</p>
+                  <p className="text-[10px] leading-relaxed text-gray-400">Small browser-tab icon beside the Website Title. Overwrites <code className="text-blue-600">website/favicon.png</code> in Supabase storage.</p>
+                  {sourceFormData.website?.favicon && (
+                    <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-[#282828]">
+                      <img src={sourceFormData.website.favicon} alt="Favicon website" className="h-10 w-10 rounded border border-gray-300 object-cover dark:border-gray-600" />
+                      <p className="min-w-0 break-all font-[Arial] text-[9px] text-gray-400">{sourceFormData.website.favicon}</p>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={uploadingWebsitePreview}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setUploadingWebsitePreview(true);
+                      const url = await uploadWebsiteFavicon(file);
+                      setUploadingWebsitePreview(false);
+                      if (url) {
+                        setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), favicon: url } }));
+                        setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), favicon: url } }));
+                      }
+                      e.target.value = '';
+                    }}
+                    className="w-full text-[10px]"
+                  />
+                  <input
+                    type="text"
+                    value={formData.website?.favicon || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), favicon: val } }));
+                      setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), favicon: val } }));
+                    }}
+                    className={inputCls}
+                    placeholder="Or paste a favicon URL"
+                  />
+                </div>
+              </div>
+
+              {/* 5. Preview Panel */}
+              <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-[#242424]">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-[Arial] text-xs font-bold uppercase tracking-[0.14em] text-gray-700 dark:text-gray-200">
+                    5. Live Preview Panel
+                  </h3>
+                  <span className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-blue-950/40 dark:text-blue-300">
+                    Social Sharing Card
+                  </span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">
+                  Visual approximation of how your link preview card will look when shared on WhatsApp, Twitter/X, Discord, and messaging apps.
+                </p>
+
+                <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-md dark:border-gray-700 dark:bg-[#1c1c1c]">
+                  <div className="relative aspect-[1200/630] w-full bg-gray-200 dark:bg-[#2a2a2a] overflow-hidden flex items-center justify-center">
+                    {(formData.website?.shareImage || sourceFormData.website?.shareImage) ? (
+                      <img
+                        src={formData.website?.shareImage || sourceFormData.website?.shareImage}
+                        alt="Sharing Preview"
+                        className="h-full w-full object-cover"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    ) : (
+                      <div className="p-4 text-center text-xs text-gray-400 italic">
+                        No Preview Image set
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-4 space-y-1.5 bg-white dark:bg-[#242424]">
+                    <p className="font-[Arial] text-[10px] font-semibold uppercase tracking-wider text-gray-400 truncate">
+                      {(() => {
+                        try {
+                          const parsed = new URL(formData.website?.url || 'https://haikal-hafidz.github.io/');
+                          return parsed.hostname;
+                        } catch {
+                          return 'haikal-hafidz.github.io';
+                        }
+                      })()}
+                    </p>
+                    <h4 className="font-[Arial] text-sm font-bold text-gray-900 dark:text-white line-clamp-2">
+                      {formData.website?.title || 'Haikal A. Hafidz — Content Writer & Editor'}
+                    </h4>
+                    <div
+                      className="font-[Arial] text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed"
+                      dangerouslySetInnerHTML={{
+                        __html: formData.website?.description || 'Portfolio Haikal A. Hafidz — writing, editing, creative work, and selected projects.'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg border border-blue-100 bg-blue-50/50 text-[11px] text-gray-600 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-gray-300 space-y-1">
+                  <p className="font-semibold text-blue-700 dark:text-blue-300">Crawler Compatibility Note:</p>
+                  <p>
+                    Social platforms (WhatsApp, Discord, Twitter/X, Telegram) fetch initial static HTML files without executing client-side JavaScript. Uploading a preview image writes directly to <code className="text-blue-600">website/share-preview.jpg</code> in Supabase storage, which matches the static Open Graph image URL in <code className="text-blue-600">index.html</code>.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Share Preview Image</p>
-              <p className="text-[10px] leading-relaxed text-gray-400">Upload a new image to replace the link preview. The file overwrites the fixed website/share-preview.jpg path in Supabase; its URL stays the same. The final card appearance is still controlled by the app where the link is shared.</p>
-              {sourceFormData.website?.shareImage && (
-                <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-[#282828]">
-                  <img src={sourceFormData.website.shareImage} alt="Preview link website" className="h-20 w-28 rounded border border-gray-300 object-cover dark:border-gray-600" />
-                  <button type="button" onClick={() => setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: '' } }))} className="text-xs font-semibold text-red-500 hover:text-red-600">Remove image</button>
-                </div>
-              )}
-              <input
-                type="file"
-                accept="image/*"
-                disabled={uploadingWebsitePreview}
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  setUploadingWebsitePreview(true);
-                  const url = await uploadWebsiteSharePreview(file);
-                  setUploadingWebsitePreview(false);
-                  if (url) setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: url } }));
-                  e.target.value = '';
-                }}
-                className="w-full text-[10px]"
-              />
-              {uploadingWebsitePreview && <p className="text-[10px] text-blue-500">Uploading image…</p>}
-              <input
-                type="text"
-                value={sourceFormData.website?.shareImage || ''}
-                onChange={(e) => setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: e.target.value } }))}
-                className={inputCls}
-                placeholder="Or paste an image URL"
-              />
-            </div>
             <div className="space-y-2 border-t border-gray-200 pt-5 dark:border-gray-700">
               <div>
                 <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Notes Website</p>
@@ -9808,10 +9934,10 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
             )}
 
             {activeProjectItem!==null&&(()=>{const {kind,idx,sectionIdx}=activeProjectItem;
-              if(kind==='article'){const it=formData.projects.articles[idx];if(!it)return null;return <div className="space-y-6"><button type="button" onClick={closeProjectItem} className="font-[Arial] text-xs text-gray-500 hover:text-blue-600">← Back to {projectSectionLabel()}</button><div><p className="font-[Arial] text-[9px] font-bold uppercase tracking-[.18em] text-blue-600">{projectSectionLabel()}</p><h2 className="mt-1 font-[Arial] text-xl font-bold">{it.title||`Article #${idx+1}`}</h2></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Information</p><input value={it.title||''} onChange={(e)=>setArticleField(idx,'title',e.target.value)} placeholder="Title Artikel" className={inputCls}/><div className="grid grid-cols-1 gap-3 md:grid-cols-3"><input value={it.date||''} onChange={(e)=>setArticleField(idx,'date',e.target.value)} placeholder="Date" className={inputCls}/><input value={it.category||''} onChange={(e)=>setArticleField(idx,'category',e.target.value)} placeholder="Category" className={inputCls}/><input value={it.author||''} onChange={(e)=>setArticleField(idx,'author',e.target.value)} placeholder="Author" className={inputCls}/></div><RichTextEditor fieldMode initialValue={it.snippet||''} onChange={(html) =>setArticleField(idx,'snippet',html)} placeholder="Cuplikan singkat" /></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Media</p>{it.image&&<img src={it.image} alt="" className="h-28 w-44 rounded object-cover"/>}<ImageDropzone value={it.image||''} onChange={(url)=>setArticleField(idx,'image',url)} profile="article" disabled={uploadingArticleImage===idx}/><input value={it.image||''} onChange={(e)=>setArticleField(idx,'image',e.target.value)} placeholder="Or paste an image URL" className={inputCls}/></div>{getProjectPresentation(it).mode !== 'studio' && <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424]"><p className="mb-4 font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Content</p><RichTextEditor key={it.id||idx} initialValue={it.content||''} onChange={(html)=>setArticleField(idx,'content',html)}/></div>}<div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderProjectPresentationStudio('article',idx,null,it)}</div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderUniversalProjectEditor('article',idx,null,it)}</div></div>}
-              if(kind==='directing'){const it=formData.projects.directing.items[idx];if(!it)return null;return <div className="space-y-6"><button type="button" onClick={closeProjectItem} className="font-[Arial] text-xs text-gray-500 hover:text-blue-600">← Back to {projectSectionLabel()}</button><div><p className="font-[Arial] text-[9px] font-bold uppercase tracking-[.18em] text-blue-600">{projectSectionLabel()}</p><h2 className="mt-1 font-[Arial] text-xl font-bold">{it.title||`Video Work #${idx+1}`}</h2></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Information</p><input value={it.title||''} onChange={(e)=>setDirectingItemField(idx,'title',e.target.value)} placeholder="Title karya" className={inputCls}/><RichTextEditor fieldMode initialValue={it.premise||''} onChange={(html) =>setDirectingItemField(idx,'premise',html)} placeholder="Premise" /><div className="grid grid-cols-1 gap-3 md:grid-cols-3"><input value={it.role||''} onChange={(e)=>setDirectingItemField(idx,'role',e.target.value)} placeholder="Role" className={inputCls}/><input value={it.year||''} onChange={(e)=>setDirectingItemField(idx,'year',e.target.value)} placeholder="Tahun" className={inputCls}/><input value={it.runtime||''} onChange={(e)=>setDirectingItemField(idx,'runtime',e.target.value)} placeholder="Durasi" className={inputCls}/></div></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Media</p><div className="grid grid-cols-1 gap-3 md:grid-cols-[.28fr_1fr_.28fr]"><select value={it.mediaType||'youtube'} onChange={(e)=>setDirectingItemField(idx,'mediaType',e.target.value)} className={inputCls}><option value="youtube">YouTube</option><option value="vimeo">Vimeo</option><option value="drive">Google Drive</option><option value="video">Direct MP4/WebM</option><option value="external">External Link</option></select><input value={it.mediaUrl||''} onChange={(e)=>setDirectingItemField(idx,'mediaUrl',e.target.value)} placeholder="URL media" className={inputCls}/><select value={it.videoRatio||'auto'} onChange={(e)=>setDirectingItemField(idx,'videoRatio',e.target.value)} className={inputCls} title="Video ratio"><option value="auto">Ratio: Auto</option><option value="16:9">16:9</option><option value="4:3">4:3</option><option value="9:16">9:16</option><option value="1:1">1:1</option></select></div><input value={it.posterImage||''} onChange={(e)=>setDirectingItemField(idx,'posterImage',e.target.value)} placeholder="Poster/thumbnail URL" className={inputCls}/><div className="rounded-lg border border-dashed border-gray-200 p-4 dark:border-gray-700"><div className="mb-3 flex items-center justify-between gap-3"><div><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.14em] text-gray-500">Video Snippets</p><p className="mt-1 text-[10px] text-gray-400">Optional frame previews shown directly under the video player.</p></div><button type="button" onClick={()=>setDirectingItemField(idx,'videoSnippets',[...(Array.isArray(it.videoSnippets)?it.videoSnippets:[]),{id:`snippet-${Date.now()}`,imageUrl:'',caption:'',timestamp:''}])} className="rounded bg-blue-50 px-3 py-1.5 text-[10px] font-semibold text-blue-600 dark:bg-blue-950/30 dark:text-blue-300">+ Add Frame</button></div><div className="space-y-3">{(Array.isArray(it.videoSnippets)?it.videoSnippets:[]).map((frame,frameIdx)=>{const frames=Array.isArray(it.videoSnippets)?it.videoSnippets:[];const updateFrame=(patch)=>setDirectingItemField(idx,'videoSnippets',frames.map((f,i)=>i===frameIdx?{...f,...patch}:f));const moveFrame=(dir)=>{const next=[...frames];const to=frameIdx+dir;if(to<0||to>=next.length)return;[next[frameIdx],next[to]]=[next[to],next[frameIdx]];setDirectingItemField(idx,'videoSnippets',next)};return <div key={frame.id||frameIdx} className="grid grid-cols-1 gap-2 rounded-lg bg-gray-50 p-3 dark:bg-[#1e1e1e] md:grid-cols-[88px_1fr_auto]"><div>{frame.imageUrl?<img src={frame.imageUrl} alt="" className="aspect-video w-full rounded object-cover"/>:<div className="flex aspect-video items-center justify-center rounded border border-dashed border-gray-300 text-[9px] text-gray-400 dark:border-gray-600">Frame</div>}</div><div className="space-y-2"><input value={frame.imageUrl||''} onChange={(e)=>updateFrame({imageUrl:e.target.value})} placeholder="Image URL" className={inputClsSm}/><div className="grid grid-cols-1 gap-2 sm:grid-cols-[.3fr_1fr]"><input value={frame.timestamp||''} onChange={(e)=>updateFrame({timestamp:e.target.value})} placeholder="00:42" className={inputClsSm}/><input value={frame.caption||''} onChange={(e)=>updateFrame({caption:e.target.value})} placeholder="Caption (optional)" className={inputClsSm}/></div><input type="file" accept="image/*" onChange={async(e)=>{const file=e.target.files?.[0];if(!file)return;const key=`directing-snippet-${idx}-${frameIdx}`;setUploadingGalleryImage(key);const url=await uploadImageToStorage(file);setUploadingGalleryImage(null);if(url)updateFrame({imageUrl:url});e.target.value='';}} className="w-full text-[10px]"/></div><div className="flex gap-1 md:flex-col"><button type="button" disabled={frameIdx===0} onClick={()=>moveFrame(-1)} className="rounded border px-2 py-1 text-[10px] disabled:opacity-30">↑</button><button type="button" disabled={frameIdx===frames.length-1} onClick={()=>moveFrame(1)} className="rounded border px-2 py-1 text-[10px] disabled:opacity-30">↓</button><button type="button" onClick={()=>setDirectingItemField(idx,'videoSnippets',frames.filter((_,i)=>i!==frameIdx))} className="rounded border border-red-200 px-2 py-1 text-[10px] text-red-500">×</button></div></div>})}</div></div></div>{getProjectPresentation(it).mode !== 'studio' && <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424]"><Field label="Contribution / What I did"><RichTextEditor key={`contribution-${it.id||idx}`} initialValue={it.contribution||''} onChange={(html)=>setDirectingItemField(idx,'contribution',html)}/></Field></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424]"><Field label="Credits"><RichTextEditor key={`credits-${it.id||idx}`} initialValue={it.credits||''} onChange={(html)=>setDirectingItemField(idx,'credits',html)}/></Field></div></div>}<div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderProjectPresentationStudio('directing',idx,null,it)}</div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderUniversalProjectEditor('directing',idx,null,it)}</div></div>}
+              if(kind==='article'){const it=formData.projects.articles[idx];if(!it)return null;return <div className="space-y-6"><button type="button" onClick={closeProjectItem} className="font-[Arial] text-xs text-gray-500 hover:text-blue-600">← Back to {projectSectionLabel()}</button><div><p className="font-[Arial] text-[9px] font-bold uppercase tracking-[.18em] text-blue-600">{projectSectionLabel()}</p><h2 className="mt-1 font-[Arial] text-xl font-bold">{it.title||`Article #${idx+1}`}</h2></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Information</p><div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_.4fr]"><input value={it.title||''} onChange={(e)=>setArticleField(idx,'title',e.target.value)} placeholder="Title Artikel" className={inputCls}/><select value={it.displayMode||'reading'} onChange={(e)=>setArticleField(idx,'displayMode',e.target.value)} className={inputCls} title="Detail Display Mode"><option value="reading">Reading Mode</option><option value="existing">Existing Display</option></select></div><div className="grid grid-cols-1 gap-3 md:grid-cols-3"><input value={it.date||''} onChange={(e)=>setArticleField(idx,'date',e.target.value)} placeholder="Date" className={inputCls}/><input value={it.category||''} onChange={(e)=>setArticleField(idx,'category',e.target.value)} placeholder="Category" className={inputCls}/><input value={it.author||''} onChange={(e)=>setArticleField(idx,'author',e.target.value)} placeholder="Author" className={inputCls}/></div><RichTextEditor fieldMode initialValue={it.snippet||''} onChange={(html) =>setArticleField(idx,'snippet',html)} placeholder="Cuplikan singkat" /></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Media</p>{it.image&&<img src={it.image} alt="" className="h-28 w-44 rounded object-cover"/>}<ImageDropzone value={it.image||''} onChange={(url)=>setArticleField(idx,'image',url)} profile="article" disabled={uploadingArticleImage===idx}/><input value={it.image||''} onChange={(e)=>setArticleField(idx,'image',e.target.value)} placeholder="Or paste an image URL" className={inputCls}/></div>{getProjectPresentation(it).mode !== 'studio' && <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424]"><p className="mb-4 font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Content</p><RichTextEditor key={it.id||idx} initialValue={it.content||''} onChange={(html)=>setArticleField(idx,'content',html)}/></div>}<div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderProjectPresentationStudio('article',idx,null,it)}</div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderUniversalProjectEditor('article',idx,null,it)}</div></div>}
+              if(kind==='directing'){const it=formData.projects.directing.items[idx];if(!it)return null;return <div className="space-y-6"><button type="button" onClick={closeProjectItem} className="font-[Arial] text-xs text-gray-500 hover:text-blue-600">← Back to {projectSectionLabel()}</button><div><p className="font-[Arial] text-[9px] font-bold uppercase tracking-[.18em] text-blue-600">{projectSectionLabel()}</p><h2 className="mt-1 font-[Arial] text-xl font-bold">{it.title||`Video Work #${idx+1}`}</h2></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Information</p><div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_.4fr]"><input value={it.title||''} onChange={(e)=>setDirectingItemField(idx,'title',e.target.value)} placeholder="Title karya" className={inputCls}/><select value={it.displayMode||'existing'} onChange={(e)=>setDirectingItemField(idx,'displayMode',e.target.value)} className={inputCls} title="Detail Display Mode"><option value="existing">Existing Display</option><option value="reading">Reading Mode</option></select></div><RichTextEditor fieldMode initialValue={it.premise||''} onChange={(html) =>setDirectingItemField(idx,'premise',html)} placeholder="Premise" /><div className="grid grid-cols-1 gap-3 md:grid-cols-3"><input value={it.role||''} onChange={(e)=>setDirectingItemField(idx,'role',e.target.value)} placeholder="Role" className={inputCls}/><input value={it.year||''} onChange={(e)=>setDirectingItemField(idx,'year',e.target.value)} placeholder="Tahun" className={inputCls}/><input value={it.runtime||''} onChange={(e)=>setDirectingItemField(idx,'runtime',e.target.value)} placeholder="Durasi" className={inputCls}/></div></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Media</p><div className="grid grid-cols-1 gap-3 md:grid-cols-[.28fr_1fr_.28fr]"><select value={it.mediaType||'youtube'} onChange={(e)=>setDirectingItemField(idx,'mediaType',e.target.value)} className={inputCls}><option value="youtube">YouTube</option><option value="vimeo">Vimeo</option><option value="drive">Google Drive</option><option value="video">Direct MP4/WebM</option><option value="external">External Link</option></select><input value={it.mediaUrl||''} onChange={(e)=>setDirectingItemField(idx,'mediaUrl',e.target.value)} placeholder="URL media" className={inputCls}/><select value={it.videoRatio||'auto'} onChange={(e)=>setDirectingItemField(idx,'videoRatio',e.target.value)} className={inputCls} title="Video ratio"><option value="auto">Ratio: Auto</option><option value="16:9">16:9</option><option value="4:3">4:3</option><option value="9:16">9:16</option><option value="1:1">1:1</option></select></div><input value={it.posterImage||''} onChange={(e)=>setDirectingItemField(idx,'posterImage',e.target.value)} placeholder="Poster/thumbnail URL" className={inputCls}/><div className="rounded-lg border border-dashed border-gray-200 p-4 dark:border-gray-700"><div className="mb-3 flex items-center justify-between gap-3"><div><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.14em] text-gray-500">Video Snippets</p><p className="mt-1 text-[10px] text-gray-400">Optional frame previews shown directly under the video player.</p></div><button type="button" onClick={()=>setDirectingItemField(idx,'videoSnippets',[...(Array.isArray(it.videoSnippets)?it.videoSnippets:[]),{id:`snippet-${Date.now()}`,imageUrl:'',caption:'',timestamp:''}])} className="rounded bg-blue-50 px-3 py-1.5 text-[10px] font-semibold text-blue-600 dark:bg-blue-950/30 dark:text-blue-300">+ Add Frame</button></div><div className="space-y-3">{(Array.isArray(it.videoSnippets)?it.videoSnippets:[]).map((frame,frameIdx)=>{const frames=Array.isArray(it.videoSnippets)?it.videoSnippets:[];const updateFrame=(patch)=>setDirectingItemField(idx,'videoSnippets',frames.map((f,i)=>i===frameIdx?{...f,...patch}:f));const moveFrame=(dir)=>{const next=[...frames];const to=frameIdx+dir;if(to<0||to>=next.length)return;[next[frameIdx],next[to]]=[next[to],next[frameIdx]];setDirectingItemField(idx,'videoSnippets',next)};return <div key={frame.id||frameIdx} className="grid grid-cols-1 gap-2 rounded-lg bg-gray-50 p-3 dark:bg-[#1e1e1e] md:grid-cols-[88px_1fr_auto]"><div>{frame.imageUrl?<img src={frame.imageUrl} alt="" className="aspect-video w-full rounded object-cover"/>:<div className="flex aspect-video items-center justify-center rounded border border-dashed border-gray-300 text-[9px] text-gray-400 dark:border-gray-600">Frame</div>}</div><div className="space-y-2"><input value={frame.imageUrl||''} onChange={(e)=>updateFrame({imageUrl:e.target.value})} placeholder="Image URL" className={inputClsSm}/><div className="grid grid-cols-1 gap-2 sm:grid-cols-[.3fr_1fr]"><input value={frame.timestamp||''} onChange={(e)=>updateFrame({timestamp:e.target.value})} placeholder="00:42" className={inputClsSm}/><input value={frame.caption||''} onChange={(e)=>updateFrame({caption:e.target.value})} placeholder="Caption (optional)" className={inputClsSm}/></div><input type="file" accept="image/*" onChange={async(e)=>{const file=e.target.files?.[0];if(!file)return;const key=`directing-snippet-${idx}-${frameIdx}`;setUploadingGalleryImage(key);const url=await uploadImageToStorage(file);setUploadingGalleryImage(null);if(url)updateFrame({imageUrl:url});e.target.value='';}} className="w-full text-[10px]"/></div><div className="flex gap-1 md:flex-col"><button type="button" disabled={frameIdx===0} onClick={()=>moveFrame(-1)} className="rounded border px-2 py-1 text-[10px] disabled:opacity-30">↑</button><button type="button" disabled={frameIdx===frames.length-1} onClick={()=>moveFrame(1)} className="rounded border px-2 py-1 text-[10px] disabled:opacity-30">↓</button><button type="button" onClick={()=>setDirectingItemField(idx,'videoSnippets',frames.filter((_,i)=>i!==frameIdx))} className="rounded border border-red-200 px-2 py-1 text-[10px] text-red-500">×</button></div></div>})}</div></div></div>{getProjectPresentation(it).mode !== 'studio' && <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424]"><Field label="Contribution / What I did"><RichTextEditor key={`contribution-${it.id||idx}`} initialValue={it.contribution||''} onChange={(html)=>setDirectingItemField(idx,'contribution',html)}/></Field></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424]"><Field label="Credits"><RichTextEditor key={`credits-${it.id||idx}`} initialValue={it.credits||''} onChange={(html)=>setDirectingItemField(idx,'credits',html)}/></Field></div></div>}<div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderProjectPresentationStudio('directing',idx,null,it)}</div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderUniversalProjectEditor('directing',idx,null,it)}</div></div>}
               if(kind==='poster'){const it=formData.projects.poster.items[idx];if(!it)return null;return <div className="space-y-6"><button type="button" onClick={closeProjectItem} className="font-[Arial] text-xs text-gray-500 hover:text-blue-600">← Back to {projectSectionLabel()}</button><div><p className="font-[Arial] text-[9px] font-bold uppercase tracking-[.18em] text-blue-600">{projectSectionLabel()}</p><h2 className="mt-1 font-[Arial] text-xl font-bold">{it.title||`Poster #${idx+1}`}</h2></div><div className="grid grid-cols-1 gap-4 md:grid-cols-[.8fr_1.2fr]"><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424]">{it.imageUrl?<img src={it.imageUrl} alt="" className="mx-auto max-h-[520px] rounded object-contain"/>:<div className="flex min-h-[260px] items-center justify-center rounded border-2 border-dashed border-gray-200 text-xs text-gray-400">None yet gambar</div>}</div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Information</p><input value={it.title||''} onChange={(e)=>setPosterItemField(idx,'title',e.target.value)} placeholder="Title" className={inputCls}/><div className="grid grid-cols-1 gap-3 md:grid-cols-2"><input value={it.category||''} onChange={(e)=>setPosterItemField(idx,'category',e.target.value)} placeholder="Category" className={inputCls}/><input value={it.dimensions||''} onChange={(e)=>setPosterItemField(idx,'dimensions',e.target.value)} placeholder="Dimensi" className={inputCls}/></div><input value={it.imageUrl||''} onChange={(e)=>setPosterItemField(idx,'imageUrl',e.target.value)} placeholder="Image URL" className={inputCls}/><RichTextEditor fieldMode initialValue={it.description||''} onChange={(html) =>setPosterItemField(idx,'description',html)} placeholder="Description" /></div></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderProjectPresentationStudio('poster',idx,null,it)}</div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderUniversalProjectEditor('poster',idx,null,it)}</div></div>}
-              if(kind==='custom'){const s=formData.projects.customSections[sectionIdx];const it=s?.items?.[idx];if(!s||!it)return null;const ct=s.contentType||(s.layout==='articles'?'writing':'image');return <div className="space-y-6"><button type="button" onClick={closeProjectItem} className="font-[Arial] text-xs text-gray-500 hover:text-blue-600">← Back to {s.label||'Project Tab'}</button><div><p className="font-[Arial] text-[9px] font-bold uppercase tracking-[.18em] text-blue-600">{s.label||'Project Tab'}</p><h2 className="mt-1 font-[Arial] text-xl font-bold">{it.title||`Item #${idx+1}`}</h2></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Information</p><input value={it.title||''} onChange={(e)=>setCustomItemField(sectionIdx,idx,'title',e.target.value)} placeholder="Title" className={inputCls}/><input value={it.category||''} onChange={(e)=>setCustomItemField(sectionIdx,idx,'category',e.target.value)} placeholder="Category" className={inputCls}/><RichTextEditor fieldMode initialValue={it.description||''} onChange={(html) =>setCustomItemField(sectionIdx,idx,'description',html)} placeholder="Description" /></div>{getProjectPresentation(it).mode !== 'studio' && <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Content / Media</p>{ct==='writing'&&<RichTextEditor key={`custom-${it.id||idx}`} initialValue={it.content||''} onChange={(html)=>setCustomItemField(sectionIdx,idx,'content',html)}/>}<input value={it.imageUrl||''} onChange={(e)=>setCustomItemField(sectionIdx,idx,'imageUrl',e.target.value)} placeholder="Image / cover URL" className={inputCls}/><input value={it.url||''} onChange={(e)=>setCustomItemField(sectionIdx,idx,'url',e.target.value)} placeholder="Work Link / URL" className={inputCls}/></div>}<div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderProjectPresentationStudio('custom',idx,sectionIdx,it)}</div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderUniversalProjectEditor('custom',idx,sectionIdx,it)}</div></div>}
+              if(kind==='custom'){const s=formData.projects.customSections[sectionIdx];const it=s?.items?.[idx];if(!s||!it)return null;const ct=s.contentType||(s.layout==='articles'?'writing':'image');return <div className="space-y-6"><button type="button" onClick={closeProjectItem} className="font-[Arial] text-xs text-gray-500 hover:text-blue-600">← Back to {s.label||'Project Tab'}</button><div><p className="font-[Arial] text-[9px] font-bold uppercase tracking-[.18em] text-blue-600">{s.label||'Project Tab'}</p><h2 className="mt-1 font-[Arial] text-xl font-bold">{it.title||`Item #${idx+1}`}</h2></div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Information</p><div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_.4fr]"><input value={it.title||''} onChange={(e)=>setCustomItemField(sectionIdx,idx,'title',e.target.value)} placeholder="Title" className={inputCls}/><select value={it.displayMode||(ct==='writing'?'reading':'existing')} onChange={(e)=>setCustomItemField(sectionIdx,idx,'displayMode',e.target.value)} className={inputCls} title="Detail Display Mode"><option value="reading">Reading Mode</option><option value="existing">Existing Display</option></select></div><div className="grid grid-cols-1 gap-3 md:grid-cols-2"><input value={it.category||''} onChange={(e)=>setCustomItemField(sectionIdx,idx,'category',e.target.value)} placeholder="Category" className={inputCls}/><input value={it.date||it.year||''} onChange={(e)=>setCustomItemField(sectionIdx,idx,'date',e.target.value)} placeholder="Date / Year" className={inputCls}/></div><RichTextEditor fieldMode initialValue={it.description||''} onChange={(html) =>setCustomItemField(sectionIdx,idx,'description',html)} placeholder="Description" /></div>{getProjectPresentation(it).mode !== 'studio' && <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] space-y-4"><p className="font-[Arial] text-[10px] font-bold uppercase tracking-[.18em] text-blue-600">Content / Media</p>{ct==='writing'&&<RichTextEditor key={`custom-${it.id||idx}`} initialValue={it.content||''} onChange={(html)=>setCustomItemField(sectionIdx,idx,'content',html)}/>}<input value={it.imageUrl||''} onChange={(e)=>setCustomItemField(sectionIdx,idx,'imageUrl',e.target.value)} placeholder="Image / cover URL" className={inputCls}/><input value={it.url||''} onChange={(e)=>setCustomItemField(sectionIdx,idx,'url',e.target.value)} placeholder="Work Link / URL" className={inputCls}/></div>}<div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderProjectPresentationStudio('custom',idx,sectionIdx,it)}</div><div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-[#242424] md:p-6">{renderUniversalProjectEditor('custom',idx,sectionIdx,it)}</div></div>}
               return null;
             })()}
           </div>

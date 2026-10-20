@@ -133,7 +133,7 @@ export default function FeaturedWorksCarousel({ featuredWorks = [], heading, onO
         data-hint-id="home-featured-work"
         aria-label={`Buka karya ${activeWork.title}`}
       >
-        <div className={`${horizontal ? 'h-44 sm:h-52' : 'h-36 xl:h-40'} w-full flex items-center justify-center overflow-hidden rounded-2xl bg-white/80 dark:bg-[#202020]/80 mb-2.5`}>
+        <div className={`${horizontal ? 'h-32 sm:h-48' : 'h-36 xl:h-40'} w-full flex items-center justify-center overflow-hidden rounded-xl bg-white/80 dark:bg-[#202020]/80 mb-2`}>
           {activeWork.image ? (
             <img src={activeWork.image} alt={activeWork.title ? `Pratinjau ${activeWork.title}` : 'Pratinjau karya pilihan'} draggable="false" className="w-full h-full object-cover" />
           ) : (
@@ -168,9 +168,9 @@ export default function FeaturedWorksCarousel({ featuredWorks = [], heading, onO
         style={{ transform: translate(0), transition: 'transform 200ms ease, opacity 200ms ease', touchAction: horizontal ? 'pan-y' : 'none', overscrollBehavior: 'contain', contain: 'layout paint' }}
       >
         {horizontal ? (
-          <div className="grid grid-cols-[minmax(0,1fr)_3.25rem] sm:grid-cols-[minmax(0,1fr)_4.5rem] gap-2.5 items-start overflow-hidden rounded-2xl">
+          <div className="grid grid-cols-[minmax(0,1fr)_2.5rem] sm:grid-cols-[minmax(0,1fr)_4.5rem] gap-2 items-start overflow-hidden rounded-xl">
             <div>{activeCard}</div>
-            <PreviewImage work={nextWork} className="h-44 sm:h-52 rounded-2xl" />
+            <PreviewImage work={nextWork} className="h-32 sm:h-48 rounded-xl" />
           </div>
         ) : (
           <div className="overflow-hidden rounded-2xl" data-hint-id="home-carousel-drag">
