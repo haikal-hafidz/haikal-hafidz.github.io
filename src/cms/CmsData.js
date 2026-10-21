@@ -359,7 +359,17 @@ export const initialPortfolioData = {
     articlesLabel: 'Articles',
     directingLabel: 'Directing',
     posterLabel: 'Poster',
-    articles: [],
+    articles: [
+      {
+        id: 'article-sample-1',
+        title: 'Bermula dari Pengamatan Sederhana',
+        category: 'Esai',
+        date: '2026',
+        snippet: 'Catatan proses kreatif tentang bagaimana tulisan dimulai dari pengamatan sederhana.',
+        content: '<p>Setiap tulisan bermula dari pengamatan sederhana yang mengendap dalam ingatan. Ketika perhatian dialihkan pada hal-hal kecil di sekitar, naskah demi naskah mulai menemukan bentuknya.</p>',
+        displayMode: 'reading',
+      },
+    ],
     // Video/directing work sengaja kosong secara default supaya website tidak
     // menampilkan karya contoh palsu. Tambahkan YouTube, Vimeo, Drive, MP4, atau
     // external screening link dari CMS > Projects > Directing.

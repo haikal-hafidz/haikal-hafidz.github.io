@@ -359,7 +359,7 @@ export default function App() {
     async function loadPortfolioData() {
       if (!isSupabaseConfigured) {
         setLoadError('Konten live belum terhubung. Menampilkan salinan lokal.');
-        setPortfolioData(initialPortfolioData);
+        setPortfolioData(readSessionPortfolioCache() || initialPortfolioData);
         setIsDataReady(true);
         return;
       }
@@ -378,7 +378,7 @@ export default function App() {
             'Gagal konek ke server. Pastikan .env sudah diisi & tabel "portfolio" sudah dibikin. ' +
             'Sementara nampilin data default.'
           );
-          setPortfolioData(initialPortfolioData);
+          setPortfolioData(readSessionPortfolioCache() || initialPortfolioData);
         } else if (data?.data && Object.keys(data.data).length > 0) {
           const normalizedLiveData = {
             ...data.data,
@@ -416,7 +416,7 @@ export default function App() {
           'Gagal konek ke server. Pastikan .env sudah diisi & tabel "portfolio" sudah dibikin. ' +
           'Sementara nampilin data default.'
         );
-        setPortfolioData(initialPortfolioData);
+        setPortfolioData(readSessionPortfolioCache() || initialPortfolioData);
       } finally {
         if (!ignore) setIsDataReady(true);
       }

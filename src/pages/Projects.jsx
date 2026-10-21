@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { setPageMeta } from '../lib/pageMeta';
 import InteractiveText from '../components/InteractiveText';
 import RichContent from '../components/RichContent';
@@ -1270,10 +1270,41 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     })),
   ], [articlesLabel, directingLabel, posterLabel, customSections, articles.length, directingItems.length, posterItems.length]);
 
+  const findCategoryForWork = useCallback((workId) => {
+    if (!workId) return null;
+    if (articles.some((a) => a.id === workId)) return 'articles';
+    if (directingItems.some((d) => d.id === workId)) return 'directing';
+    if (posterItems.some((p) => p.id === workId)) return 'poster';
+    for (const section of customSections) {
+      if ((section.items || []).some((item) => item.id === workId)) {
+        return `custom:${section.id}`;
+      }
+    }
+    return null;
+  }, [articles, directingItems, posterItems, customSections]);
+
   // Halaman selalu masuk lewat Project Index dulu. Visitor memilih rak/kategori,
   // baru melihat karya di dalamnya—supaya halaman tidak terasa seperti CMS penuh tab.
-  const [activeCategory, setActiveCategory] = useState('overview');
+  const [activeCategory, setActiveCategory] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const cat = params.get('category');
+      if (cat) return cat;
+    }
+    return 'overview';
+  });
   const [projectQuery, setProjectQuery] = useState('');
+
+  useEffect(() => {
+    if (readingWorkId) {
+      const cat = findCategoryForWork(readingWorkId);
+      if (cat) setActiveCategory(cat);
+    } else if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const cat = params.get('category');
+      if (cat) setActiveCategory(cat);
+    }
+  }, [readingWorkId, findCategoryForWork]);
   const activeCustomSection =
     activeCategory.startsWith('custom:')
       ? customSections.find((cs) => `custom:${cs.id}` === activeCategory)
@@ -1324,6 +1355,11 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     setSelectedCustomIndex(null);
     setListPage(1);
     setActiveCategory('overview');
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('category');
+      window.history.pushState(null, '', url);
+    }
   };
 
   // Artikel pertama di data = artikel unggulan (gaya headline Mojok), sisanya jadi
@@ -1460,11 +1496,20 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
   const openWork = (item) => {
     if (!item) return;
 
+    const currentCat = (activeCategory && activeCategory !== 'overview')
+      ? activeCategory
+      : findCategoryForWork(item.id);
+
     // Explicit displayMode handling if configured in CMS:
     if (item.displayMode === 'reading' && onSetReadingWorkId && item.id) {
       onSetReadingWorkId(item.id);
       const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'Projects');
       url.searchParams.set('work', item.id);
+      if (currentCat) {
+        url.searchParams.set('category', currentCat);
+        setActiveCategory(currentCat);
+      }
       window.history.pushState(null, '', url);
       return;
     }
@@ -1499,7 +1544,12 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     if (onSetReadingWorkId && item.id) {
       onSetReadingWorkId(item.id);
       const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'Projects');
       url.searchParams.set('work', item.id);
+      if (currentCat) {
+        url.searchParams.set('category', currentCat);
+        setActiveCategory(currentCat);
+      }
       window.history.pushState(null, '', url);
       return;
     }
@@ -1657,17 +1707,25 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     const rawBody = readingWork.content || readingWork.wordContent || readingWork.description || readingWork.snippet || readingWork.premise || '';
 
     const handleBackFromReading = () => {
+      const targetCategory = (activeCategory && activeCategory !== 'overview')
+        ? activeCategory
+        : (findCategoryForWork(readingWorkId) || 'articles');
+
+      if (targetCategory) {
+        setActiveCategory(targetCategory);
+      }
+
       if (onSetReadingWorkId) {
         onSetReadingWorkId(null);
       }
-      if (window.history.length > 1) {
-        window.history.back();
-      } else {
-        const url = new URL(window.location.href);
-        url.searchParams.delete('work');
-        url.searchParams.set('tab', 'Projects');
-        window.history.replaceState(null, '', url);
+
+      const url = new URL(window.location.href);
+      url.searchParams.delete('work');
+      url.searchParams.set('tab', 'Projects');
+      if (targetCategory && targetCategory !== 'overview') {
+        url.searchParams.set('category', targetCategory);
       }
+      window.history.pushState(null, '', url);
     };
 
     const handleShareReadingWork = async () => {
@@ -1759,6 +1817,12 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
               setPosterSpotlightIndex(0);
               setSelectedCustomIndex(null);
               setListPage(1);
+              if (typeof window !== 'undefined') {
+                const url = new URL(window.location.href);
+                url.searchParams.set('tab', 'Projects');
+                url.searchParams.set('category', tab.key);
+                window.history.pushState(null, '', url);
+              }
             }}
             className={`px-4 py-2 text-[0.75em] font-semibold rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#161616] ${
               activeCategory === tab.key
@@ -1778,7 +1842,15 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
               <button
                 key={section.key}
                 type="button"
-                onClick={() => setActiveCategory(section.key)}
+                onClick={() => {
+                  setActiveCategory(section.key);
+                  if (typeof window !== 'undefined') {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('tab', 'Projects');
+                    url.searchParams.set('category', section.key);
+                    window.history.pushState(null, '', url);
+                  }
+                }}
                 className="flex w-full items-center justify-center py-2.5 px-3.5 sm:p-6 border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#222222] hover:border-gray-400 dark:hover:border-gray-500 transition-colors rounded-none text-center cursor-pointer min-h-[2.85rem] sm:min-h-[5rem]"
               >
                 <span className="text-[0.875em] sm:text-[1.125em] font-semibold text-gray-900 dark:text-gray-100 truncate">
