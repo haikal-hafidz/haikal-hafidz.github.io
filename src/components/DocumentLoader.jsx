@@ -27,12 +27,12 @@ export default function DocumentLoader({ isDataReady = true, onFinished }) {
     };
   }, []);
 
-  // Act 4 -> Act 5 (Final 'd' loses grip after 1.5s freeze and pulls background down) at 11000ms when isDataReady is true
+  // Act 4 -> Act 5 (Final 'd' holds motionless for 1.5s then pulls background down) at 10500ms when isDataReady is true
   useEffect(() => {
     if (act >= 4 && isDataReady && act < 5) {
       const timer4 = setTimeout(() => {
         setAct(5);
-      }, 2000); // 9000 + 2000 = 11000ms
+      }, 1500); // 9000 + 1500 = 10500ms (exactly 1.5s motionless hold)
       return () => clearTimeout(timer4);
     }
   }, [act, isDataReady]);
@@ -240,7 +240,7 @@ export default function DocumentLoader({ isDataReady = true, onFinished }) {
 
         @keyframes breakFreeD {
           0% { transform: translate3d(12px, 0, 0) rotate(16deg); }
-          100% { transform: translate3d(10px, -35px, 0) rotate(-10deg) scale(1.08); }
+          100% { transform: translate3d(10px, -52px, 0) rotate(-18deg) scale(1.15); }
         }
         @keyframes shiftA {
           0% { transform: translate3d(-5px, 2px, 0) rotate(-10deg); }
@@ -259,14 +259,14 @@ export default function DocumentLoader({ isDataReady = true, onFinished }) {
         .act-4 .letter-n, .act-5 .letter-n { animation: freefallN 2.6s cubic-bezier(0.55, 0.085, 0.68, 0.53) 0.12s forwards; }
         .act-4 .letter-g, .act-5 .letter-g { animation: freefallG 2.6s cubic-bezier(0.55, 0.085, 0.68, 0.53) 0.2s forwards; }
 
-        /* The instigator 'd' rises into apex pose in 0.5s, then holds frozen for exactly 1.5s (25% to 100% of 2.0s duration) */
+        /* In Act 4, 'd' is already at its final apex suspended position from Act 3 and remains completely motionless for the full 1.5s hold */
         .act-4 .letter-d {
-          animation: hangD 2.0s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+          transform: translate3d(10px, -52px, 0) rotate(-18deg) scale(1.15);
+          animation: freezeD 1.5s linear forwards;
         }
 
-        @keyframes hangD {
-          0% { transform: translate3d(10px, -35px, 0) rotate(-10deg) scale(1.08); }
-          25% { transform: translate3d(10px, -52px, 0) rotate(-18deg) scale(1.15); }
+        @keyframes freezeD {
+          0% { transform: translate3d(10px, -52px, 0) rotate(-18deg) scale(1.15); }
           100% { transform: translate3d(10px, -52px, 0) rotate(-18deg) scale(1.15); }
         }
 
