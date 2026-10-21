@@ -359,7 +359,7 @@ export default function App() {
     async function loadPortfolioData() {
       if (!isSupabaseConfigured) {
         setLoadError('Konten live belum terhubung. Menampilkan salinan lokal.');
-        setPortfolioData(initialPortfolioData);
+        setPortfolioData(readSessionPortfolioCache() || initialPortfolioData);
         setIsDataReady(true);
         return;
       }
@@ -378,7 +378,7 @@ export default function App() {
             'Gagal konek ke server. Pastikan .env sudah diisi & tabel "portfolio" sudah dibikin. ' +
             'Sementara nampilin data default.'
           );
-          setPortfolioData(initialPortfolioData);
+          setPortfolioData(readSessionPortfolioCache() || initialPortfolioData);
         } else if (data?.data && Object.keys(data.data).length > 0) {
           const normalizedLiveData = {
             ...data.data,
@@ -416,7 +416,7 @@ export default function App() {
           'Gagal konek ke server. Pastikan .env sudah diisi & tabel "portfolio" sudah dibikin. ' +
           'Sementara nampilin data default.'
         );
-        setPortfolioData(initialPortfolioData);
+        setPortfolioData(readSessionPortfolioCache() || initialPortfolioData);
       } finally {
         if (!ignore) setIsDataReady(true);
       }
@@ -472,6 +472,10 @@ export default function App() {
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
       setReadingWorkId(params.get('work') || null);
+      const tabParam = params.get('tab');
+      if (tabParam && VALID_TABS.includes(tabParam)) {
+        setActiveTab(tabParam);
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -947,32 +951,6 @@ export default function App() {
     [activeTab, portfolioData]
   );
 
-  // Sementara data masih di-fetch dari Supabase, tampilin loading simpel
-  // biar gak kelihatan "flash" dari data default ke data asli.
-  if (isLoading) {
-    return <DocumentLoader onFinished={() => { try { sessionStorage.setItem(PORTFOLIO_SPLASH_SEEN_KEY, '1'); } catch {} setIsSplashDone(true); }} />;
-  }
-
-  if (readingWorkId) {
-    return (
-      <div className={darkMode ? 'dark' : ''}>
-        <div className="min-h-screen bg-white dark:bg-[#181818] text-gray-900 dark:text-gray-100 selection:bg-blue-500 selection:text-white">
-          <Suspense fallback={null}>
-            <Projects
-              data={publicPortfolioData.projects}
-              interactiveWords={publicPortfolioData.interactiveWords}
-              onNavigate={handleNavigate}
-              initialArticleId={initialArticleId}
-              initialWorkTarget={workNavigation?.type !== 'book' ? workNavigation : null}
-              navigationRequestKey={workNavigation?.requestKey}
-              readingWorkId={readingWorkId}
-              onSetReadingWorkId={setReadingWorkId}
-            />
-          </Suspense>
-        </div>
-      </div>
-    );
-  }
 
   const documentBody = (
     <Suspense fallback={null}>
@@ -1018,6 +996,16 @@ export default function App() {
 
   return (
     <div className={darkMode ? 'dark' : ''}>
+      {isLoading && (
+        <DocumentLoader
+          isDataReady={isDataReady}
+          onFinished={() => {
+            try { sessionStorage.setItem(PORTFOLIO_SPLASH_SEEN_KEY, '1'); } catch {}
+            setIsSplashDone(true);
+            setIsLoading(false);
+          }}
+        />
+      )}
       <div className={`min-h-screen bg-[#e6e6e6] dark:bg-[#181818] flex flex-col justify-between selection:bg-blue-500 selection:text-white relative ${hintActive ? 'hint-mode-active' : ''}`}>
         <StageOrnaments />
 
@@ -1096,17 +1084,9 @@ export default function App() {
           onToggleSound={() => setSoundEnabled((value) => !value)}
           language={language}
           onLanguageChange={setLanguage}
+          helpActive={hintActive}
+          onToggleHelp={() => setHintActive((v) => !v)}
         />
-
-        {/* Tombol "Hint" — nempel di pojok KIRI ATAS, di luar kertas A4. Diklik = toggle
-            mode hint on/off, yang bikin semua elemen `data-hint-id` di tab yang lagi
-            kebuka ikut blink (lihat CSS `.hint-mode-active` di bawah). GANTI dari
-            GuidanceNote lama (kotak teks statis per-tab). Sama kayak sebelumnya:
-            disembunyiin di HP & pas Admin Mode, dipasang di luar div kertas yang
-            punya transform: scale biar posisinya gak ikut ke-scale pas zoom. */}
-        {!isAdminMode && (
-          <HintToggle active={hintActive} onToggle={() => setHintActive((v) => !v)} />
-        )}
 
         {/* Notifikasi welcome tetap muncul di HP juga; posisinya mengikuti
             isMobileLayout di dalam komponennya sendiri. */}
@@ -1331,16 +1311,17 @@ export default function App() {
           />
         )}
 
-        {!isAdminMode && (isMobileLayout || (activeTab === 'About' && desktopLeftRailStyle)) && (
+        {!isAdminMode && activeTab === 'About' && (
           <LastFmFootnote
             data={normalizeAbout(portfolioData.about).listeningFootnote}
-            style={isMobileLayout ? undefined : {
+            style={isMobileLayout || !desktopLeftRailStyle ? undefined : {
               ...desktopLeftRailStyle,
               top: desktopLeftRailStyle.top ? desktopLeftRailStyle.top + 330 : 360,
               fontFamily,
               fontSize: `${fontSize}pt`,
             }}
             darkMode={darkMode}
+            isMobileLayout={isMobileLayout}
           />
         )}
 

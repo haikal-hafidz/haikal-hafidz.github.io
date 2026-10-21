@@ -12,6 +12,8 @@ export default function TitleBar({
   onToggleSound,
   language = 'id',
   onLanguageChange,
+  helpActive,
+  onToggleHelp,
 }) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordQuality, setRecordQuality] = useState('1080');
@@ -172,6 +174,28 @@ export default function TitleBar({
             <span className="h-2 w-2 rounded-sm bg-white" aria-hidden="true" /> Stop
           </button>
         )}
+        {/* Tombol Help / Hint Toggle — dipindah dari floating button bawah ke TitleBar di samping LanguageToggle */}
+        <button
+          type="button"
+          onClick={onToggleHelp}
+          data-hint-id="titlebar-help"
+          data-hint-surface="blue"
+          className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border transition-all hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer ${
+            helpActive
+              ? 'border-amber-300 bg-amber-400 text-black shadow'
+              : 'border-white/25 bg-white/10 text-white hover:bg-white hover:text-[#2B579A]'
+          }`}
+          title={helpActive ? 'Matikan mode Help' : 'Tunjukkan apa saja yang bisa diklik'}
+          aria-label={helpActive ? 'Matikan Help' : 'Aktifkan Help'}
+          aria-pressed={helpActive}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 16v-1.5c0-.9.5-1.4 1.2-1.9.8-.6 1.3-1.3 1.3-2.3A2.5 2.5 0 0 0 12 7.8a2.5 2.5 0 0 0-2.5 2.5" strokeLinecap="round" />
+            <circle cx="12" cy="17.6" r="0.6" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
+
         <LanguageToggle activeTab={activeTab} language={language} onLanguageChange={onLanguageChange} />
         <div className="flex items-center gap-1.5" data-hint-id="titlebar-sound" data-hint-surface="blue">
           <button
