@@ -192,50 +192,90 @@ function sanitizeHtmlContent(html = '') {
 }
 
 function formatSongLyricsHtml(html = '') {
-  if (!html) return '';
-  const raw = String(html);
+  return sanitizeHtmlContent(html);
+}
 
-  const prepared = raw
-    .replace(/<p[^>]*>\s*(?:<br\s*\/?>|&nbsp;|\s)*\s*<\/p>/gi, '<!--STANZA-->')
-    .replace(/(?:<br\s*\/?>\s*){2,}/gi, '<!--STANZA-->')
-    .replace(/\n{2,}/g, '<!--STANZA-->');
+function parseLyricsToStanzas(rawInput = '') {
+  if (!rawInput) return [];
+  const str = String(rawInput);
 
-  if (!prepared.includes('<!--STANZA-->')) {
-    return sanitizeHtmlContent(raw);
+  // If input contains rich media elements or headings/lists, return [] to fallback to standard article HTML rendering
+  if (/<(figure|iframe|video|audio|h[1-6]|blockquote|ul|ol|table)\b/i.test(str)) {
+    return [];
   }
 
-  const chunks = prepared.split('<!--STANZA-->').filter(Boolean);
+  let normalized = str
+    .replace(/<p[^>]*>\s*(?:<br\s*\/?>|&nbsp;|<span[^>]*>\s*<\/span>|\s)*\s*<\/p>/gi, '===STANZA===')
+    .replace(/(?:<br\s*\/?>\s*){2,}/gi, '===STANZA===')
+    .replace(/\n{2,}/g, '===STANZA===');
 
-  const formattedChunks = chunks.map((chunk) => {
-    if (/^<(figure|iframe|video|audio|div|hr|a)\b/i.test(chunk.trim())) {
-      return chunk;
-    }
+  const rawStanzaChunks = normalized.split('===STANZA===').filter((chunk) => {
+    const textOnly = chunk.replace(/<[^>]+>/g, '').trim();
+    return textOnly.length > 0;
+  });
 
+  if (rawStanzaChunks.length === 0) return [];
+
+  const stanzas = rawStanzaChunks.map((chunk) => {
     let lines = [];
+
     if (/<p[^>]*>/i.test(chunk)) {
       const pMatches = chunk.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [chunk];
       pMatches.forEach((pStr) => {
-        const textInside = pStr.replace(/^<p[^>]*>/i, '').replace(/<\/p>$/i, '');
-        const splitByBr = textInside.split(/<br\s*\/?>/i);
-        splitByBr.forEach((l) => {
-          const cleanLine = l.replace(/<[^>]+>/g, '').trim();
+        const contentInside = pStr.replace(/^<p[^>]*>/gi, '').replace(/<\/p>$/gi, '');
+        const lineParts = contentInside.split(/<br\s*\/?>|\n/gi);
+        lineParts.forEach((part) => {
+          const cleanLine = part.replace(/<\/?(p|div)\b[^>]*>/gi, '').trim();
           if (cleanLine) lines.push(cleanLine);
         });
       });
     } else {
-      const splitByBr = chunk.split(/<br\s*\/?>|\n/i);
-      splitByBr.forEach((l) => {
-        const cleanLine = l.replace(/<[^>]+>/g, '').trim();
+      const lineParts = chunk.split(/<br\s*\/?>|\n/gi);
+      lineParts.forEach((part) => {
+        const cleanLine = part.replace(/<\/?(p|div)\b[^>]*>/gi, '').trim();
         if (cleanLine) lines.push(cleanLine);
       });
     }
 
-    if (!lines.length) return '';
+    return lines;
+  }).filter((stanzaLines) => stanzaLines.length > 0);
 
-    return `<p class="mb-5 leading-relaxed text-gray-800 dark:text-gray-200">${lines.join('<br>')}</p>`;
-  }).filter(Boolean);
+  return stanzas;
+}
 
-  return formattedChunks.join('');
+function SongLyricsRenderer({ html = '', rawText = '' }) {
+  const input = html || rawText;
+  const isRichArticle = /<(h[1-6]|blockquote|ul|ol|table|figure|iframe|video|audio)\b/i.test(input);
+
+  const stanzas = useMemo(() => {
+    if (isRichArticle) return [];
+    return parseLyricsToStanzas(input);
+  }, [input, isRichArticle]);
+
+  if (isRichArticle || !stanzas || stanzas.length === 0) {
+    return (
+      <div
+        className={`${ARTICLE_TEXT_CLASS} space-y-3 pt-0 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtmlContent(input) }}
+      />
+    );
+  }
+
+  return (
+    <div className="song-lyrics-container space-y-5 text-gray-800 dark:text-gray-200">
+      {stanzas.map((stanzaLines, stanzaIdx) => (
+        <div key={stanzaIdx} className="song-stanza space-y-1">
+          {stanzaLines.map((line, lineIdx) => (
+            <p
+              key={lineIdx}
+              className="my-0 py-0 text-[0.9375em] sm:text-[1em] leading-snug font-normal text-gray-800 dark:text-gray-200"
+              dangerouslySetInnerHTML={{ __html: line }}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function stripImageAndMediaTags(html = '') {
@@ -349,11 +389,8 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
         <RichContent value={stripImageAndMediaTags(item.snippet)} className="font-medium text-[0.95em] text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#252526] p-4 rounded border-l-4 border-[#2B579A] dark:border-[#6FA8DC]" />
       )}
 
-      {cleanBody && (
-        <div
-          className={`${ARTICLE_TEXT_CLASS} space-y-3 pt-0 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
-          dangerouslySetInnerHTML={{ __html: cleanBody }}
-        />
+      {rawBody && (
+        <SongLyricsRenderer html={rawBody} />
       )}
 
       {additionalText.map((sec, idx) => (
@@ -2047,10 +2084,9 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                   <RichContent value={readingWork.snippet} className="mt-6 font-medium text-[1em] leading-relaxed text-gray-800 dark:text-gray-200 bg-[#f0eee6] dark:bg-[#2a2a2b] p-5 rounded border-l-4 border-[#2B579A] dark:border-[#6FA8DC]" />
                 )}
 
-                <div
-                  className={`${ARTICLE_TEXT_CLASS} mt-4 space-y-3 text-gray-800 dark:text-gray-200 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
-                  dangerouslySetInnerHTML={{ __html: cleanBody }}
-                />
+                <div className="mt-6">
+                  <SongLyricsRenderer html={rawBody} />
+                </div>
               </section>
 
               {/* Prev / Next navigation buttons strictly scoped to active tab */}
@@ -2150,10 +2186,9 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
             </figure>
           )}
 
-          <div
-            className={`${ARTICLE_TEXT_CLASS} space-y-3 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
-            dangerouslySetInnerHTML={{ __html: cleanBody }}
-          />
+          <div className="mt-4">
+            <SongLyricsRenderer html={rawBody} />
+          </div>
         </article>
       </div>
     );
