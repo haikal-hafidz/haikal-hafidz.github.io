@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import DynamicStatement from './DynamicStatement';
 import InteractiveText from './InteractiveText';
@@ -214,6 +214,18 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
       .catch(() => { /* local scoreboard remains available */ });
     return () => { ignore = true; };
   }, []);
+
+  useLayoutEffect(() => {
+    if (mode === 'game') {
+      if (modalRef.current) {
+        modalRef.current.scrollTop = 0;
+        if (modalRef.current.parentElement) {
+          modalRef.current.parentElement.scrollTop = 0;
+        }
+      }
+      window.scrollTo(0, 0);
+    }
+  }, [gamePhase, mode]);
 
   useEffect(() => {
     if (!modalOpen) return undefined;
