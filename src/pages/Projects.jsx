@@ -171,7 +171,7 @@ function UniversalWritingRenderer({ item = {}, genre = '', activeCustomSection =
   if (categoryType === 'script') {
     return (
       <div
-        className="font-mono text-[0.875em] sm:text-[0.9375em] tracking-[0.005em] leading-relaxed text-gray-800 dark:text-gray-200 [&_p]:mb-4 [&_p]:mt-0 [&_p:empty]:hidden [&_h1]:my-4 [&_h2]:my-3 [&_h3]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-[#2B579A] [&_blockquote]:pl-4 [&_blockquote]:italic"
+        className="font-mono text-[0.875em] sm:text-[0.9375em] tracking-[0.005em] leading-relaxed text-gray-800 dark:text-gray-200 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_pre]:whitespace-pre-wrap [&_pre]:break-words [&_p]:mb-4 [&_p]:mt-0 [&_p:empty]:hidden [&_h1]:my-4 [&_h2]:my-3 [&_h3]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-[#2B579A] [&_blockquote]:pl-4 [&_blockquote]:italic"
         dangerouslySetInnerHTML={{ __html: cleanHtml }}
       />
     );
@@ -2059,24 +2059,47 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
       }
     };
 
-    // If reading tab, render static paper sheet overlay (VisitorIntroduction styling without animation)
+    // If reading tab, render Word-inspired reading overlay
     if (isReadingTab && typeof document !== 'undefined') {
       return createPortal(
-        <div id="reading-paper-sheet" className="fixed inset-0 z-[10000] overflow-y-auto bg-[#d7d7d7] dark:bg-[#181818] text-[#121a2b] dark:text-gray-100 select-text">
-          <div className="min-h-screen bg-[#fbfaf6] dark:bg-[#1e1e1e] shadow-2xl">
-            <button
-              type="button"
-              onClick={handleBackFromReading}
-              className="fixed right-6 top-5 z-20 flex h-11 w-11 items-center justify-center border border-[#bac0c9] dark:border-gray-700 bg-[#fbfaf6] dark:bg-[#252526] text-2xl font-serif leading-none transition hover:bg-[#2B579A] hover:text-white dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] cursor-pointer"
-              aria-label="Close reading view"
-            >
-              ×
-            </button>
+        <div id="reading-paper-sheet" className="fixed inset-0 z-[10000] overflow-y-auto bg-[#f4f5f8] dark:bg-[#121212] text-gray-900 dark:text-gray-100 select-text flex flex-col">
+          {/* Word-inspired blue header area */}
+          <header className="sticky top-0 z-30 bg-[#2b579a] text-white shadow-md">
+            <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-2.5 sm:px-6">
+              <div className="flex items-center gap-3 min-w-0 pr-2">
+                <span className="shrink-0 rounded bg-white/20 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-white">
+                  Document
+                </span>
+                <span className="truncate font-sans text-xs sm:text-sm font-medium text-white/90">
+                  {workTitle}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleShareReadingWork}
+                  className="rounded bg-white/10 px-3 py-1 font-mono text-xs font-medium text-white transition hover:bg-white/20 cursor-pointer"
+                >
+                  {linkCopied ? 'Copied!' : 'Share'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBackFromReading}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-lg font-bold text-white transition hover:bg-white/20 cursor-pointer"
+                  aria-label="Close reading view"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </header>
 
-            <main className="mx-auto flex min-h-screen w-[min(1120px,calc(100%-48px))] flex-col py-10 px-0">
-              <div className="flex flex-wrap items-center justify-between gap-4 font-mono text-[0.7em] font-semibold tracking-widest text-[#2B579A] dark:text-[#6FA8DC] uppercase">
+          {/* Clean document reading container */}
+          <main className="mx-auto my-6 w-full max-w-4xl flex-1 px-4 sm:px-6">
+            <div className="min-h-full rounded-lg border border-gray-200/80 bg-white p-6 sm:p-10 shadow-sm dark:border-gray-800 dark:bg-[#1c1c1e]">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 dark:border-gray-800 pb-4 font-mono text-[0.75em] font-medium tracking-wide text-gray-500 dark:text-gray-400 uppercase">
                 <div className="flex items-center gap-2">
-                  <span>{workGenre}</span>
+                  <span className="font-bold text-[#2b579a] dark:text-[#6FA8DC]">{workGenre}</span>
                   <span>·</span>
                   <span>{workDate}</span>
                   {workAuthor && (
@@ -2086,25 +2109,15 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                     </>
                   )}
                 </div>
-
-                <button
-                  type="button"
-                  onClick={handleShareReadingWork}
-                  className="font-mono text-[0.75em] text-[#2B579A] dark:text-[#6FA8DC] hover:underline cursor-pointer"
-                >
-                  {linkCopied ? 'Link copied!' : 'Share'}
-                </button>
               </div>
 
-              <div className="my-5 h-[5px] bg-[#2B579A] dark:bg-[#6FA8DC]" />
-
-              <section className="my-auto mx-auto w-[min(880px,100%)] py-4 text-left">
-                <h1 className="text-[clamp(2.2rem,5vw,4.5rem)] font-serif leading-[1.05] tracking-tight font-extrabold text-gray-900 dark:text-white">
+              <section className="py-6 text-left">
+                <h1 className="text-[clamp(1.8rem,4vw,3.2rem)] font-serif font-extrabold leading-tight tracking-tight text-gray-900 dark:text-white mb-6">
                   {workTitle}
                 </h1>
 
                 {readingPrimaryMedia && (
-                  <figure className="mt-2 mb-3">
+                  <figure className="mb-6">
                     {readingPrimaryMedia.kind === 'iframe' ? (
                       <div className="aspect-video w-full overflow-hidden rounded-md bg-black">
                         <iframe
@@ -2139,21 +2152,21 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                 )}
 
                 {readingWork.snippet && readingWork.snippet !== rawBody && (
-                  <RichContent value={readingWork.snippet} className="mt-6 font-medium text-[1em] leading-relaxed text-gray-800 dark:text-gray-200 bg-[#f0eee6] dark:bg-[#2a2a2b] p-5 rounded border-l-4 border-[#2B579A] dark:border-[#6FA8DC]" />
+                  <RichContent value={readingWork.snippet} className="mb-6 font-medium text-[0.95em] leading-relaxed text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#252528] p-5 rounded border-l-4 border-[#2B579A] dark:border-[#6FA8DC]" />
                 )}
 
-                <div className="mt-6">
+                <div className="mt-4">
                   <UniversalWritingRenderer item={readingWork} genre={workGenre} html={rawBody} />
                 </div>
               </section>
 
               {/* Prev / Next navigation buttons strictly scoped to active tab */}
-              <footer className="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-gray-300 dark:border-gray-700 pt-6 font-mono text-[0.75em] font-semibold uppercase tracking-wider">
+              <footer className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 dark:border-gray-800 pt-6 font-mono text-[0.75em] font-semibold uppercase tracking-wider">
                 <button
                   type="button"
                   disabled={!hasPrev}
                   onClick={() => navigateToWork(categoryItems[currentIndex - 1])}
-                  className="px-4 py-2.5 border border-gray-400 dark:border-gray-600 bg-transparent text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#252528] text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 >
                   ← Prev
                 </button>
@@ -2161,7 +2174,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                 <button
                   type="button"
                   onClick={handleBackFromReading}
-                  className="px-4 py-2.5 border border-gray-400 dark:border-gray-600 bg-transparent text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#252528] text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] transition-colors cursor-pointer"
                 >
                   Back to List
                 </button>
@@ -2170,13 +2183,13 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                   type="button"
                   disabled={!hasNext}
                   onClick={() => navigateToWork(categoryItems[currentIndex + 1])}
-                  className="px-4 py-2.5 border border-gray-400 dark:border-gray-600 bg-transparent text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#252528] text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 >
                   Next →
                 </button>
               </footer>
-            </main>
-          </div>
+            </div>
+          </main>
         </div>,
         document.body
       );

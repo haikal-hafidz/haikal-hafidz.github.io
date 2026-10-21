@@ -107,7 +107,7 @@ export default function VisitorIntroduction({ data, style, darkMode, soundEnable
                   <span className="absolute left-1/2 top-1.5 -translate-x-1/2 rounded-full bg-[#242424] h-1.5 w-11" />
                   <span className="absolute right-1.5 top-1.5 rounded-full bg-[#2B579A] shadow-[0_0_0_2px_rgba(43,87,154,.14)] transition group-hover:bg-green-500 h-1.5 w-1.5" />
                 </div>
-                <div className="relative border border-gray-300 bg-white shadow-[0_5px_12px_rgba(0,0,0,.07)] transition duration-300 group-hover:translate-y-1 dark:border-gray-600 dark:bg-[#f5f3ec] dark:text-[#172033] px-3 pb-3 pt-4">
+                <div className="relative border border-gray-300 bg-white shadow-[0_5px_12px_rgba(0,0,0,.07)] transition duration-300 group-hover:translate-y-1 dark:border-gray-600 dark:bg-[#f5f3ec] dark:text-[#172033] px-3 pb-3 pt-4 text-center">
                   <p className="font-mono uppercase tracking-[0.14em] text-[#2B579A] text-[0.52em]">{content.triggerEyebrow}</p>
                   <h2 className="font-serif leading-tight mt-1.5 text-[0.92em]">{content.triggerTitle}</h2>
                   <p className="font-sans font-medium text-gray-500 mt-3 text-[0.625em]">{printed ? content.printedLabel : `${content.triggerAction} →`}</p>
