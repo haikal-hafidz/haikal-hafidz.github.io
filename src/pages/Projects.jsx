@@ -156,7 +156,7 @@ function cmsBlockToHtml(block) {
     return `<figure class="my-4"><video src="${media.src}" controls playsInline preload="metadata" class="w-full rounded-md"></video>${block.caption ? `<figcaption class="text-xs text-gray-500 text-center mt-1">${block.caption}</figcaption>` : ""}</figure>`;
   }
   if (type === "audio" && block.url) {
-    return `<div class="my-4">${block.label ? `<p class="mb-1 text-xs font-bold uppercase tracking-wider text-[#2B579A]">${block.label}</p>` : ""}<audio src="${block.url}" controls preload="metadata" class="w-full" />${block.caption ? `<p class="text-xs text-gray-500 mt-1">${block.caption}</p>` : ""}</div>`;
+    return `<div class="my-4">${block.label ? `<p class="mb-1 text-xs font-bold uppercase tracking-wider text-[#2B579A]">${block.label}</p>` : ""}<audio src="${block.url}" controls preload="metadata" class="w-full"></audio>${block.caption ? `<p class="text-xs text-gray-500 mt-1">${block.caption}</p>` : ""}</div>`;
   }
   if ((type === "embed" || type === "iframe") && (block.text || block.url)) {
     const raw = String(block.text || block.url || "").trim();
@@ -2172,9 +2172,9 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                   window.history.pushState(null, '', url);
                 }
               }}
-              className="group flex w-full items-center justify-between py-2.5 sm:py-2 border-b border-gray-100 dark:border-gray-800/60 cursor-pointer text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]"
+              className="group flex w-full items-center justify-center py-2.5 sm:py-2 border-b border-gray-100 dark:border-gray-800/60 cursor-pointer text-center focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]"
             >
-              <span className="text-[0.9375em] sm:text-[1.0em] font-medium text-gray-900 dark:text-gray-100 transition group-hover:text-[#2B579A] dark:group-hover:text-[#6FA8DC]">
+              <span className="text-[0.9375em] sm:text-[1.0em] font-medium text-center text-gray-900 dark:text-gray-100 transition group-hover:text-[#2B579A] dark:group-hover:text-[#6FA8DC]">
                 {section.label}
               </span>
             </button>
