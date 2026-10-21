@@ -90,7 +90,7 @@ const PORTFOLIO_SPLASH_SEEN_KEY = 'portfolio_splash_seen_v1';
 
 function readSessionPortfolioCache() {
   try {
-    const raw = sessionStorage.getItem(PORTFOLIO_SESSION_CACHE_KEY);
+    const raw = sessionStorage.getItem(PORTFOLIO_SESSION_CACHE_KEY) || localStorage.getItem(PORTFOLIO_SESSION_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === 'object' ? parsed : null;
@@ -104,7 +104,9 @@ function hasSeenPortfolioSplash() {
 
 function rememberPortfolioSession(data) {
   try {
-    sessionStorage.setItem(PORTFOLIO_SESSION_CACHE_KEY, JSON.stringify(data));
+    const serialized = JSON.stringify(data);
+    sessionStorage.setItem(PORTFOLIO_SESSION_CACHE_KEY, serialized);
+    localStorage.setItem(PORTFOLIO_SESSION_CACHE_KEY, serialized);
     sessionStorage.setItem(PORTFOLIO_SPLASH_SEEN_KEY, '1');
   } catch { /* session cache is only a UX optimization */ }
 }
@@ -137,6 +139,34 @@ const normalizeGeneral = (raw) => ({
     enabled: raw?.welcomeNotification?.enabled !== false,
     version: String(raw?.welcomeNotification?.version || DEFAULT_GENERAL.welcomeNotification.version).trim() || DEFAULT_GENERAL.welcomeNotification.version,
   },
+});
+
+const DEFAULT_WEBSITE = {
+  title: 'Haikal A. Hafidz — Content Writer & Editor',
+  description: 'Portfolio Haikal A. Hafidz — writing, editing, creative work, and selected projects.',
+  url: 'https://haikal-hafidz.github.io/',
+  favicon: '',
+  shareTitle: '',
+  shareDescription: '',
+  shareImage: '',
+  seoTitle: '',
+  seoDescription: '',
+  canonicalUrl: 'https://haikal-hafidz.github.io/',
+  allowIndexing: true,
+  devNotes: '',
+};
+
+const normalizeWebsite = (raw) => ({
+  ...DEFAULT_WEBSITE,
+  ...(raw || {}),
+  url: raw?.url || DEFAULT_WEBSITE.url,
+  shareTitle: raw?.shareTitle ?? '',
+  shareDescription: raw?.shareDescription ?? '',
+  shareImage: raw?.shareImage ?? '',
+  seoTitle: raw?.seoTitle ?? '',
+  seoDescription: raw?.seoDescription ?? '',
+  canonicalUrl: raw?.canonicalUrl || raw?.url || DEFAULT_WEBSITE.url,
+  allowIndexing: raw?.allowIndexing !== false,
 });
 
 const EMPTY_FEATURED_WORK = { type: '', itemId: '', sectionId: '', teaser: '' };
@@ -287,11 +317,13 @@ export default function App() {
       return {
         ...cached,
         general: normalizeGeneral(cached.general),
+        website: normalizeWebsite(cached.website),
       };
     }
     return {
       ...initialPortfolioData,
       general: normalizeGeneral(initialPortfolioData.general),
+      website: normalizeWebsite(initialPortfolioData.website),
     };
   });
   const [language, setLanguage] = useState(() => {
@@ -407,7 +439,13 @@ export default function App() {
               description: data.data.website?.description || 'Portfolio Haikal A. Hafidz — writing, editing, creative work, and selected projects.',
               url: data.data.website?.url || 'https://haikal-hafidz.github.io/',
               favicon: data.data.website?.favicon || '',
+              shareTitle: data.data.website?.shareTitle || '',
+              shareDescription: data.data.website?.shareDescription || '',
               shareImage: data.data.website?.shareImage || '',
+              seoTitle: data.data.website?.seoTitle || '',
+              seoDescription: data.data.website?.seoDescription || '',
+              canonicalUrl: data.data.website?.canonicalUrl || data.data.website?.url || 'https://haikal-hafidz.github.io/',
+              allowIndexing: data.data.website?.allowIndexing !== false,
             },
           };
           setPortfolioData(normalizedLiveData);
@@ -782,8 +820,15 @@ export default function App() {
       role: portfolioData.home?.role,
       title: portfolioData.website?.title,
       description: portfolioData.website?.description,
+      shareTitle: portfolioData.website?.shareTitle,
+      shareDescription: portfolioData.website?.shareDescription,
       shareImage: portfolioData.website?.shareImage,
+      seoTitle: portfolioData.website?.seoTitle,
+      seoDescription: portfolioData.website?.seoDescription,
       url: portfolioData.website?.url,
+      canonicalUrl: portfolioData.website?.canonicalUrl,
+      favicon: portfolioData.website?.favicon,
+      allowIndexing: portfolioData.website?.allowIndexing,
     });
     const tabMeta = {
       Home: {

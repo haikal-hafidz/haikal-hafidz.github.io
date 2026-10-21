@@ -416,6 +416,22 @@ export const initialPortfolioData = {
   // 7. INTERACTIVE WORDS — aturan frasa klik yang dikelola dari CMS.
   interactiveWords: [],
 
+  // 8. WEBSITE METADATA & SEO
+  website: {
+    title: "Haikal A. Hafidz — Content Writer & Editor",
+    description: "Portfolio Haikal A. Hafidz — writing, editing, creative work, and selected projects.",
+    url: "https://haikal-hafidz.github.io/",
+    favicon: "",
+    shareTitle: "",
+    shareDescription: "",
+    shareImage: "",
+    seoTitle: "",
+    seoDescription: "",
+    canonicalUrl: "https://haikal-hafidz.github.io/",
+    allowIndexing: true,
+    devNotes: ""
+  },
+
   // 9. GENERAL — pengaturan situs secara keseluruhan (bukan punya satu halaman tertentu).
   // Info update patch ditulis manual dari CMS dan muncul kembali saat kode versi berubah.
   general: {

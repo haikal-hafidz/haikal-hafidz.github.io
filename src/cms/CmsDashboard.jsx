@@ -115,7 +115,13 @@ const DEFAULT_WEBSITE = {
   description: 'Portfolio Haikal A. Hafidz — writing, editing, creative work, and selected projects.',
   url: 'https://haikal-hafidz.github.io/',
   favicon: '',
+  shareTitle: '',
+  shareDescription: '',
   shareImage: '',
+  seoTitle: '',
+  seoDescription: '',
+  canonicalUrl: '',
+  allowIndexing: true,
   devNotes: '',
 };
 
@@ -123,6 +129,13 @@ const normalizeWebsite = (raw) => ({
   ...DEFAULT_WEBSITE,
   ...(raw || {}),
   url: raw?.url || DEFAULT_WEBSITE.url,
+  shareTitle: raw?.shareTitle ?? '',
+  shareDescription: raw?.shareDescription ?? '',
+  shareImage: raw?.shareImage ?? '',
+  seoTitle: raw?.seoTitle ?? '',
+  seoDescription: raw?.seoDescription ?? '',
+  canonicalUrl: raw?.canonicalUrl || raw?.url || DEFAULT_WEBSITE.url,
+  allowIndexing: raw?.allowIndexing !== false,
 });
 
 const DEFAULT_GENERAL = {
@@ -8748,24 +8761,25 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
           </div>
         </div>
 
-        {/* ================= WEBSITE SHARING PREVIEW ================= */}
+        {/* ================= WEBSITE SHARING PREVIEW & SEO ================= */}
         {activeTab === 'websikee' && (
           <section className="space-y-6">
             <div>
               <p className="font-[Arial] text-[9px] font-bold uppercase tracking-[0.18em] text-blue-600">CMS SETTINGS</p>
-              <h2 className="font-[Arial] text-xl font-bold text-gray-900 dark:text-white">Website Sharing Preview</h2>
+              <h2 className="font-[Arial] text-xl font-bold text-gray-900 dark:text-white">Website Settings, Social Sharing &amp; Google SEO</h2>
               <p className="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-                Configure the title, description, preview image, and canonical URL displayed when your portfolio link is shared across social media platforms, WhatsApp, Discord, and messaging apps.
+                Manage global website metadata, custom social link sharing previews, and Google SEO search configuration.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-              <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-[#242424]">
-                <h3 className="font-[Arial] text-xs font-bold uppercase tracking-[0.14em] text-gray-700 dark:text-gray-200">
-                  Sharing Metadata Settings
-                </h3>
+            {/* SECTION 1: GENERAL WEBSITE IDENTITY */}
+            <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-[#242424]">
+              <h3 className="font-[Arial] text-xs font-bold uppercase tracking-[0.14em] text-gray-700 dark:text-gray-200">
+                1. General Website Identity
+              </h3>
 
-                <Field label="1. Website Title" sourceValue={sourceFormData.website?.title || ''} cmsLanguage={cmsLanguage}>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Field label="Website Default Title" sourceValue={sourceFormData.website?.title || ''} cmsLanguage={cmsLanguage}>
                   <input
                     type="text"
                     value={formData.website?.title || ''}
@@ -8777,23 +8791,10 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
                     className={inputCls}
                     placeholder="Haikal A. Hafidz — Content Writer & Editor"
                   />
-                  <p className="mt-1 text-[10px] text-gray-400">Title displayed when someone shares the website link.</p>
+                  <p className="mt-1 text-[10px] text-gray-400">Default title used across site tabs when specific SEO title is empty.</p>
                 </Field>
 
-                <Field label="2. Website Description" sourceValue={sourceFormData.website?.description || ''} cmsLanguage={cmsLanguage}>
-                  <RichTextEditor
-                    fieldMode
-                    initialValue={formData.website?.description || ''}
-                    onChange={(html) => {
-                      setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), description: html } }));
-                      setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), description: html } }));
-                    }}
-                    placeholder="Short description displayed in the link sharing preview card."
-                  />
-                  <p className="mt-1 text-[10px] text-gray-400">Short description displayed in link previews when shared.</p>
-                </Field>
-
-                <Field label="3. Website Canonical URL" sourceValue={sourceFormData.website?.url || 'https://haikal-hafidz.github.io/'} cmsLanguage={cmsLanguage}>
+                <Field label="Website Default URL" sourceValue={sourceFormData.website?.url || 'https://haikal-hafidz.github.io/'} cmsLanguage={cmsLanguage}>
                   <input
                     type="url"
                     value={formData.website?.url || ''}
@@ -8805,68 +8806,33 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
                     className={inputCls}
                     placeholder="https://haikal-hafidz.github.io/"
                   />
-                  <p className="mt-1 text-[10px] text-gray-400">The canonical public website URL (must be a valid URL starting with http:// or https://).</p>
+                  <p className="mt-1 text-[10px] text-gray-400">Primary deployed website URL.</p>
                 </Field>
+              </div>
 
-                <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">4. Preview Image</p>
-                  <p className="text-[10px] leading-relaxed text-gray-400">Upload a new image or paste a URL. Uploading overwrites the fixed <code className="text-blue-600">website/share-preview.jpg</code> file in Supabase storage so static social crawlers fetch the updated preview image.</p>
-                  {(sourceFormData.website?.shareImage || formData.website?.shareImage) && (
-                    <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-[#282828]">
-                      <img src={sourceFormData.website?.shareImage || formData.website?.shareImage} alt="Preview link website" className="h-20 w-32 rounded border border-gray-300 object-cover dark:border-gray-600" />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: '' } }));
-                          setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: '' } }));
-                        }}
-                        className="text-xs font-semibold text-red-500 hover:text-red-600"
-                      >
-                        Remove image
-                      </button>
-                    </div>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    disabled={uploadingWebsitePreview}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      setUploadingWebsitePreview(true);
-                      const url = await uploadWebsiteSharePreview(file);
-                      setUploadingWebsitePreview(false);
-                      if (url) {
-                        setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: url } }));
-                        setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: url } }));
-                      }
-                      e.target.value = '';
-                    }}
-                    className="w-full text-[10px]"
-                  />
-                  {uploadingWebsitePreview && <p className="text-[10px] text-blue-500 animate-pulse">Uploading preview image…</p>}
-                  <input
-                    type="text"
-                    value={formData.website?.shareImage || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: val } }));
-                      setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: val } }));
-                    }}
-                    className={inputCls}
-                    placeholder="Or paste an image URL directly"
-                  />
-                </div>
+              <Field label="Website Default Description" sourceValue={sourceFormData.website?.description || ''} cmsLanguage={cmsLanguage}>
+                <RichTextEditor
+                  fieldMode
+                  initialValue={formData.website?.description || ''}
+                  onChange={(html) => {
+                    setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), description: html } }));
+                    setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), description: html } }));
+                  }}
+                  placeholder="Portfolio Haikal A. Hafidz — writing, editing, creative work, and selected projects."
+                />
+                <p className="mt-1 text-[10px] text-gray-400">Default fallback description for site metadata.</p>
+              </Field>
 
-                <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Favicon / Website Icon</p>
-                  <p className="text-[10px] leading-relaxed text-gray-400">Small browser-tab icon beside the Website Title. Overwrites <code className="text-blue-600">website/favicon.png</code> in Supabase storage.</p>
-                  {sourceFormData.website?.favicon && (
-                    <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-[#282828]">
-                      <img src={sourceFormData.website.favicon} alt="Favicon website" className="h-10 w-10 rounded border border-gray-300 object-cover dark:border-gray-600" />
-                      <p className="min-w-0 break-all font-[Arial] text-[9px] text-gray-400">{sourceFormData.website.favicon}</p>
-                    </div>
-                  )}
+              <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Favicon / Browser Tab Icon</p>
+                <p className="text-[10px] leading-relaxed text-gray-400">Icon shown in browser tabs beside the Website Title. Overwrites <code className="text-blue-600">website/favicon.png</code> in Supabase storage.</p>
+                {sourceFormData.website?.favicon && (
+                  <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-[#282828]">
+                    <img src={sourceFormData.website.favicon} alt="Favicon website" className="h-10 w-10 rounded border border-gray-300 object-cover dark:border-gray-600" />
+                    <p className="min-w-0 break-all font-[Arial] text-[9px] text-gray-400">{sourceFormData.website.favicon}</p>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                   <input
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
@@ -8894,23 +8860,115 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
                       setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), favicon: val } }));
                     }}
                     className={inputCls}
-                    placeholder="Or paste a favicon URL"
+                    placeholder="Or paste a custom favicon URL"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 2: SOCIAL SHARING & LINK PREVIEW */}
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-[#242424]">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2 dark:border-gray-800">
+                  <h3 className="font-[Arial] text-xs font-bold uppercase tracking-[0.14em] text-gray-700 dark:text-gray-200">
+                    2. Social Sharing / Link Preview
+                  </h3>
+                  <span className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-blue-950/40 dark:text-blue-300">
+                    Open Graph Settings
+                  </span>
+                </div>
+
+                <Field label="Share Title (og:title)" sourceValue={sourceFormData.website?.shareTitle || ''} cmsLanguage={cmsLanguage}>
+                  <input
+                    type="text"
+                    value={formData.website?.shareTitle || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareTitle: val } }));
+                      setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareTitle: val } }));
+                    }}
+                    className={inputCls}
+                    placeholder={formData.website?.title || 'Haikal A. Hafidz — Content Writer & Editor'}
+                  />
+                  <p className="mt-1 text-[10px] text-gray-400">Title displayed in link preview cards on WhatsApp, Twitter/X, LinkedIn, and messaging apps. Falls back to Website Title if empty.</p>
+                </Field>
+
+                <Field label="Share Description (og:description)" sourceValue={sourceFormData.website?.shareDescription || ''} cmsLanguage={cmsLanguage}>
+                  <RichTextEditor
+                    fieldMode
+                    initialValue={formData.website?.shareDescription || ''}
+                    onChange={(html) => {
+                      setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareDescription: html } }));
+                      setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareDescription: html } }));
+                    }}
+                    placeholder={formData.website?.description || 'Portfolio Haikal A. Hafidz — writing, editing, creative work, and selected projects.'}
+                  />
+                  <p className="mt-1 text-[10px] text-gray-400">Description displayed beneath the title in link previews. Falls back to Website Description if empty.</p>
+                </Field>
+
+                <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Share Image (og:image)</p>
+                  <p className="text-[10px] leading-relaxed text-gray-400">Uploading an image replaces <code className="text-blue-600">website/share-preview.jpg</code> in Supabase storage, ensuring static crawlers like WhatsApp retrieve the updated asset without changing static HTML paths.</p>
+                  {(sourceFormData.website?.shareImage || formData.website?.shareImage) && (
+                    <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-[#282828]">
+                      <img src={formData.website?.shareImage || sourceFormData.website?.shareImage} alt="Preview link website" className="h-20 w-32 rounded border border-gray-300 object-cover dark:border-gray-600" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: '' } }));
+                          setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: '' } }));
+                        }}
+                        className="text-xs font-semibold text-red-500 hover:text-red-600"
+                      >
+                        Remove share image
+                      </button>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={uploadingWebsitePreview}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setUploadingWebsitePreview(true);
+                      const url = await uploadWebsiteSharePreview(file);
+                      setUploadingWebsitePreview(false);
+                      if (url) {
+                        setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: url } }));
+                        setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: url } }));
+                      }
+                      e.target.value = '';
+                    }}
+                    className="w-full text-[10px]"
+                  />
+                  {uploadingWebsitePreview && <p className="text-[10px] text-blue-500 animate-pulse">Uploading share preview image…</p>}
+                  <input
+                    type="text"
+                    value={formData.website?.shareImage || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: val } }));
+                      setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), shareImage: val } }));
+                    }}
+                    className={inputCls}
+                    placeholder="Or paste an external image URL"
                   />
                 </div>
               </div>
 
-              {/* 5. Preview Panel */}
+              {/* LIVE SOCIAL PREVIEW CARD */}
               <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-[#242424]">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2 dark:border-gray-800">
                   <h3 className="font-[Arial] text-xs font-bold uppercase tracking-[0.14em] text-gray-700 dark:text-gray-200">
-                    5. Live Preview Panel
+                    Social Sharing Visual Preview
                   </h3>
-                  <span className="rounded bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-blue-950/40 dark:text-blue-300">
-                    Social Sharing Card
+                  <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
+                    Live Link Card
                   </span>
                 </div>
                 <p className="text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">
-                  Visual approximation of how your link preview card will look when shared on WhatsApp, Twitter/X, Discord, and messaging apps.
+                  Visual approximation of how your link preview will appear on WhatsApp, Twitter/X, LinkedIn, Discord, and Telegram.
                 </p>
 
                 <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-md dark:border-gray-700 dark:bg-[#1c1c1c]">
@@ -8924,7 +8982,7 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
                       />
                     ) : (
                       <div className="p-4 text-center text-xs text-gray-400 italic">
-                        No Preview Image set
+                        No Share Image configured
                       </div>
                     )}
                   </div>
@@ -8933,7 +8991,7 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
                     <p className="font-[Arial] text-[10px] font-semibold uppercase tracking-wider text-gray-400 truncate">
                       {(() => {
                         try {
-                          const parsed = new URL(formData.website?.url || 'https://haikal-hafidz.github.io/');
+                          const parsed = new URL(formData.website?.canonicalUrl || formData.website?.url || 'https://haikal-hafidz.github.io/');
                           return parsed.hostname;
                         } catch {
                           return 'haikal-hafidz.github.io';
@@ -8941,23 +8999,120 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
                       })()}
                     </p>
                     <h4 className="font-[Arial] text-sm font-bold text-gray-900 dark:text-white line-clamp-2">
-                      {formData.website?.title || 'Haikal A. Hafidz — Content Writer & Editor'}
+                      {formData.website?.shareTitle || formData.website?.title || 'Haikal A. Hafidz — Content Writer & Editor'}
                     </h4>
                     <div
                       className="font-[Arial] text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed"
                       dangerouslySetInnerHTML={{
-                        __html: formData.website?.description || 'Portfolio Haikal A. Hafidz — writing, editing, creative work, and selected projects.'
+                        __html: formData.website?.shareDescription || formData.website?.description || 'Portfolio Haikal A. Hafidz — writing, editing, creative work, and selected projects.'
                       }}
                     />
                   </div>
                 </div>
 
-                <div className="p-3 rounded-lg border border-blue-100 bg-blue-50/50 text-[11px] text-gray-600 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-gray-300 space-y-1">
-                  <p className="font-semibold text-blue-700 dark:text-blue-300">Crawler Compatibility Note:</p>
+                <div className="p-3 rounded-lg border border-amber-100 bg-amber-50/50 text-[11px] text-gray-600 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-gray-300 space-y-1">
+                  <p className="font-semibold text-amber-700 dark:text-amber-300">WhatsApp &amp; Crawler Caching Notice:</p>
                   <p>
-                    Social platforms (WhatsApp, Discord, Twitter/X, Telegram) fetch initial static HTML files without executing client-side JavaScript. Uploading a preview image writes directly to <code className="text-blue-600">website/share-preview.jpg</code> in Supabase storage, which matches the static Open Graph image URL in <code className="text-blue-600">index.html</code>.
+                    WhatsApp and social platforms cache previously generated link previews. When updating titles or images, WhatsApp may take time or require clearing preview cache before reflecting new preview data. Uploading a preview image writes directly to <code className="text-blue-600">website/share-preview.jpg</code> in Supabase storage so raw static crawlers receive the updated media file.
                   </p>
                 </div>
+              </div>
+            </div>
+
+            {/* SECTION 3: GOOGLE SEO SETTINGS */}
+            <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-[#242424]">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2 dark:border-gray-800">
+                <h3 className="font-[Arial] text-xs font-bold uppercase tracking-[0.14em] text-gray-700 dark:text-gray-200">
+                  3. Google SEO Settings
+                </h3>
+                <span className="rounded bg-purple-50 px-2 py-0.5 text-[10px] font-bold text-purple-600 dark:bg-purple-950/40 dark:text-purple-300">
+                  Search Engine Metadata
+                </span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">
+                Configure search result titles, snippet descriptions, canonical URL directives, and indexing permissions specifically for search engine crawlers (Google, Bing, DuckDuckGo).
+              </p>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Field label="SEO Title" sourceValue={sourceFormData.website?.seoTitle || ''} cmsLanguage={cmsLanguage}>
+                  <input
+                    type="text"
+                    value={formData.website?.seoTitle || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), seoTitle: val } }));
+                      setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), seoTitle: val } }));
+                    }}
+                    className={inputCls}
+                    placeholder={formData.website?.title || 'Haikal A. Hafidz — Content Writer & Editor'}
+                  />
+                  <p className="mt-1 text-[10px] text-gray-400">Preferred title for Google search results. Falls back to Website Title if left empty.</p>
+                </Field>
+
+                <Field label="Canonical URL" sourceValue={sourceFormData.website?.canonicalUrl || sourceFormData.website?.url || 'https://haikal-hafidz.github.io/'} cmsLanguage={cmsLanguage}>
+                  <input
+                    type="url"
+                    value={formData.website?.canonicalUrl || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), canonicalUrl: val } }));
+                      setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), canonicalUrl: val } }));
+                    }}
+                    className={inputCls}
+                    placeholder={formData.website?.url || 'https://haikal-hafidz.github.io/'}
+                  />
+                  <p className="mt-1 text-[10px] text-gray-400">Preferred canonical URL to prevent duplicate content penalties across search engines.</p>
+                </Field>
+              </div>
+
+              <Field label="Meta Description" sourceValue={sourceFormData.website?.seoDescription || ''} cmsLanguage={cmsLanguage}>
+                <RichTextEditor
+                  fieldMode
+                  initialValue={formData.website?.seoDescription || ''}
+                  onChange={(html) => {
+                    setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), seoDescription: html } }));
+                    setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), seoDescription: html } }));
+                  }}
+                  placeholder={formData.website?.description || 'Portfolio Haikal A. Hafidz — writing, editing, creative work, and selected projects.'}
+                />
+                <p className="mt-1 text-[10px] text-gray-400">Preferred description snippet for search result listings. Note: Google may dynamically generate its own snippets depending on user query.</p>
+              </Field>
+
+              <div className="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Search Engine Indexing Directives</p>
+                <div className="flex items-center gap-6 pt-1">
+                  <label className="inline-flex items-center gap-2 cursor-pointer text-xs text-gray-700 dark:text-gray-200">
+                    <input
+                      type="radio"
+                      name="allowIndexing"
+                      checked={formData.website?.allowIndexing !== false}
+                      onChange={() => {
+                        setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), allowIndexing: true } }));
+                        setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), allowIndexing: true } }));
+                      }}
+                      className="text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="font-semibold">Allow Search Indexing</span>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">(index, follow)</span>
+                  </label>
+                  <label className="inline-flex items-center gap-2 cursor-pointer text-xs text-gray-700 dark:text-gray-200">
+                    <input
+                      type="radio"
+                      name="allowIndexing"
+                      checked={formData.website?.allowIndexing === false}
+                      onChange={() => {
+                        setFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), allowIndexing: false } }));
+                        setSourceFormData((current) => ({ ...current, website: { ...normalizeWebsite(current.website), allowIndexing: false } }));
+                      }}
+                      className="text-red-600 focus:ring-red-500"
+                    />
+                    <span className="font-semibold text-red-600 dark:text-red-400">Block Search Indexing</span>
+                    <span className="text-[10px] text-red-500 font-mono">(noindex, nofollow)</span>
+                  </label>
+                </div>
+                <p className="text-[10px] leading-relaxed text-gray-400">
+                  Keep set to &quot;Allow Search Indexing&quot; for production site so search engines can discover and index your portfolio pages.
+                </p>
               </div>
             </div>
 
