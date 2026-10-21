@@ -198,7 +198,7 @@ export default function VisitorIntroduction({ data, style, darkMode, soundEnable
             .visitor-copy-rule{height:5px;background:#2B579A;margin:20px 0 clamp(42px,7vh,90px)}
             .visitor-copy-lead{width:min(880px,100%);margin:auto 0;padding:clamp(10px,3vh,44px) 0}
             .visitor-copy-kicker{margin:0 0 18px;font:600 11px/1.4 ui-monospace,monospace;letter-spacing:.18em;text-transform:uppercase;color:#788294}
-            .visitor-copy-title,.visitor-copy-title h1,.visitor-copy-title p{max-width:950px;margin:0;font:800 clamp(2.2rem,5vw,4.5rem)/1.05 Georgia,'Times New Roman',serif;letter-spacing:-.025em}
+            .visitor-copy-title,.visitor-copy-title h1,.visitor-copy-title p{max-width:950px;margin:0;font-family:Georgia,'Times New Roman',serif;font-size:clamp(1.5rem,3vw,2.25rem);line-height:1.25;font-weight:800}
             .visitor-copy-body{max-width:760px;margin:clamp(32px,6vh,72px) 0 0;white-space:pre-line;font:400 clamp(18px,1.7vw,25px)/1.65 Georgia,'Times New Roman',serif;color:#4e5869}
             .visitor-copy-closing{max-width:680px;margin:0;font:italic 20px/1.55 Georgia,serif;color:#566071}
             .visitor-copy-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}.visitor-copy-actions button{padding:14px 18px;border:1px solid #9da6b3;background:transparent;font:600 11px/1 ui-monospace,monospace;text-transform:uppercase;letter-spacing:.08em;color:inherit}.visitor-copy-actions button:hover,.visitor-copy-actions .is-primary{border-color:#2B579A;background:#2B579A;color:white}
