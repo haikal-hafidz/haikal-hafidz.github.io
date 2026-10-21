@@ -191,6 +191,53 @@ function sanitizeHtmlContent(html = '') {
     .replace(/<p[^>]*>\s*(?:<br\s*\/?>|&nbsp;|\s)*\s*<\/p>/gi, '');
 }
 
+function formatSongLyricsHtml(html = '') {
+  if (!html) return '';
+  const raw = String(html);
+
+  const prepared = raw
+    .replace(/<p[^>]*>\s*(?:<br\s*\/?>|&nbsp;|\s)*\s*<\/p>/gi, '<!--STANZA-->')
+    .replace(/(?:<br\s*\/?>\s*){2,}/gi, '<!--STANZA-->')
+    .replace(/\n{2,}/g, '<!--STANZA-->');
+
+  if (!prepared.includes('<!--STANZA-->')) {
+    return sanitizeHtmlContent(raw);
+  }
+
+  const chunks = prepared.split('<!--STANZA-->').filter(Boolean);
+
+  const formattedChunks = chunks.map((chunk) => {
+    if (/^<(figure|iframe|video|audio|div|hr|a)\b/i.test(chunk.trim())) {
+      return chunk;
+    }
+
+    let lines = [];
+    if (/<p[^>]*>/i.test(chunk)) {
+      const pMatches = chunk.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [chunk];
+      pMatches.forEach((pStr) => {
+        const textInside = pStr.replace(/^<p[^>]*>/i, '').replace(/<\/p>$/i, '');
+        const splitByBr = textInside.split(/<br\s*\/?>/i);
+        splitByBr.forEach((l) => {
+          const cleanLine = l.replace(/<[^>]+>/g, '').trim();
+          if (cleanLine) lines.push(cleanLine);
+        });
+      });
+    } else {
+      const splitByBr = chunk.split(/<br\s*\/?>|\n/i);
+      splitByBr.forEach((l) => {
+        const cleanLine = l.replace(/<[^>]+>/g, '').trim();
+        if (cleanLine) lines.push(cleanLine);
+      });
+    }
+
+    if (!lines.length) return '';
+
+    return `<p class="mb-5 leading-relaxed text-gray-800 dark:text-gray-200">${lines.join('<br>')}</p>`;
+  }).filter(Boolean);
+
+  return formattedChunks.join('');
+}
+
 function stripImageAndMediaTags(html = '') {
   if (!html) return '';
   return String(html)
@@ -223,7 +270,7 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
     item.snippet ||
     '';
 
-  const cleanBody = sanitizeHtmlContent(rawBody);
+  const cleanBody = formatSongLyricsHtml(rawBody);
 
   const additionalText = [];
   if (item.contribution) additionalText.push({ label: 'About the Project', html: stripImageAndMediaTags(item.contribution) });
@@ -1869,7 +1916,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
       readingWork.premise ||
       '';
 
-    const cleanBody = sanitizeHtmlContent(rawBody);
+    const cleanBody = formatSongLyricsHtml(rawBody);
 
     const handleBackFromReading = () => {
       const targetCategory = activeCategoryKey;
