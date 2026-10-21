@@ -86,55 +86,52 @@ export default function VisitorIntroduction({ data, style, darkMode, soundEnable
 
   return (
     <>
-      <aside className={`portfolio-rail z-20 ${inline ? 'relative w-full' : 'fixed'}`} style={style} aria-label="Visitor introduction">
+      <aside className={`portfolio-rail z-20 ${inline ? 'fixed bottom-4 left-4 z-40' : 'fixed'}`} style={style} aria-label="Visitor introduction">
         <button
           ref={triggerRef}
           type="button"
           onClick={openSheet}
           data-hint-id="visitor-introduction"
-          className={`group w-full text-left ${darkMode ? 'text-gray-100' : 'text-[#172033] dark:text-gray-100'}`}
+          className={`group text-left ${darkMode ? 'text-gray-100' : 'text-[#172033] dark:text-gray-100'}`}
           aria-haspopup="dialog"
         >
-          <div className={`relative w-full ${inline ? 'ml-0 mr-auto max-w-[8.75rem] pt-2.5' : 'mx-auto max-w-[10.5rem] pt-5'}`}>
-            <div className={`absolute left-1/2 top-0 w-[78%] -translate-x-1/2 rounded-t border border-b-0 border-gray-400/50 bg-[#d8d8d5] shadow-sm dark:border-gray-600 dark:bg-[#343434] ${inline ? 'h-5' : 'h-9'}`}>
-              <span className={`absolute left-1/2 top-1.5 -translate-x-1/2 rounded-full bg-[#242424] ${inline ? 'h-1 w-7' : 'h-1.5 w-11'}`} />
-              <span className={`absolute right-1.5 top-1.5 rounded-full bg-[#2B579A] shadow-[0_0_0_2px_rgba(43,87,154,.14)] transition group-hover:bg-green-500 ${inline ? 'h-1 w-1' : 'h-1.5 w-1.5'}`} />
-            </div>
-            <div className={`relative border border-gray-300 bg-white shadow-[0_5px_12px_rgba(0,0,0,.07)] transition duration-300 group-hover:translate-y-1 dark:border-gray-600 dark:bg-[#f5f3ec] dark:text-[#172033] ${inline ? 'px-2 pb-1.5 pt-2' : 'px-3 pb-3 pt-4'}`}>
-              <p className={`font-mono uppercase tracking-[0.14em] text-[#2B579A] ${inline ? 'text-[0.48em]' : 'text-[0.52em]'}`}>{content.triggerEyebrow}</p>
-              <h2 className={`font-serif leading-tight ${inline ? 'mt-0.5 text-[0.78em]' : 'mt-1.5 text-[0.92em]'}`}>{content.triggerTitle}</h2>
-              <p className={`font-sans font-medium text-gray-500 ${inline ? 'mt-1.5 text-[0.54em]' : 'mt-3 text-[0.625em]'}`}>{printed ? content.printedLabel : `${content.triggerAction} →`}</p>
-            </div>
+          <div className={`relative ${inline ? 'w-16 h-16 rounded-lg bg-white dark:bg-[#202020] border border-gray-300 dark:border-gray-700 shadow-md p-1.5 flex flex-col items-center justify-center text-center' : 'mx-auto max-w-[10.5rem] pt-5'}`}>
+            {inline ? (
+              <>
+                <p className="font-mono uppercase text-[0.45em] tracking-wider text-[#2B579A] dark:text-[#6FA8DC]">Visitor</p>
+                <h2 className="font-serif text-[0.65em] font-semibold leading-tight line-clamp-2 mt-0.5">{content.triggerTitle}</h2>
+              </>
+            ) : (
+              <>
+                <div className="absolute left-1/2 top-0 w-[78%] -translate-x-1/2 rounded-t border border-b-0 border-gray-400/50 bg-[#d8d8d5] shadow-sm dark:border-gray-600 dark:bg-[#343434] h-9">
+                  <span className="absolute left-1/2 top-1.5 -translate-x-1/2 rounded-full bg-[#242424] h-1.5 w-11" />
+                  <span className="absolute right-1.5 top-1.5 rounded-full bg-[#2B579A] shadow-[0_0_0_2px_rgba(43,87,154,.14)] transition group-hover:bg-green-500 h-1.5 w-1.5" />
+                </div>
+                <div className="relative border border-gray-300 bg-white shadow-[0_5px_12px_rgba(0,0,0,.07)] transition duration-300 group-hover:translate-y-1 dark:border-gray-600 dark:bg-[#f5f3ec] dark:text-[#172033] px-3 pb-3 pt-4">
+                  <p className="font-mono uppercase tracking-[0.14em] text-[#2B579A] text-[0.52em]">{content.triggerEyebrow}</p>
+                  <h2 className="font-serif leading-tight mt-1.5 text-[0.92em]">{content.triggerTitle}</h2>
+                  <p className="font-sans font-medium text-gray-500 mt-3 text-[0.625em]">{printed ? content.printedLabel : `${content.triggerAction} →`}</p>
+                </div>
+              </>
+            )}
           </div>
-          {hintActive && <p className="mt-3 text-center font-mono text-[0.58em] uppercase tracking-[0.14em] text-[#2B579A]">An introduction is waiting here.</p>}
+          {hintActive && !inline && <p className="mt-3 text-center font-mono text-[0.58em] uppercase tracking-[0.14em] text-[#2B579A]">An introduction is waiting here.</p>}
         </button>
 
         {!inline && homeNavigation && (
           <nav className={`mx-auto mt-5 w-full max-w-[10.5rem] ${darkMode ? 'text-slate-100' : 'text-slate-800'}`} aria-label="Home shortcuts">
             <p className="mb-2 font-mono text-[0.5625em] uppercase tracking-[0.2em] text-slate-500 dark:text-slate-300">{content.documentIndexLabel ?? 'Document index'}</p>
             <div className={`border-y py-1.5 ${darkMode ? 'border-slate-700/90' : 'border-slate-300/75'}`}>
-              <button type="button" onClick={() => { homeNavigation.onPrintNavigate?.('Projects'); }} className="group flex min-h-8 w-full items-center justify-between gap-2 py-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
-                <span className="min-w-0 flex-1 font-serif text-[0.8125em] font-normal leading-tight transition group-hover:text-[#2B579A]">Selected works</span><span aria-hidden="true" className="font-mono text-[0.5625em] text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-[#2B579A]">→</span>
-              </button>
-              <button type="button" onClick={() => { homeNavigation.onPrintNavigate?.('Career'); }} className="group flex min-h-8 w-full items-center justify-between gap-2 py-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
-                <span className="min-w-0 flex-1 font-serif text-[0.8125em] font-normal leading-tight transition group-hover:text-[#2B579A]">Experience</span><span aria-hidden="true" className="font-mono text-[0.5625em] text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-[#2B579A]">→</span>
-              </button>
-              <button type="button" onClick={() => { homeNavigation.onPrintNavigate?.('Contact'); }} className="group flex min-h-8 w-full items-center justify-between gap-2 py-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
-                <span className="min-w-0 flex-1 font-serif text-[0.8125em] font-normal leading-tight transition group-hover:text-[#2B579A]">Contact</span><span aria-hidden="true" className="font-mono text-[0.5625em] text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-[#2B579A]">→</span>
-              </button>
-
-              <div className={`my-1.5 border-t ${darkMode ? 'border-slate-700/90' : 'border-slate-300/75'}`} aria-hidden="true" />
-
-            {homeNavigation.zineEnabled && (
-              <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('portfolio:home-action', { detail: 'zine' }))} data-hint-id="home-wassup" className="group flex min-h-8 w-full items-center justify-between gap-2 py-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
-                <span className="min-w-0 flex-1 font-serif text-[0.8125em] font-normal leading-tight transition group-hover:text-[#2B579A]">{homeNavigation.zineLabel || 'Wassup?'}</span><span aria-hidden="true" className="font-mono text-[0.5625em] text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-[#2B579A]">↗</span>
-              </button>
-            )}
-            {homeNavigation.gameEnabled && (
-              <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('portfolio:home-action', { detail: 'game' }))} data-hint-id="home-mini-game" className="group flex min-h-8 w-full items-center justify-between gap-2 py-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
-                <span className="min-w-0 flex-1 font-serif text-[0.8125em] font-normal leading-tight transition group-hover:text-[#2B579A]">Mini Game</span><span aria-hidden="true" className="font-mono text-[0.5625em] text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-[#2B579A]">↗</span>
-              </button>
-            )}
+              {homeNavigation.zineEnabled && (
+                <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('portfolio:home-action', { detail: 'zine' }))} data-hint-id="home-wassup" className="group flex min-h-8 w-full items-center justify-between gap-2 py-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
+                  <span className="min-w-0 flex-1 font-serif text-[0.8125em] font-normal leading-tight transition group-hover:text-[#2B579A]">{homeNavigation.zineLabel || 'Wassup?'}</span><span aria-hidden="true" className="font-mono text-[0.5625em] text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-[#2B579A]">↗</span>
+                </button>
+              )}
+              {homeNavigation.gameEnabled && (
+                <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('portfolio:home-action', { detail: 'game' }))} data-hint-id="home-mini-game" className="group flex min-h-8 w-full items-center justify-between gap-2 py-1.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
+                  <span className="min-w-0 flex-1 font-serif text-[0.8125em] font-normal leading-tight transition group-hover:text-[#2B579A]">Mini Game</span><span aria-hidden="true" className="font-mono text-[0.5625em] text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-[#2B579A]">↗</span>
+                </button>
+              )}
             </div>
           </nav>
         )}

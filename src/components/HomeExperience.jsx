@@ -556,33 +556,19 @@ export default function HomeExperience({ data, zineData, miniGameData, interacti
         </div>
 
         <nav className="mx-auto mt-8 w-full md:hidden" aria-label="Home routes and interactive features">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-200/90 pt-3.5 text-[0.8125em] font-serif text-gray-700 dark:border-gray-700/90 dark:text-gray-300">
-            <button type="button" onClick={() => onNavigate?.('Projects')} data-hint-id="home-selected-work" className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors">
-              {data?.navigationLabels?.quickViews?.selectedWorks || 'Selected Works'}
-            </button>
-            <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">•</span>
-            <button type="button" onClick={() => onNavigate?.('Career')} data-hint-id="home-experience" className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors">
-              {data?.navigationLabels?.quickViews?.experience || 'Experience'}
-            </button>
-            <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">•</span>
-            <button type="button" onClick={() => onNavigate?.('Contact')} data-hint-id="home-contact" className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors">
-              {data?.navigationLabels?.quickViews?.contact || 'Contact'}
-            </button>
+          <div className="flex flex-wrap items-center justify-center gap-4 border-t border-gray-200/90 pt-3.5 text-[0.875em] font-serif text-gray-700 dark:border-gray-700/90 dark:text-gray-300">
             {zineData?.enabled !== false && (
-              <>
-                <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">•</span>
-                <button type="button" onClick={openZine} data-hint-id="home-wassup" className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors">
-                  {data?.navigationLabels?.quickViews?.wassup || zineData?.menuLabel || 'Wassup?'}
-                </button>
-              </>
+              <button type="button" onClick={openZine} data-hint-id="home-wassup" className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors font-semibold">
+                {data?.navigationLabels?.quickViews?.wassup || zineData?.menuLabel || 'Wassup?'}
+              </button>
+            )}
+            {zineData?.enabled !== false && miniGameData?.enabled !== false && (
+              <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">•</span>
             )}
             {miniGameData?.enabled !== false && (
-              <>
-                <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">•</span>
-                <button type="button" onClick={openGame} data-hint-id="home-mini-game" className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors">
-                  {data?.navigationLabels?.quickViews?.miniGames || miniGameData?.menuLabel || 'Mini Games'}
-                </button>
-              </>
+              <button type="button" onClick={openGame} data-hint-id="home-mini-game" className="hover:text-[#2B579A] dark:hover:text-[#6FA8DC] transition-colors font-semibold">
+                {data?.navigationLabels?.quickViews?.miniGames || miniGameData?.menuLabel || 'Mini Games'}
+              </button>
             )}
           </div>
         </nav>

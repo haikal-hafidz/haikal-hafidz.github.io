@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { setPageMeta } from '../lib/pageMeta';
 import InteractiveText from '../components/InteractiveText';
 import RichContent from '../components/RichContent';
@@ -110,22 +111,19 @@ function ThreeColumnIndexListing({
                 onOpen(item);
               }
             }}
-            className="group grid cursor-pointer grid-cols-[minmax(0,1fr)_auto_auto] items-baseline gap-2.5 sm:gap-4 py-2 focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]"
+            className="group flex flex-col sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-baseline gap-1 sm:gap-4 py-2.5 sm:py-2 border-b border-gray-100 dark:border-gray-800/60 sm:border-0 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]"
           >
-            <div className="min-w-0 pr-2">
-              <h2 className="text-[0.9375em] sm:text-[1.0em] font-normal text-gray-900 dark:text-gray-100 transition group-hover:text-[#2B579A] dark:group-hover:text-[#6FA8DC] truncate">
+            <div className="min-w-0 sm:pr-2">
+              <h2 className="text-[0.9375em] sm:text-[1.0em] font-medium text-gray-900 dark:text-gray-100 transition group-hover:text-[#2B579A] dark:group-hover:text-[#6FA8DC] break-words sm:truncate">
                 {title}
               </h2>
             </div>
 
-            <div className="text-right">
+            <div className="flex items-center justify-between sm:justify-end gap-3 text-right">
               <span className="text-[0.8125em] text-gray-500 dark:text-gray-400 font-mono whitespace-nowrap">
                 {genre}
               </span>
-            </div>
-
-            <div className="text-right min-w-[4rem] sm:min-w-[5.5rem]">
-              <span className="text-[0.8125em] text-gray-400 dark:text-gray-500 font-mono whitespace-nowrap">
+              <span className="text-[0.8125em] text-gray-400 dark:text-gray-500 font-mono whitespace-nowrap sm:min-w-[5.5rem] sm:text-right">
                 {date}
               </span>
             </div>
@@ -133,6 +131,106 @@ function ThreeColumnIndexListing({
         );
       })}
     </div>
+  );
+}
+
+function stripImageAndMediaTags(html = '') {
+  if (!html) return '';
+  return String(html)
+    .replace(/<img[^>]*>/gi, '')
+    .replace(/<figure[^>]*>[\s\S]*?<\/figure>/gi, '')
+    .replace(/<video[^>]*>[\s\S]*?<\/video>/gi, '')
+    .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<audio[^>]*>[\s\S]*?<\/audio>/gi, '');
+}
+
+function NonPosterProjectDetail({ item, genre, date, onShare }) {
+  if (!item) return null;
+  const title = item.title || item.name || 'Untitled';
+  const author = item.author || item.writer || item.role || '';
+  const displayGenre = genre || item.category || item.type || item.genre || 'General';
+  const displayDate = date || item.date || item.year || '2026';
+
+  const textBlocks = Array.isArray(item.cmsBlocks)
+    ? item.cmsBlocks
+        .filter((b) => b?.type === 'text' || b?.type === 'word')
+        .map((b) => b?.text || b?.html || b?.content || '')
+        .filter(Boolean)
+        .join('')
+    : '';
+
+  const rawBody =
+    textBlocks ||
+    item.content ||
+    item.wordContent ||
+    item.premise ||
+    item.description ||
+    item.snippet ||
+    '';
+
+  const cleanBody = stripImageAndMediaTags(rawBody);
+
+  const additionalText = [];
+  if (item.contribution) additionalText.push({ label: 'About the Project', html: stripImageAndMediaTags(item.contribution) });
+  if (item.credits) additionalText.push({ label: 'Credits', html: stripImageAndMediaTags(item.credits) });
+
+  return (
+    <article className={`${ARTICLE_CONTAINER_CLASS} space-y-6 view-reveal py-2`}>
+      <div className="flex items-center justify-between gap-3 border-b border-gray-200 dark:border-gray-700 pb-4">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[0.75em] text-gray-500 dark:text-gray-400">
+          <span className="font-semibold text-[#2B579A] dark:text-[#6FA8DC] uppercase">
+            {displayGenre}
+          </span>
+          <span>·</span>
+          <span>{displayDate}</span>
+          {author && (
+            <>
+              <span>·</span>
+              <span>BY {author.toUpperCase()}</span>
+            </>
+          )}
+        </div>
+
+        {onShare && (
+          <button
+            type="button"
+            onClick={() => onShare(item)}
+            className="flex items-center gap-1.5 text-[0.75em] font-semibold text-white bg-[#2B579A] dark:bg-[#6FA8DC] dark:text-[#1a1a1a] px-3 py-1.5 rounded shadow-sm hover:bg-[#1e3f73] dark:hover:bg-[#5a95c9] transition-colors"
+          >
+            Share
+          </button>
+        )}
+      </div>
+
+      <header>
+        <h1 className={PROJECT_DETAIL_TITLE_CLASS}>
+          {title}
+        </h1>
+      </header>
+
+      {item.snippet && item.snippet !== rawBody && (
+        <RichContent value={stripImageAndMediaTags(item.snippet)} className="font-medium text-[0.95em] text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#252526] p-4 rounded border-l-4 border-[#2B579A] dark:border-[#6FA8DC]" />
+      )}
+
+      {cleanBody && (
+        <div
+          className={`${ARTICLE_TEXT_CLASS} space-y-4 pt-1 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
+          dangerouslySetInnerHTML={{ __html: cleanBody }}
+        />
+      )}
+
+      {additionalText.map((sec, idx) => (
+        <div key={idx} className="border-t border-gray-200 dark:border-gray-700 pt-5 space-y-2">
+          <h3 className="font-mono text-[0.75em] font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+            {sec.label}
+          </h3>
+          <div
+            className={`${ARTICLE_TEXT_CLASS} space-y-2 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
+            dangerouslySetInnerHTML={{ __html: sec.html }}
+          />
+        </div>
+      ))}
+    </article>
   );
 }
 
@@ -1153,6 +1251,25 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
   // aja jumlahnya, tiap tab punya nama + daftar kartu sendiri (judul, gambar,
   // kategori, deskripsi, link opsional).
   const customSections = useMemo(() => projectsData.customSections || [], [projectsData.customSections]);
+
+  // Helper classification for reading & reading+picture tabs vs watching/listening tabs
+  const isReadingCategory = useCallback((categoryKey) => {
+    if (!categoryKey || categoryKey === 'overview') return false;
+    if (categoryKey === 'articles' || categoryKey === 'poster') return categoryKey === 'articles';
+    if (categoryKey === 'directing') return false;
+    if (categoryKey.startsWith('custom:')) {
+      const customId = categoryKey.replace('custom:', '');
+      const cs = customSections.find((item) => String(item.id) === String(customId));
+      if (!cs) return true; // Default fallback to reading for custom sections
+      const type = (cs.contentType || (cs.layout === 'articles' ? 'writing' : 'image')).toLowerCase();
+      const label = (cs.label || '').toLowerCase();
+      if (type === 'video' || type === 'audio' || /video|film|directing|audio|voice|podcast|sound/i.test(label)) {
+        return false;
+      }
+      return true; // writing, image, story, script, etc. are reading/picture tabs
+    }
+    return true;
+  }, [customSections]);
   // Label tab navigasi buat Articles & Poster — bisa diganti bebas lewat CMS, kosong
   // berarti pakai nama bawaan.
   const articlesLabel = projectsData.articlesLabel?.trim() || 'Articles';
@@ -1173,10 +1290,41 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     })),
   ], [articlesLabel, directingLabel, posterLabel, customSections, articles.length, directingItems.length, posterItems.length]);
 
+  const findCategoryForWork = useCallback((workId) => {
+    if (!workId) return null;
+    if (articles.some((a) => a.id === workId)) return 'articles';
+    if (directingItems.some((d) => d.id === workId)) return 'directing';
+    if (posterItems.some((p) => p.id === workId)) return 'poster';
+    for (const section of customSections) {
+      if ((section.items || []).some((item) => item.id === workId)) {
+        return `custom:${section.id}`;
+      }
+    }
+    return null;
+  }, [articles, directingItems, posterItems, customSections]);
+
   // Halaman selalu masuk lewat Project Index dulu. Visitor memilih rak/kategori,
   // baru melihat karya di dalamnya—supaya halaman tidak terasa seperti CMS penuh tab.
-  const [activeCategory, setActiveCategory] = useState('overview');
+  const [activeCategory, setActiveCategory] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const cat = params.get('category');
+      if (cat) return cat;
+    }
+    return 'overview';
+  });
   const [projectQuery, setProjectQuery] = useState('');
+
+  useEffect(() => {
+    if (readingWorkId) {
+      const cat = findCategoryForWork(readingWorkId);
+      if (cat) setActiveCategory(cat);
+    } else if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const cat = params.get('category');
+      if (cat) setActiveCategory(cat);
+    }
+  }, [readingWorkId, findCategoryForWork]);
   const activeCustomSection =
     activeCategory.startsWith('custom:')
       ? customSections.find((cs) => `custom:${cs.id}` === activeCategory)
@@ -1227,6 +1375,11 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     setSelectedCustomIndex(null);
     setListPage(1);
     setActiveCategory('overview');
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('category');
+      window.history.pushState(null, '', url);
+    }
   };
 
   // Artikel pertama di data = artikel unggulan (gaya headline Mojok), sisanya jadi
@@ -1363,11 +1516,20 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
   const openWork = (item) => {
     if (!item) return;
 
+    const currentCat = (activeCategory && activeCategory !== 'overview')
+      ? activeCategory
+      : findCategoryForWork(item.id);
+
     // Explicit displayMode handling if configured in CMS:
     if (item.displayMode === 'reading' && onSetReadingWorkId && item.id) {
       onSetReadingWorkId(item.id);
       const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'Projects');
       url.searchParams.set('work', item.id);
+      if (currentCat) {
+        url.searchParams.set('category', currentCat);
+        setActiveCategory(currentCat);
+      }
       window.history.pushState(null, '', url);
       return;
     }
@@ -1402,7 +1564,12 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     if (onSetReadingWorkId && item.id) {
       onSetReadingWorkId(item.id);
       const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'Projects');
       url.searchParams.set('work', item.id);
+      if (currentCat) {
+        url.searchParams.set('category', currentCat);
+        setActiveCategory(currentCat);
+      }
       window.history.pushState(null, '', url);
       return;
     }
@@ -1556,21 +1723,95 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
   }, [selectedGalleryIndex, activeGalleryItems.length]);
 
   if (readingWork) {
+    const activeCategoryKey = (activeCategory && activeCategory !== 'overview')
+      ? activeCategory
+      : (findCategoryForWork(readingWorkId) || 'articles');
+    const isReadingTab = isReadingCategory(activeCategoryKey);
+
+    // Get current items array within active category for Prev/Next navigation
+    const categoryItems = activeCategoryKey === 'articles'
+      ? articles
+      : activeCategoryKey === 'directing'
+        ? directingItems
+        : activeCategoryKey === 'poster'
+          ? posterItems
+          : activeCustomItems;
+
+    const currentIndex = categoryItems.findIndex((item) => item.id === readingWork.id);
+    const hasPrev = currentIndex > 0;
+    const hasNext = currentIndex >= 0 && currentIndex < categoryItems.length - 1;
+
+    const navigateToWork = (targetItem) => {
+      if (!targetItem) return;
+      if (onSetReadingWorkId && targetItem.id) {
+        onSetReadingWorkId(targetItem.id);
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', 'Projects');
+        url.searchParams.set('work', targetItem.id);
+        if (activeCategoryKey) {
+          url.searchParams.set('category', activeCategoryKey);
+        }
+        window.history.pushState(null, '', url);
+      }
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        const sheetEl = document.getElementById('reading-paper-sheet');
+        if (sheetEl) sheetEl.scrollTop = 0;
+      }, 0);
+    };
+
     const workTitle = readingWork.title || readingWork.name || 'Untitled';
-    const rawBody = readingWork.content || readingWork.wordContent || readingWork.description || readingWork.snippet || readingWork.premise || '';
+    const workAuthor = readingWork.author || readingWork.writer || readingWork.role || '';
+    const workGenre = readingWork.category || readingWork.genre || readingWork.type || 'General';
+    const workDate = readingWork.date || readingWork.year || '2026';
+
+    const textBlocks = Array.isArray(readingWork.cmsBlocks)
+      ? readingWork.cmsBlocks
+          .filter((b) => b?.type === 'text' || b?.type === 'word' || b?.type === 'image')
+          .map((b) => {
+            if (b?.type === 'image' && b?.url) {
+              return `<figure className="my-4"><img src="${b.url}" alt="${b.caption || ''}" className="max-w-full h-auto rounded" />${b.caption ? `<figcaption className="text-xs text-gray-500 text-center mt-1">${b.caption}</figcaption>` : ''}</figure>`;
+            }
+            return b?.text || b?.html || b?.content || '';
+          })
+          .filter(Boolean)
+          .join('')
+      : '';
+
+    const rawBody =
+      textBlocks ||
+      readingWork.content ||
+      readingWork.wordContent ||
+      readingWork.description ||
+      readingWork.snippet ||
+      readingWork.premise ||
+      '';
 
     const handleBackFromReading = () => {
+      const targetCategory = activeCategoryKey;
+
+      if (targetCategory) {
+        setActiveCategory(targetCategory);
+      }
+
       if (onSetReadingWorkId) {
         onSetReadingWorkId(null);
       }
-      if (window.history.length > 1) {
-        window.history.back();
-      } else {
-        const url = new URL(window.location.href);
-        url.searchParams.delete('work');
-        url.searchParams.set('tab', 'Projects');
-        window.history.replaceState(null, '', url);
+
+      const url = new URL(window.location.href);
+      url.searchParams.delete('work');
+      url.searchParams.set('tab', 'Projects');
+      if (targetCategory && targetCategory !== 'overview') {
+        url.searchParams.set('category', targetCategory);
       }
+      window.history.pushState(null, '', url);
+
+      setTimeout(() => {
+        const el = document.getElementById('section-Projects');
+        if (el) {
+          el.scrollIntoView({ behavior: 'instant', block: 'start' });
+        }
+      }, 0);
     };
 
     const handleShareReadingWork = async () => {
@@ -1592,6 +1833,96 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
       }
     };
 
+    // If reading tab, render static paper sheet overlay (VisitorIntroduction styling without animation)
+    if (isReadingTab && typeof document !== 'undefined') {
+      return createPortal(
+        <div id="reading-paper-sheet" className="fixed inset-0 z-[10000] overflow-y-auto bg-[#d7d7d7] dark:bg-[#181818] text-[#121a2b] dark:text-gray-100 select-text">
+          <div className="min-h-screen bg-[#fbfaf6] dark:bg-[#1e1e1e] shadow-2xl">
+            <button
+              type="button"
+              onClick={handleBackFromReading}
+              className="fixed right-6 top-5 z-20 flex h-11 w-11 items-center justify-center border border-[#bac0c9] dark:border-gray-700 bg-[#fbfaf6] dark:bg-[#252526] text-2xl font-serif leading-none transition hover:bg-[#2B579A] hover:text-white dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] cursor-pointer"
+              aria-label="Close reading view"
+            >
+              ×
+            </button>
+
+            <main className="mx-auto flex min-h-screen w-[min(1120px,calc(100%-48px))] flex-col py-10 px-0">
+              <div className="flex flex-wrap items-center justify-between gap-4 font-mono text-[0.7em] font-semibold tracking-widest text-[#2B579A] dark:text-[#6FA8DC] uppercase">
+                <div className="flex items-center gap-2">
+                  <span>{workGenre}</span>
+                  <span>·</span>
+                  <span>{workDate}</span>
+                  {workAuthor && (
+                    <>
+                      <span>·</span>
+                      <span>BY {workAuthor.toUpperCase()}</span>
+                    </>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleShareReadingWork}
+                  className="font-mono text-[0.75em] text-[#2B579A] dark:text-[#6FA8DC] hover:underline cursor-pointer"
+                >
+                  {linkCopied ? 'Link copied!' : 'Share'}
+                </button>
+              </div>
+
+              <div className="my-5 h-[5px] bg-[#2B579A] dark:bg-[#6FA8DC]" />
+
+              <section className="my-auto mx-auto w-[min(880px,100%)] py-4 text-left">
+                <h1 className="text-[clamp(2.2rem,5vw,4.5rem)] font-serif leading-[1.05] tracking-tight font-extrabold text-gray-900 dark:text-white">
+                  {workTitle}
+                </h1>
+
+                {readingWork.snippet && readingWork.snippet !== rawBody && (
+                  <RichContent value={readingWork.snippet} className="mt-6 font-medium text-[1em] leading-relaxed text-gray-800 dark:text-gray-200 bg-[#f0eee6] dark:bg-[#2a2a2b] p-5 rounded border-l-4 border-[#2B579A] dark:border-[#6FA8DC]" />
+                )}
+
+                <div
+                  className={`${ARTICLE_TEXT_CLASS} mt-8 space-y-5 text-gray-800 dark:text-gray-200 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
+                  dangerouslySetInnerHTML={{ __html: rawBody }}
+                />
+              </section>
+
+              {/* Prev / Next navigation buttons strictly scoped to active tab */}
+              <footer className="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-gray-300 dark:border-gray-700 pt-6 font-mono text-[0.75em] font-semibold uppercase tracking-wider">
+                <button
+                  type="button"
+                  disabled={!hasPrev}
+                  onClick={() => navigateToWork(categoryItems[currentIndex - 1])}
+                  className="px-4 py-2.5 border border-gray-400 dark:border-gray-600 bg-transparent text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                >
+                  ← Prev
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleBackFromReading}
+                  className="px-4 py-2.5 border border-gray-400 dark:border-gray-600 bg-transparent text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] transition-colors cursor-pointer"
+                >
+                  Back to List
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!hasNext}
+                  onClick={() => navigateToWork(categoryItems[currentIndex + 1])}
+                  className="px-4 py-2.5 border border-gray-400 dark:border-gray-600 bg-transparent text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                >
+                  Next →
+                </button>
+              </footer>
+            </main>
+          </div>
+        </div>,
+        document.body
+      );
+    }
+
+    // Default view for watching/listening tabs
     return (
       <div className="min-h-screen w-full bg-white dark:bg-[#181818] py-10 px-4 sm:px-8 flex justify-center select-text">
         <article className="max-w-2xl w-full space-y-8">
@@ -1662,6 +1993,12 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
               setPosterSpotlightIndex(0);
               setSelectedCustomIndex(null);
               setListPage(1);
+              if (typeof window !== 'undefined') {
+                const url = new URL(window.location.href);
+                url.searchParams.set('tab', 'Projects');
+                url.searchParams.set('category', tab.key);
+                window.history.pushState(null, '', url);
+              }
             }}
             className={`px-4 py-2 text-[0.75em] font-semibold rounded-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#161616] ${
               activeCategory === tab.key
@@ -1681,7 +2018,15 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
               <button
                 key={section.key}
                 type="button"
-                onClick={() => setActiveCategory(section.key)}
+                onClick={() => {
+                  setActiveCategory(section.key);
+                  if (typeof window !== 'undefined') {
+                    const url = new URL(window.location.href);
+                    url.searchParams.set('tab', 'Projects');
+                    url.searchParams.set('category', section.key);
+                    window.history.pushState(null, '', url);
+                  }
+                }}
                 className="flex w-full items-center justify-center py-2.5 px-3.5 sm:p-6 border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#222222] hover:border-gray-400 dark:hover:border-gray-500 transition-colors rounded-none text-center cursor-pointer min-h-[2.85rem] sm:min-h-[5rem]"
               >
                 <span className="text-[0.875em] sm:text-[1.125em] font-semibold text-gray-900 dark:text-gray-100 truncate">
@@ -1712,73 +2057,12 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
               </>
             )
           ) : (
-            /* Tampilan Baca Artikel Penuh (Detail View) */
-            <div className="space-y-6 view-reveal">
-              <div className="flex items-center justify-end flex-wrap gap-2">
-                <button
-                  onClick={() => handleNativeShare(selectedArticle)}
-                  className="flex items-center gap-1.5 text-[0.75em] font-semibold text-white bg-[#2B579A] dark:bg-[#6FA8DC] dark:text-[#1a1a1a] px-3.5 py-1.5 rounded shadow-sm hover:bg-[#1e3f73] dark:hover:bg-[#5a95c9] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#161616]"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.6" y1="10.5" x2="15.4" y2="6.5" /><line x1="8.6" y1="13.5" x2="15.4" y2="17.5" /></svg>
-                  Share
-                </button>
-              </div>
-
-              {hasStudioPresentation(selectedArticle) && <ProjectStudioRenderer item={selectedArticle} type="Article" onBack={goToProjectIndex} />}
-              <div className={`${hasStudioPresentation(selectedArticle) ? 'hidden' : ''} ${ARTICLE_CONTAINER_CLASS} space-y-4`}>
-                {selectedArticle.category && (
-                  <span className="inline-block bg-green-600 text-white text-[0.625em] font-bold uppercase tracking-wide px-3 py-1.5">
-                    {selectedArticle.category}
-                  </span>
-                )}
-
-                <h1 className={PROJECT_DETAIL_TITLE_CLASS}>
-                  {selectedArticle.title}
-                </h1>
-
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.75em] text-gray-400 font-mono">
-                  {selectedArticle.author && (
-                    <>
-                      <span>
-                        OLEH{' '}
-                        <span className="text-green-700 dark:text-green-400 font-semibold">
-                          {selectedArticle.author.toUpperCase()}
-                        </span>
-                      </span>
-                      <span>·</span>
-                    </>
-                  )}
-                  <span>{selectedArticle.date}</span>
-                </div>
-
-                {selectedArticle.image && (
-                  <div className="w-full aspect-[16/9] overflow-hidden rounded-sm bg-gray-100 dark:bg-black/40">
-                    <img
-                      src={selectedArticle.image}
-                      alt={selectedArticle.title}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-cover"
-                      style={{ objectPosition: getCoverPosition(selectedArticle) }}
-                    />
-                  </div>
-                )}
-
-                <div className={`${ARTICLE_TEXT_CLASS} space-y-4 pt-1`}>
-                  <RichContent value={selectedArticle.snippet} className="font-medium text-[1em] text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-[#252526] p-4 rounded border-l-4 border-green-600 [&_p]:my-0" />
-                  {/* Isi artikel disimpan sebagai HTML (dari editor Bold/Italic/Underline/List/Link
-                      di CMS), jadi dirender pakai dangerouslySetInnerHTML biar formatnya kebawa —
-                      bukan cuma teks polos kayak sebelumnya. Cuma admin (password-protected) yang
-                      bisa nulis ke field ini lewat CMS, jadi aman dari XSS pihak luar. Gak perlu
-                      className justify/list/link manual lagi di sini — udah ikut ARTICLE_TEXT_CLASS
-                      di parent-nya (text-align inherit ke bawah). */}
-                  <div
-                    className="min-w-0 max-w-full space-y-4 break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all"
-                    dangerouslySetInnerHTML={{ __html: selectedArticle.content }}
-                  />
-                </div>
-              </div>
-            </div>
+            <NonPosterProjectDetail
+              item={selectedArticle}
+              genre={selectedArticle.category || 'Article'}
+              date={selectedArticle.date}
+              onShare={handleNativeShare}
+            />
           )}
         </div>
       )}
@@ -1800,69 +2084,12 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
               <ProjectPager page={listPage} totalPages={Math.max(1, Math.ceil(directingItems.length / itemsPerPage))} onPageChange={setListPage} />
             </div>
           ) : (
-            <article className="view-reveal space-y-6">
-              {hasStudioPresentation(selectedDirectingItem) ? (
-                <ProjectStudioRenderer item={selectedDirectingItem} type="Directing" onBack={goToProjectIndex} />
-              ) : (() => {
-                const media = getMediaEmbed(selectedDirectingItem.mediaType, selectedDirectingItem.mediaUrl);
-                const directingMeta = [
-                  ['TYPE', selectedDirectingItem.type || selectedDirectingItem.category || 'Film / Video'],
-                  ['ROLE', selectedDirectingItem.role],
-                  ['YEAR', selectedDirectingItem.year],
-                  ['DURATION', selectedDirectingItem.runtime],
-                  ['TOOLS', selectedDirectingItem.tools],
-                ].filter(([, value]) => value);
-                return (
-                  <div className="space-y-7">
-                    <div className="flex items-start justify-between gap-5">
-                      <h1 className={`max-w-4xl ${PROJECT_DETAIL_TITLE_CLASS}`}>
-                        {selectedDirectingItem.title}
-                      </h1>
-                      <button type="button" onClick={() => handleNativeShare(selectedDirectingItem)} className="hidden shrink-0 rounded bg-[#2B579A] px-3 py-2 font-mono text-[0.6875em] font-bold text-white sm:inline-flex">Share</button>
-                    </div>
-
-                    <div className="grid grid-cols-1 items-start gap-7 md:grid-cols-[minmax(0,1fr)_minmax(16rem,0.92fr)] md:gap-10">
-                      <div className="min-w-0">
-                        {(() => {
-                          const ratio = selectedDirectingItem.videoRatio || 'auto';
-                          const ratioClass = ratio === '9:16' ? 'aspect-[9/16] max-h-[68vh] max-w-[18rem] mx-auto' : ratio === '4:3' ? 'aspect-[4/3]' : ratio === '1:1' ? 'aspect-square' : 'aspect-video';
-                          return <div className={`${ratioClass} w-full overflow-hidden rounded-md border border-gray-200 bg-black dark:border-gray-700`}>
-                            {media?.kind === 'iframe' && <iframe src={media.src} title={selectedDirectingItem.title} className="h-full w-full" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen />}
-                            {media?.kind === 'video' && <video src={media.src} poster={getProjectCover(selectedDirectingItem) || undefined} controls preload="metadata" className="h-full w-full object-contain" />}
-                            {(!media || media.kind === 'external') && (getProjectCover(selectedDirectingItem) ? <img src={getProjectCover(selectedDirectingItem)} alt={selectedDirectingItem.title} className="h-full w-full object-contain" style={{ objectPosition: getCoverPosition(selectedDirectingItem) }} /> : <div className="flex h-full items-center justify-center font-mono text-xs text-gray-400">PREVIEW NOT AVAILABLE</div>)}
-                          </div>;
-                        })()}
-
-                        {Array.isArray(selectedDirectingItem.videoSnippets) && selectedDirectingItem.videoSnippets.some((frame) => frame?.imageUrl) && (
-                          <div className="mt-3 flex snap-x gap-2 overflow-x-auto pb-2">
-                            {selectedDirectingItem.videoSnippets.filter((frame) => frame?.imageUrl).map((frame, frameIndex) => (
-                              <figure key={frame.id || `${frame.imageUrl}-${frameIndex}`} className="w-[31%] min-w-[7rem] shrink-0 snap-start">
-                                <img src={frame.imageUrl} alt={frame.caption || `Video frame ${frameIndex + 1}`} loading="lazy" decoding="async" className="aspect-video w-full rounded object-cover" />
-                                {(frame.timestamp || frame.caption) && <figcaption className="mt-1 truncate text-[0.625em] text-gray-400">{[frame.timestamp, frame.caption].filter(Boolean).join(' · ')}</figcaption>}
-                              </figure>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <aside className="min-w-0 border-t border-gray-200 pt-5 md:border-l md:border-t-0 md:pl-6 md:pt-0 dark:border-gray-700">
-                        {selectedDirectingItem.premise && <div className="project-rich-text text-[0.9em] leading-relaxed text-gray-600 dark:text-gray-300" dangerouslySetInnerHTML={{ __html: selectedDirectingItem.premise }} />}
-                        {Array.isArray(selectedDirectingItem.tags) && selectedDirectingItem.tags.length > 0 && <div className="mt-4 flex flex-wrap gap-1.5">{selectedDirectingItem.tags.map((tag) => <span key={tag} className="rounded-full bg-gray-100 px-2 py-1 text-[0.65em] text-gray-600 dark:bg-[#2d2d2d] dark:text-gray-300">{tag}</span>)}</div>}
-                        <div className="mt-5 space-y-4 border-t border-gray-200 pt-5 dark:border-gray-700">
-                          {directingMeta.map(([label, value]) => <div key={label}><p className="font-mono text-[0.5625em] uppercase tracking-[0.16em] text-gray-400">{label}</p><p className="mt-1 text-[0.8125em] font-semibold text-gray-800 dark:text-gray-200">{value}</p></div>)}
-                          {(selectedDirectingItem.externalUrl || media?.kind === 'external') && <a href={selectedDirectingItem.externalUrl || media.src} target="_blank" rel="noopener noreferrer" className="inline-flex w-full items-center justify-between rounded bg-[#2B579A] px-3 py-2 text-[0.6875em] font-bold uppercase tracking-wide text-white">{selectedDirectingItem.externalLabel || 'Open full work'} <span>↗</span></a>}
-                        </div>
-                      </aside>
-                    </div>
-
-                    {(selectedDirectingItem.contribution || selectedDirectingItem.credits) && <div className="grid grid-cols-1 gap-7 border-t border-gray-200 pt-6 md:grid-cols-2 md:gap-10 dark:border-gray-700">
-                      {selectedDirectingItem.contribution && <div><h2 className="text-[1.05em] font-bold text-gray-900 dark:text-white">About the Project</h2><div className={`${ARTICLE_TEXT_CLASS} mt-3`} dangerouslySetInnerHTML={{ __html: selectedDirectingItem.contribution }} /></div>}
-                      {selectedDirectingItem.credits && <div><h3 className="font-mono text-[0.6875em] font-bold uppercase tracking-[0.18em]">Credits</h3><div className={`${ARTICLE_TEXT_CLASS} mt-3`} dangerouslySetInnerHTML={{ __html: selectedDirectingItem.credits }} /></div>}
-                    </div>}
-                  </div>
-                );
-              })()}
-            </article>
+            <NonPosterProjectDetail
+              item={selectedDirectingItem}
+              genre={selectedDirectingItem.type || selectedDirectingItem.category || 'Directing'}
+              date={selectedDirectingItem.year || selectedDirectingItem.date}
+              onShare={handleNativeShare}
+            />
           )}
         </div>
       )}
@@ -1974,239 +2201,12 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
               <ProjectPager page={listPage} totalPages={Math.max(1, Math.ceil(activeCustomItems.length / itemsPerPage))} onPageChange={setListPage} />
             </>
           ) : (
-            /* Detail item — dibuka pas salah satu kartu di grid diklik */
-            <div className="space-y-6 view-reveal">
-              {activeCustomFamily === 'audio' ? (() => {
-                const item = activeCustomItems[selectedCustomIndex];
-                const audioUrl = getItemAudio(item);
-                return (
-                  <div className="mx-auto w-full max-w-3xl border-y border-gray-200 py-8 dark:border-gray-700">
-                    <p className="font-mono text-[0.625em] uppercase tracking-[0.18em] text-gray-400">Voice note</p>
-                    <h2 className={`mt-3 ${PROJECT_DETAIL_TITLE_CLASS}`}>{item.title}</h2>
-                    {(item.runtime || item.duration || item.date || item.year) && <p className="mt-2 font-mono text-[0.6875em] text-gray-400">{[item.runtime || item.duration, item.date || item.year].filter(Boolean).join(' · ')}</p>}
-                    <div className="mt-7 rounded-xl border border-gray-200 bg-[#faf9f6] p-4 sm:p-5 dark:border-gray-700 dark:bg-[#242424]">
-                      {audioUrl ? <audio src={audioUrl} controls preload="metadata" className="w-full" /> : <p className="font-mono text-[0.6875em] text-gray-400">File voice note belum tersedia.</p>}
-                    </div>
-                    {item.description && <RichContent value={item.description} className="mt-6 text-[0.875em] leading-relaxed text-gray-600 dark:text-gray-300" />}
-                    {Array.isArray(item.cmsBlocks) && item.cmsBlocks
-                      .filter((block) => block?.type === 'text' || block?.type === 'word')
-                      .map((block, i) => (
-                        <div
-                          key={block.id || i}
-                          className={`${ARTICLE_TEXT_CLASS} mt-5 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full`}
-                          dangerouslySetInnerHTML={{ __html: block.text || block.html || block.content || '' }}
-                        />
-                      ))}
-                  </div>
-                );
-              })() : activeCustomFamily === 'script' ? (() => {
-                const item = activeCustomItems[selectedCustomIndex];
-                const scriptHtml = getCustomWritingHtml(item);
-
-                return (
-                  <article className="mx-auto w-full max-w-[46rem]">
-                    <header className="mb-8 border-b border-gray-200 pb-6 text-center dark:border-gray-700">
-                      {item.category && (
-                        <p className="mb-3 font-mono text-[0.625em] uppercase tracking-[0.18em] text-gray-400">
-                          {item.category}
-                        </p>
-                      )}
-                      <h2 className={PROJECT_DETAIL_TITLE_CLASS}>
-                        {item.title}
-                      </h2>
-                      {(item.author || item.writer || item.year) && (
-                        <p className="mt-3 font-mono text-[0.6875em] text-gray-400">
-                          {[item.author || item.writer, item.year].filter(Boolean).join(' · ')}
-                        </p>
-                      )}
-                    </header>
-
-                    <div className="mx-auto w-full min-w-0 max-w-[42rem] overflow-hidden px-1 py-2 sm:-translate-x-8 sm:px-4 sm:py-4 lg:-translate-x-14">
-                      <style>{`
-                        @media (max-width: 767px) {
-                          .screenplay-public {
-                            width: 100% !important;
-                            max-width: 100% !important;
-                            min-width: 0 !important;
-                            overflow: hidden !important;
-                            overflow-wrap: anywhere !important;
-                            word-break: normal !important;
-                            font-size: 10.5pt !important;
-                            line-height: 1.55 !important;
-                          }
-                          .screenplay-public * {
-                            box-sizing: border-box !important;
-                            max-width: 100% !important;
-                          }
-                          .screenplay-public p,
-                          .screenplay-public div,
-                          .screenplay-public blockquote,
-                          .screenplay-public h1,
-                          .screenplay-public h2,
-                          .screenplay-public h3 {
-                            width: auto !important;
-                            min-width: 0 !important;
-                            margin-left: 0 !important;
-                            margin-right: 0 !important;
-                            padding-left: 0 !important;
-                            padding-right: 0 !important;
-                            text-indent: 0 !important;
-                            white-space: normal !important;
-                          }
-                          .screenplay-public span {
-                            max-width: 100% !important;
-                            white-space: normal !important;
-                          }
-                        }
-                      `}</style>
-                      {scriptHtml ? (
-                        <div
-                          className="screenplay-public min-w-0 max-w-full break-words text-[12pt] leading-[1.5] text-[#222] [font-family:Georgia,serif] [overflow-wrap:anywhere] dark:text-[#ece8df] [&_p]:mb-4 [&_ul]:my-4 [&_ul]:list-disc [&_ul]:pl-7 [&_ol]:my-4 [&_ol]:list-decimal [&_ol]:pl-7 [&_li]:mb-1 [&_h1]:mb-7 [&_h1]:text-center [&_h1]:text-[16pt] [&_h1]:font-bold [&_h2]:mb-4 [&_h2]:mt-7 [&_h2]:text-[14pt] [&_h2]:font-bold [&_h3]:mb-2 [&_h3]:mt-6 [&_h3]:text-[12pt] [&_h3]:font-bold [&_blockquote]:my-3 [&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 [&_blockquote]:pl-3 [&_blockquote]:italic"
-                          dangerouslySetInnerHTML={{ __html: scriptHtml }}
-                        />
-                      ) : (
-                        <div className="font-mono text-[0.78em] leading-[1.75] text-[#222] dark:text-[#ece8df]">
-                          <p className="font-bold uppercase">FADE IN:</p>
-                          <p className="mt-6 font-bold uppercase">INT. SCENE — DAY</p>
-                          <p className="mt-4">{richTextToPlainText(item.description) || 'Script content belum tersedia.'}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {item.description && scriptHtml && (
-                      <RichContent value={item.description} className="mx-auto mt-6 max-w-[42rem] text-[0.75em] leading-relaxed text-gray-500 dark:text-gray-400" />
-                    )}
-                  </article>
-                );
-              })() : activeCustomFamily === 'story' ? (() => {
-                const item = activeCustomItems[selectedCustomIndex];
-                const cover = getProjectCover(item);
-                const richBlocks = Array.isArray(item.cmsBlocks)
-                  ? item.cmsBlocks.filter((block) => block?.type === 'text' || block?.type === 'word')
-                  : [];
-                const hasRichBlocks = richBlocks.some((block) => (block?.text || block?.html || block?.content || '').trim());
-                const hasWordContent = Boolean((item.wordContent || '').trim());
-
-                return (
-                  <article className="mx-auto w-full max-w-[54rem]">
-                    <div className="flow-root">
-                      {cover && (
-                        <figure className="mb-5 w-full sm:float-left sm:mb-4 sm:mr-8 sm:w-[42%] md:mr-10 md:w-[40%]">
-                          <div className="aspect-[4/5] overflow-hidden rounded-md border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-black/40">
-                            <img
-                              src={projectThumbnail(cover, 960)}
-                              alt={item.title}
-                              loading="eager"
-                              decoding="async"
-                              className="h-full w-full object-cover"
-                              style={{ objectPosition: getCoverPosition(item) }}
-                            />
-                          </div>
-                        </figure>
-                      )}
-
-                      <header className={cover ? "pt-0 sm:pt-1" : ""}>
-                        {item.category && (
-                          <span className="mb-4 block font-mono text-[0.625em] uppercase tracking-widest text-gray-400">
-                            {item.category}
-                          </span>
-                        )}
-                        <h2 className={`mb-6 ${PROJECT_DETAIL_TITLE_CLASS}`}>
-                          {item.title}
-                        </h2>
-                      </header>
-
-                      <div className="min-w-0">
-                        {hasRichBlocks ? (
-                          richBlocks.map((block, i) => (
-                            <div
-                              key={block.id || i}
-                              className={`${ARTICLE_TEXT_CLASS} mb-4 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full`}
-                              dangerouslySetInnerHTML={{ __html: block.text || block.html || block.content || '' }}
-                            />
-                          ))
-                        ) : hasWordContent ? (
-                          <div
-                            className={`${ARTICLE_TEXT_CLASS} min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full`}
-                            dangerouslySetInnerHTML={{ __html: item.wordContent }}
-                          />
-                        ) : item.description ? (
-                          <RichContent value={item.description} className="text-[0.875em] leading-relaxed text-gray-600 dark:text-gray-300" />
-                        ) : null}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })() : (
-              <div className={`grid grid-cols-1 gap-6 md:gap-10 items-start ${activeCustomType === 'writing' ? 'md:grid-cols-[minmax(15rem,0.82fr)_minmax(0,1.18fr)]' : 'md:grid-cols-[1.1fr_1fr]'}`}>
-                {activeCustomType === 'video' && (() => {
-                  const item = activeCustomItems[selectedCustomIndex];
-                  const media = getMediaEmbed(item.mediaType, item.mediaUrl);
-                  return <div className="aspect-video w-full overflow-hidden rounded-md border border-gray-200 bg-black dark:border-gray-700">{media?.kind === 'iframe' ? <iframe src={media.src} title={item.title} className="h-full w-full" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /> : media?.kind === 'video' ? <video src={media.src} poster={getProjectCover(item) || undefined} controls preload="metadata" className="h-full w-full" /> : getProjectCover(item) ? <img src={getProjectCover(item)} alt={item.title} className="h-full w-full object-cover" style={{ objectPosition: getCoverPosition(item) }} /> : <div className="flex h-full items-center justify-center font-mono text-xs text-gray-400">VIDEO PREVIEW</div>}</div>;
-                })()}
-                {activeCustomType !== 'video' && getProjectCover(activeCustomItems[selectedCustomIndex]) && (
-                  <div className={`w-full overflow-hidden rounded-md border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-black/40 ${activeCustomType === 'writing' ? 'aspect-[4/5] max-h-[36rem]' : 'aspect-[4/3] max-h-[70vh]'}`}>
-                    <img
-                      src={projectThumbnail(getProjectCover(activeCustomItems[selectedCustomIndex]), 960)}
-                      alt={activeCustomItems[selectedCustomIndex].title}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-full w-full object-cover"
-                      style={{ objectPosition: getCoverPosition(activeCustomItems[selectedCustomIndex]) }}
-                    />
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  {activeCustomItems[selectedCustomIndex].category && (
-                    <span className="text-[0.625em] font-mono uppercase text-gray-400 tracking-widest block">
-                      {activeCustomItems[selectedCustomIndex].category}
-                    </span>
-                  )}
-                  <h2 className={PROJECT_DETAIL_TITLE_CLASS}>
-                    {activeCustomItems[selectedCustomIndex].title}
-                  </h2>
-
-                  {activeCustomType === 'video' && (activeCustomItems[selectedCustomIndex].role || activeCustomItems[selectedCustomIndex].year || activeCustomItems[selectedCustomIndex].runtime) && <p className="font-mono text-[0.6875em] text-gray-400">{[activeCustomItems[selectedCustomIndex].role, activeCustomItems[selectedCustomIndex].year, activeCustomItems[selectedCustomIndex].runtime].filter(Boolean).join(' · ')}</p>}
-
-                  {/* Deskripsi singkat cuma ditampilin kalau item ini GAK punya tulisan
-                      panjang dari Word (wordContent) — kalau ada, tulisan panjangnya yang
-                      jadi konten utama (dirender full-width di bawah, lihat blok setelah
-                      grid ini), biar gak dobel sama deskripsi singkat. */}
-                  {(activeCustomType !== 'writing' || !activeCustomItems[selectedCustomIndex].wordContent) && (
-                    <RichContent value={activeCustomItems[selectedCustomIndex].description} className="text-[0.875em] text-gray-600 dark:text-gray-300 leading-relaxed" />
-                  )}
-
-                  {(activeCustomType === 'document' ? activeCustomItems[selectedCustomIndex].fileUrl : activeCustomItems[selectedCustomIndex].url) && (
-                    <a
-                      href={activeCustomType === 'document' ? activeCustomItems[selectedCustomIndex].fileUrl : activeCustomItems[selectedCustomIndex].url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 mt-2 text-[0.75em] font-bold uppercase tracking-wide text-white bg-[#2B579A] dark:bg-[#6FA8DC] dark:text-[#1a1a1a] px-4 py-2 rounded-sm hover:bg-[#1e3f73] dark:hover:bg-[#5a95c9] transition-colors"
-                    >
-                      {activeCustomItems[selectedCustomIndex].buttonLabel || (activeCustomType === 'document' ? 'Buka Dokumen' : activeCustomType === 'video' ? 'Buka Video' : 'Lihat')} &rarr;
-                    </a>
-                  )}
-
-                </div>
-              </div>
-
-              )}
-              {activeCustomType === 'video' && activeCustomItems[selectedCustomIndex].credits && <div className={`${ARTICLE_CONTAINER_CLASS} ${ARTICLE_TEXT_CLASS} border-t border-gray-100 pt-5 dark:border-gray-800`} dangerouslySetInnerHTML={{ __html: activeCustomItems[selectedCustomIndex].credits }} />}
-
-              {/* Tulisan panjang (mis. cerpen) hasil convert dari file Word yang di-upload
-                  admin lewat CMS — disimpen sebagai HTML (`wordContent`), full-width di
-                  bawah grid foto/judul di atas (biar keleluasaan bacanya, gak keimpit
-                  kolom sempit). Cuma admin (password-protected) yang bisa nulis ke field
-                  ini lewat CMS, jadi aman dari XSS pihak luar — sama kayak pola
-                  dangerouslySetInnerHTML buat isi artikel di atas. */}
-              {activeCustomFamily !== 'story' && activeCustomType === 'writing' && getCustomWritingHtml(activeCustomItems[selectedCustomIndex]) && (
-                <div
-                  className={`${ARTICLE_CONTAINER_CLASS} ${ARTICLE_TEXT_CLASS} space-y-4 pt-2 border-t border-gray-100 dark:border-gray-800 [&_p]:mb-3`}
-                  dangerouslySetInnerHTML={{ __html: getCustomWritingHtml(activeCustomItems[selectedCustomIndex]) }}
-                />
-              )}
-            </div>
+            <NonPosterProjectDetail
+              item={activeCustomItems[selectedCustomIndex]}
+              genre={activeCustomItems[selectedCustomIndex].category || activeCustomSection?.label || 'Project'}
+              date={activeCustomItems[selectedCustomIndex].date || activeCustomItems[selectedCustomIndex].year}
+              onShare={handleNativeShare}
+            />
           )}
         </div>
       )}

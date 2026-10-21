@@ -13,6 +13,8 @@ export default function Ribbon({
   setIsItalic,
   isUnderline,
   setIsUnderline,
+  hasUnreadUpdate = false,
+  onOpenUpdatePopup,
   navigationLabels = {}
 }) {
   // Daftar tab navigasi murni sesuai kebutuhan website portofolio lo — TIDAK DIUBAH
@@ -112,18 +114,34 @@ export default function Ribbon({
         <div className="flex flex-1 overflow-x-auto gap-0.5">
           {portfolioTabs.map((tab) => {
             const isCurrent = activeTab === tab.key;
+            const isHome = tab.key === 'Home';
             return (
               <button
                 key={tab.key}
-                onClick={() => { setActiveTab(tab.key); document.getElementById(tab.key)?.scrollIntoView({ behavior: 'smooth' }); }}
+                onClick={() => {
+                  setActiveTab(tab.key);
+                  if (isHome && hasUnreadUpdate && onOpenUpdatePopup) {
+                    onOpenUpdatePopup();
+                  }
+                }}
                 data-hint-id={`navigation-${tab.key.toLowerCase()}`}
-                className={`px-3 sm:px-4 py-1.5 transition-colors font-medium text-[10pt] leading-4 whitespace-nowrap shrink-0 rounded-t-md ${
+                className={`relative px-3 sm:px-4 py-1.5 transition-colors font-medium text-[10pt] leading-4 whitespace-nowrap shrink-0 rounded-t-md ${
                   isCurrent
                     ? 'bg-white dark:bg-[#1e1e1e] text-[#2b579a] dark:text-blue-400 shadow-sm'
                     : 'text-white/85 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 {tab.label}
+                {isHome && hasUnreadUpdate && (
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onOpenUpdatePopup) onOpenUpdatePopup();
+                    }}
+                    className="ml-1.5 inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse"
+                    title="Update terbaru tersedia (klik untuk membaca)"
+                  />
+                )}
               </button>
             );
           })}

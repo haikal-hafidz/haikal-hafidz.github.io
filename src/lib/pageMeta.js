@@ -45,7 +45,18 @@ function metaPlainText(value = '') {
 }
 
 
-export function setSiteIdentity({ name, role, title, description, shareImage, url } = {}) {
+export function setFavicon(faviconUrl) {
+  if (!faviconUrl) return;
+  let link = document.querySelector("link[rel*='icon']");
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'icon';
+    document.head.appendChild(link);
+  }
+  link.href = faviconUrl;
+}
+
+export function setSiteIdentity({ name, role, title, description, shareImage, url, favicon } = {}) {
   const cleanName = String(name || '').trim();
   const cleanRole = String(role || '').trim();
   siteName = [cleanName, cleanRole].filter(Boolean).join(' — ') || siteName;
@@ -54,6 +65,9 @@ export function setSiteIdentity({ name, role, title, description, shareImage, ur
   defaultShareImage = String(shareImage || '').trim();
   if (url && String(url).trim()) {
     canonicalSiteUrl = String(url).trim();
+  }
+  if (favicon) {
+    setFavicon(favicon);
   }
 }
 
