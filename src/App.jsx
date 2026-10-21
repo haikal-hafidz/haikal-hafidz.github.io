@@ -1110,17 +1110,9 @@ export default function App() {
           onToggleSound={() => setSoundEnabled((value) => !value)}
           language={language}
           onLanguageChange={setLanguage}
+          helpActive={hintActive}
+          onToggleHelp={() => setHintActive((v) => !v)}
         />
-
-        {/* Tombol "Hint" — nempel di pojok KIRI ATAS, di luar kertas A4. Diklik = toggle
-            mode hint on/off, yang bikin semua elemen `data-hint-id` di tab yang lagi
-            kebuka ikut blink (lihat CSS `.hint-mode-active` di bawah). GANTI dari
-            GuidanceNote lama (kotak teks statis per-tab). Sama kayak sebelumnya:
-            disembunyiin di HP & pas Admin Mode, dipasang di luar div kertas yang
-            punya transform: scale biar posisinya gak ikut ke-scale pas zoom. */}
-        {!isAdminMode && (
-          <HintToggle active={hintActive} onToggle={() => setHintActive((v) => !v)} />
-        )}
 
         {/* Notifikasi welcome tetap muncul di HP juga; posisinya mengikuti
             isMobileLayout di dalam komponennya sendiri. */}
@@ -1345,16 +1337,17 @@ export default function App() {
           />
         )}
 
-        {!isAdminMode && (isMobileLayout || (activeTab === 'About' && desktopLeftRailStyle)) && (
+        {!isAdminMode && activeTab === 'About' && (
           <LastFmFootnote
             data={normalizeAbout(portfolioData.about).listeningFootnote}
-            style={isMobileLayout ? undefined : {
+            style={isMobileLayout || !desktopLeftRailStyle ? undefined : {
               ...desktopLeftRailStyle,
               top: desktopLeftRailStyle.top ? desktopLeftRailStyle.top + 330 : 360,
               fontFamily,
               fontSize: `${fontSize}pt`,
             }}
             darkMode={darkMode}
+            isMobileLayout={isMobileLayout}
           />
         )}
 

@@ -9,9 +9,9 @@ export default function StageOrnaments() {
       {/* Supporting Ambient Stage Vignette */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_30%,rgba(252,248,238,0.45)_0%,rgba(230,230,230,0)_75%)] dark:bg-[radial-gradient(ellipse_at_50%_30%,rgba(30,41,59,0.38)_0%,rgba(24,24,24,0)_80%)]" />
 
-      {/* Sword Fern Frond Silhouette (Nephrolepis exaltata) - Upper Right Outer Stage */}
+      {/* Sword Fern Frond Silhouette (Nephrolepis exaltata) - Subtle Outer Stage Rail */}
       <svg
-        className="absolute top-16 -right-10 sm:top-20 sm:right-2 w-48 h-64 sm:w-96 sm:h-[32rem] opacity-38 dark:opacity-42 transition-opacity duration-300 fill-[#829280] dark:fill-[#36483e] mix-blend-multiply dark:mix-blend-screen"
+        className="absolute top-28 -right-16 sm:top-36 sm:-right-6 w-36 h-52 sm:w-72 sm:h-[22rem] opacity-20 sm:opacity-25 dark:opacity-25 transition-opacity duration-300 fill-[#829280] dark:fill-[#36483e] mix-blend-multiply dark:mix-blend-screen pointer-events-none"
         viewBox="0 0 300 500"
         xmlns="http://www.w3.org/2000/svg"
       >
