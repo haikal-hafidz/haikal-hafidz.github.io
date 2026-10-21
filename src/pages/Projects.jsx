@@ -154,21 +154,46 @@ function ProjectPager({ page, totalPages, onPageChange }) {
 function getMediaEmbed(mediaType, rawUrl) {
   const url = (rawUrl || '').trim();
   if (!url) return null;
-  if (mediaType === 'video') return { kind: 'video', src: url };
-  if (mediaType === 'external') return { kind: 'external', src: url };
 
-  if (mediaType === 'youtube') {
-    const match = url.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/))([^?&#/]+)/i);
-    return match ? { kind: 'iframe', src: `https://www.youtube-nocookie.com/embed/${match[1]}` } : null;
+  // Automatically detect YouTube video IDs
+  const youtubeMatch = url.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/))([^?&#/]+)/i);
+  if (youtubeMatch?.[1]) {
+    return { kind: 'iframe', src: `https://www.youtube-nocookie.com/embed/${youtubeMatch[1]}` };
   }
-  if (mediaType === 'vimeo') {
-    const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/i);
-    return match ? { kind: 'iframe', src: `https://player.vimeo.com/video/${match[1]}` } : null;
+
+  // Automatically detect Vimeo video IDs
+  const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/i);
+  if (vimeoMatch?.[1]) {
+    return { kind: 'iframe', src: `https://player.vimeo.com/video/${vimeoMatch[1]}` };
   }
-  if (mediaType === 'drive') {
-    const match = url.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
-    return match ? { kind: 'iframe', src: `https://drive.google.com/file/d/${match[1]}/preview` } : null;
+
+  // Automatically detect Google Drive file preview
+  const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
+  if (driveMatch?.[1]) {
+    return { kind: 'iframe', src: `https://drive.google.com/file/d/${driveMatch[1]}/preview` };
   }
+
+  // Direct video files or explicit video type
+  if (mediaType === 'video' || /\.(mp4|webm|ogg|mov)(\?|$)/i.test(url)) {
+    return { kind: 'video', src: url };
+  }
+
+  // Explicit embed/iframe types or external link
+  if (mediaType === 'iframe' || mediaType === 'embed') {
+    return { kind: 'iframe', src: url };
+  }
+  if (mediaType === 'external') {
+    return { kind: 'external', src: url };
+  }
+
+  // Fallback for http(s) URLs
+  if (/^https?:\/\//i.test(url)) {
+    if (mediaType === 'youtube' || mediaType === 'vimeo' || mediaType === 'drive') {
+      return { kind: 'iframe', src: url };
+    }
+    return { kind: 'video', src: url };
+  }
+
   return null;
 }
 
@@ -432,13 +457,11 @@ function ProjectStudioRenderer({ item = {}, type = 'project' }) {
       );
     }
 
-    if (block.type === 'video' && block.url) {
+    if (block.type === 'video' && (block.url || block.mediaUrl)) {
+      const videoSrc = block.url || block.mediaUrl;
       const media =
-        getMediaEmbed(block.mediaType || 'youtube', block.url) ||
-        getMediaEmbed('youtube', block.url) ||
-        getMediaEmbed('vimeo', block.url) ||
-        getMediaEmbed('drive', block.url) ||
-        { kind: 'video', src: block.url };
+        getMediaEmbed(block.mediaType, videoSrc) ||
+        { kind: 'video', src: videoSrc };
       const shell =
         display.style === 'cinema' || isMedia
           ? 'mx-auto w-full max-w-6xl bg-black p-2 sm:p-4'
@@ -508,8 +531,9 @@ function ProjectStudioRenderer({ item = {}, type = 'project' }) {
     return null;
   };
 
-  const primaryMedia = type === 'Directing' && item.mediaUrl
-    ? getMediaEmbed(item.mediaType || 'youtube', item.mediaUrl)
+  const rawPrimaryMediaUrl = item.mediaUrl || item.url || item.videoUrl || item.embedUrl;
+  const primaryMedia = rawPrimaryMediaUrl
+    ? getMediaEmbed(item.mediaType, rawPrimaryMediaUrl)
     : null;
 
   const primaryMediaNode = primaryMedia ? (
@@ -548,7 +572,8 @@ function ProjectStudioRenderer({ item = {}, type = 'project' }) {
   ) : null;
 
   const directingStudioHero = type === 'Directing' ? (() => {
-    const media = item.mediaUrl ? getMediaEmbed(item.mediaType || 'youtube', item.mediaUrl) : null;
+    const rawDirectingUrl = item.mediaUrl || item.url || item.videoUrl || item.embedUrl;
+    const media = rawDirectingUrl ? getMediaEmbed(item.mediaType, rawDirectingUrl) : null;
     const ratio = item.videoRatio || 'auto';
     const ratioClass =
       ratio === '9:16' ? 'aspect-[9/16] max-h-[68vh] max-w-[18rem] mx-auto' :
@@ -1751,18 +1776,56 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                   <span>{selectedArticle.date}</span>
                 </div>
 
-                {selectedArticle.image && (
-                  <div className="w-full aspect-[16/9] overflow-hidden rounded-sm bg-gray-100 dark:bg-black/40">
-                    <img
-                      src={selectedArticle.image}
-                      alt={selectedArticle.title}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-cover"
-                      style={{ objectPosition: getCoverPosition(selectedArticle) }}
-                    />
-                  </div>
-                )}
+                {(() => {
+                  const rawArticleMediaUrl = selectedArticle.mediaUrl || selectedArticle.videoUrl || selectedArticle.embedUrl;
+                  const articleMedia = rawArticleMediaUrl ? getMediaEmbed(selectedArticle.mediaType, rawArticleMediaUrl) : null;
+                  const articleAudioUrl = selectedArticle.audioUrl;
+
+                  return (
+                    <>
+                      {articleMedia ? (
+                        <div className="w-full aspect-video overflow-hidden rounded-md bg-black shadow-sm">
+                          {articleMedia.kind === 'iframe' ? (
+                            <iframe
+                              src={articleMedia.src}
+                              title={selectedArticle.title}
+                              className="h-full w-full"
+                              loading="lazy"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                              allowFullScreen
+                            />
+                          ) : (
+                            <video
+                              src={articleMedia.src}
+                              poster={selectedArticle.image || undefined}
+                              controls
+                              playsInline
+                              preload="metadata"
+                              className="h-full w-full object-contain"
+                            />
+                          )}
+                        </div>
+                      ) : selectedArticle.image ? (
+                        <div className="w-full aspect-[16/9] overflow-hidden rounded-sm bg-gray-100 dark:bg-black/40">
+                          <img
+                            src={selectedArticle.image}
+                            alt={selectedArticle.title}
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full h-full object-cover"
+                            style={{ objectPosition: getCoverPosition(selectedArticle) }}
+                          />
+                        </div>
+                      ) : null}
+
+                      {articleAudioUrl && (
+                        <div className="w-full rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-[#242424]">
+                          <audio src={articleAudioUrl} controls preload="metadata" className="w-full" />
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
 
                 <div className={`${ARTICLE_TEXT_CLASS} space-y-4 pt-1`}>
                   <RichContent value={selectedArticle.snippet} className="font-medium text-[1em] text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-[#252526] p-4 rounded border-l-4 border-green-600 [&_p]:my-0" />
@@ -1804,7 +1867,8 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
               {hasStudioPresentation(selectedDirectingItem) ? (
                 <ProjectStudioRenderer item={selectedDirectingItem} type="Directing" onBack={goToProjectIndex} />
               ) : (() => {
-                const media = getMediaEmbed(selectedDirectingItem.mediaType, selectedDirectingItem.mediaUrl);
+                const rawItemMediaUrl = selectedDirectingItem.mediaUrl || selectedDirectingItem.url || selectedDirectingItem.videoUrl || selectedDirectingItem.embedUrl;
+                const media = getMediaEmbed(selectedDirectingItem.mediaType, rawItemMediaUrl);
                 const directingMeta = [
                   ['TYPE', selectedDirectingItem.type || selectedDirectingItem.category || 'Film / Video'],
                   ['ROLE', selectedDirectingItem.role],
@@ -2141,7 +2205,8 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
               <div className={`grid grid-cols-1 gap-6 md:gap-10 items-start ${activeCustomType === 'writing' ? 'md:grid-cols-[minmax(15rem,0.82fr)_minmax(0,1.18fr)]' : 'md:grid-cols-[1.1fr_1fr]'}`}>
                 {activeCustomType === 'video' && (() => {
                   const item = activeCustomItems[selectedCustomIndex];
-                  const media = getMediaEmbed(item.mediaType, item.mediaUrl);
+                  const rawCustomVideoUrl = item.mediaUrl || item.url || item.videoUrl || item.embedUrl;
+                  const media = getMediaEmbed(item.mediaType, rawCustomVideoUrl);
                   return <div className="aspect-video w-full overflow-hidden rounded-md border border-gray-200 bg-black dark:border-gray-700">{media?.kind === 'iframe' ? <iframe src={media.src} title={item.title} className="h-full w-full" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /> : media?.kind === 'video' ? <video src={media.src} poster={getProjectCover(item) || undefined} controls preload="metadata" className="h-full w-full" /> : getProjectCover(item) ? <img src={getProjectCover(item)} alt={item.title} className="h-full w-full object-cover" style={{ objectPosition: getCoverPosition(item) }} /> : <div className="flex h-full items-center justify-center font-mono text-xs text-gray-400">VIDEO PREVIEW</div>}</div>;
                 })()}
                 {activeCustomType !== 'video' && getProjectCover(activeCustomItems[selectedCustomIndex]) && (
