@@ -1,33 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export default function WelcomeToast({ settings, isMobileLayout, isOpen, onClose, onUnreadStateChange }) {
   const [closing, setClosing] = useState(false);
 
-  const enabled = settings?.enabled;
+  const enabled = settings?.enabled !== false;
   const title = settings?.title || 'Update terbaru';
   const message = settings?.message || '';
   const items = Array.isArray(settings?.items) ? settings.items.filter((item) => item?.title?.trim() || item?.description?.trim()) : [];
-  const version = String(settings?.version || '').trim();
+  const version = String(settings?.version || '1.0.0').trim();
 
   const patchId = version || `${title}|${message}|${items.map((item) => `${item.title}:${item.description}`).join('|')}`;
   const seenKey = `portfolio_patch_seen:${patchId}`;
-
-  useEffect(() => {
-    if (!enabled) {
-      if (onUnreadStateChange) onUnreadStateChange(false);
-      return;
-    }
-
-    let alreadySeen = false;
-    try {
-      alreadySeen = localStorage.getItem(seenKey) === 'true';
-    } catch {
-      alreadySeen = false;
-    }
-    if (onUnreadStateChange) {
-      onUnreadStateChange(!alreadySeen);
-    }
-  }, [enabled, seenKey, onUnreadStateChange]);
 
   const handleClose = () => {
     try {
