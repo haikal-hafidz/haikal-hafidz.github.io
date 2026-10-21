@@ -1872,7 +1872,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
 
               <div className="my-5 h-[5px] bg-[#2B579A] dark:bg-[#6FA8DC]" />
 
-              <section className="my-auto w-[min(880px,100%)] py-4">
+              <section className="my-auto mx-auto w-[min(880px,100%)] py-4 text-left">
                 <h1 className="text-[clamp(2.2rem,5vw,4.5rem)] font-serif leading-[1.05] tracking-tight font-extrabold text-gray-900 dark:text-white">
                   {workTitle}
                 </h1>
