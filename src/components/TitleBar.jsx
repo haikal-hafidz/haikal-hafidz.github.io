@@ -186,6 +186,8 @@ export default function TitleBar({
           className={`relative grid h-8 w-8 shrink-0 place-items-center rounded-full border transition-all hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer ${
             patchActive
               ? 'border-amber-300 bg-amber-400 text-black shadow'
+              : hasUnreadPatch
+              ? 'border-red-400 bg-red-500 text-white shadow hover:bg-red-600'
               : 'border-white/25 bg-white/10 text-white hover:bg-white hover:text-[#2B579A]'
           }`}
           title={patchActive ? 'Tutup update patch' : 'Lihat catatan update patch'}
@@ -196,12 +198,6 @@ export default function TitleBar({
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
             <path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          {hasUnreadPatch && !patchActive && (
-            <span
-              className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[#2b579a]"
-              aria-label="Update patch baru tersedia"
-            />
-          )}
         </button>
 
         {/* Tombol Help / Hint Toggle — dipindah dari floating button bawah ke TitleBar di samping LanguageToggle */}
