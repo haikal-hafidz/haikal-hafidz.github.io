@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { setPageMeta } from '../lib/pageMeta';
 import InteractiveText from '../components/InteractiveText';
 import RichContent from '../components/RichContent';
@@ -1250,6 +1251,25 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
   // aja jumlahnya, tiap tab punya nama + daftar kartu sendiri (judul, gambar,
   // kategori, deskripsi, link opsional).
   const customSections = useMemo(() => projectsData.customSections || [], [projectsData.customSections]);
+
+  // Helper classification for reading & reading+picture tabs vs watching/listening tabs
+  const isReadingCategory = useCallback((categoryKey) => {
+    if (!categoryKey || categoryKey === 'overview') return false;
+    if (categoryKey === 'articles' || categoryKey === 'poster') return categoryKey === 'articles';
+    if (categoryKey === 'directing') return false;
+    if (categoryKey.startsWith('custom:')) {
+      const customId = categoryKey.replace('custom:', '');
+      const cs = customSections.find((item) => String(item.id) === String(customId));
+      if (!cs) return true; // Default fallback to reading for custom sections
+      const type = (cs.contentType || (cs.layout === 'articles' ? 'writing' : 'image')).toLowerCase();
+      const label = (cs.label || '').toLowerCase();
+      if (type === 'video' || type === 'audio' || /video|film|directing|audio|voice|podcast|sound/i.test(label)) {
+        return false;
+      }
+      return true; // writing, image, story, script, etc. are reading/picture tabs
+    }
+    return true;
+  }, [customSections]);
   // Label tab navigasi buat Articles & Poster — bisa diganti bebas lewat CMS, kosong
   // berarti pakai nama bawaan.
   const articlesLabel = projectsData.articlesLabel?.trim() || 'Articles';
@@ -1703,13 +1723,72 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
   }, [selectedGalleryIndex, activeGalleryItems.length]);
 
   if (readingWork) {
+    const activeCategoryKey = (activeCategory && activeCategory !== 'overview')
+      ? activeCategory
+      : (findCategoryForWork(readingWorkId) || 'articles');
+    const isReadingTab = isReadingCategory(activeCategoryKey);
+
+    // Get current items array within active category for Prev/Next navigation
+    const categoryItems = activeCategoryKey === 'articles'
+      ? articles
+      : activeCategoryKey === 'directing'
+        ? directingItems
+        : activeCategoryKey === 'poster'
+          ? posterItems
+          : activeCustomItems;
+
+    const currentIndex = categoryItems.findIndex((item) => item.id === readingWork.id);
+    const hasPrev = currentIndex > 0;
+    const hasNext = currentIndex >= 0 && currentIndex < categoryItems.length - 1;
+
+    const navigateToWork = (targetItem) => {
+      if (!targetItem) return;
+      if (onSetReadingWorkId && targetItem.id) {
+        onSetReadingWorkId(targetItem.id);
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', 'Projects');
+        url.searchParams.set('work', targetItem.id);
+        if (activeCategoryKey) {
+          url.searchParams.set('category', activeCategoryKey);
+        }
+        window.history.pushState(null, '', url);
+      }
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+        const sheetEl = document.getElementById('reading-paper-sheet');
+        if (sheetEl) sheetEl.scrollTop = 0;
+      }, 0);
+    };
+
     const workTitle = readingWork.title || readingWork.name || 'Untitled';
-    const rawBody = readingWork.content || readingWork.wordContent || readingWork.description || readingWork.snippet || readingWork.premise || '';
+    const workAuthor = readingWork.author || readingWork.writer || readingWork.role || '';
+    const workGenre = readingWork.category || readingWork.genre || readingWork.type || 'General';
+    const workDate = readingWork.date || readingWork.year || '2026';
+
+    const textBlocks = Array.isArray(readingWork.cmsBlocks)
+      ? readingWork.cmsBlocks
+          .filter((b) => b?.type === 'text' || b?.type === 'word' || b?.type === 'image')
+          .map((b) => {
+            if (b?.type === 'image' && b?.url) {
+              return `<figure className="my-4"><img src="${b.url}" alt="${b.caption || ''}" className="max-w-full h-auto rounded" />${b.caption ? `<figcaption className="text-xs text-gray-500 text-center mt-1">${b.caption}</figcaption>` : ''}</figure>`;
+            }
+            return b?.text || b?.html || b?.content || '';
+          })
+          .filter(Boolean)
+          .join('')
+      : '';
+
+    const rawBody =
+      textBlocks ||
+      readingWork.content ||
+      readingWork.wordContent ||
+      readingWork.description ||
+      readingWork.snippet ||
+      readingWork.premise ||
+      '';
 
     const handleBackFromReading = () => {
-      const targetCategory = (activeCategory && activeCategory !== 'overview')
-        ? activeCategory
-        : (findCategoryForWork(readingWorkId) || 'articles');
+      const targetCategory = activeCategoryKey;
 
       if (targetCategory) {
         setActiveCategory(targetCategory);
@@ -1754,6 +1833,96 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
       }
     };
 
+    // If reading tab, render static paper sheet overlay (VisitorIntroduction styling without animation)
+    if (isReadingTab && typeof document !== 'undefined') {
+      return createPortal(
+        <div id="reading-paper-sheet" className="fixed inset-0 z-[10000] overflow-y-auto bg-[#d7d7d7] dark:bg-[#181818] text-[#121a2b] dark:text-gray-100 select-text">
+          <div className="min-h-screen bg-[#fbfaf6] dark:bg-[#1e1e1e] shadow-2xl">
+            <button
+              type="button"
+              onClick={handleBackFromReading}
+              className="fixed right-6 top-5 z-20 flex h-11 w-11 items-center justify-center border border-[#bac0c9] dark:border-gray-700 bg-[#fbfaf6] dark:bg-[#252526] text-2xl font-serif leading-none transition hover:bg-[#2B579A] hover:text-white dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] cursor-pointer"
+              aria-label="Close reading view"
+            >
+              ×
+            </button>
+
+            <main className="mx-auto flex min-h-screen w-[min(1120px,calc(100%-48px))] flex-col py-10 px-0">
+              <div className="flex flex-wrap items-center justify-between gap-4 font-mono text-[0.7em] font-semibold tracking-widest text-[#2B579A] dark:text-[#6FA8DC] uppercase">
+                <div className="flex items-center gap-2">
+                  <span>{workGenre}</span>
+                  <span>·</span>
+                  <span>{workDate}</span>
+                  {workAuthor && (
+                    <>
+                      <span>·</span>
+                      <span>BY {workAuthor.toUpperCase()}</span>
+                    </>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleShareReadingWork}
+                  className="font-mono text-[0.75em] text-[#2B579A] dark:text-[#6FA8DC] hover:underline cursor-pointer"
+                >
+                  {linkCopied ? 'Link copied!' : 'Share'}
+                </button>
+              </div>
+
+              <div className="my-5 h-[5px] bg-[#2B579A] dark:bg-[#6FA8DC]" />
+
+              <section className="my-auto w-[min(880px,100%)] py-4">
+                <h1 className="text-[clamp(2.2rem,5vw,4.5rem)] font-serif leading-[1.05] tracking-tight font-extrabold text-gray-900 dark:text-white">
+                  {workTitle}
+                </h1>
+
+                {readingWork.snippet && readingWork.snippet !== rawBody && (
+                  <RichContent value={readingWork.snippet} className="mt-6 font-medium text-[1em] leading-relaxed text-gray-800 dark:text-gray-200 bg-[#f0eee6] dark:bg-[#2a2a2b] p-5 rounded border-l-4 border-[#2B579A] dark:border-[#6FA8DC]" />
+                )}
+
+                <div
+                  className={`${ARTICLE_TEXT_CLASS} mt-8 space-y-5 text-gray-800 dark:text-gray-200 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
+                  dangerouslySetInnerHTML={{ __html: rawBody }}
+                />
+              </section>
+
+              {/* Prev / Next navigation buttons strictly scoped to active tab */}
+              <footer className="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-gray-300 dark:border-gray-700 pt-6 font-mono text-[0.75em] font-semibold uppercase tracking-wider">
+                <button
+                  type="button"
+                  disabled={!hasPrev}
+                  onClick={() => navigateToWork(categoryItems[currentIndex - 1])}
+                  className="px-4 py-2.5 border border-gray-400 dark:border-gray-600 bg-transparent text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                >
+                  ← Prev
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleBackFromReading}
+                  className="px-4 py-2.5 border border-gray-400 dark:border-gray-600 bg-transparent text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] transition-colors cursor-pointer"
+                >
+                  Back to List
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!hasNext}
+                  onClick={() => navigateToWork(categoryItems[currentIndex + 1])}
+                  className="px-4 py-2.5 border border-gray-400 dark:border-gray-600 bg-transparent text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                >
+                  Next →
+                </button>
+              </footer>
+            </main>
+          </div>
+        </div>,
+        document.body
+      );
+    }
+
+    // Default view for watching/listening tabs
     return (
       <div className="min-h-screen w-full bg-white dark:bg-[#181818] py-10 px-4 sm:px-8 flex justify-center select-text">
         <article className="max-w-2xl w-full space-y-8">
