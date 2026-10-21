@@ -1809,18 +1809,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     const workGenre = readingWork.category || readingWork.genre || readingWork.type || 'General';
     const workDate = readingWork.date || readingWork.year || '2026';
 
-    const textBlocks = Array.isArray(readingWork.cmsBlocks)
-      ? readingWork.cmsBlocks
-          .filter((b) => b?.type === 'text' || b?.type === 'word' || b?.type === 'image')
-          .map((b) => {
-            if (b?.type === 'image' && b?.url) {
-              return `<figure className="my-4"><img src="${b.url}" alt="${b.caption || ''}" className="max-w-full h-auto rounded" />${b.caption ? `<figcaption className="text-xs text-gray-500 text-center mt-1">${b.caption}</figcaption>` : ''}</figure>`;
-            }
-            return b?.text || b?.html || b?.content || '';
-          })
-          .filter(Boolean)
-          .join('')
-      : '';
+    const textBlocks = cmsBlocksToHtml(readingWork.cmsBlocks);
 
     const rawBody =
       textBlocks ||
