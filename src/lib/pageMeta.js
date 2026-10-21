@@ -27,8 +27,57 @@
 let canonicalSiteUrl = 'https://haikal-hafidz.github.io/';
 let siteName = 'Haikal A. Hafidz — Content Writer & Editor';
 let browserTitle = siteName;
+let defaultShareTitle = '';
+let defaultShareDescription = '';
+let defaultSeoTitle = '';
+let defaultSeoDescription = '';
 let defaultShareImage = '';
 let defaultDescription = '';
+let allowIndexingState = true;
+
+function getCachedSiteMeta() {
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = sessionStorage.getItem('portfolio_live_session_cache_v1') || localStorage.getItem('portfolio_live_session_cache_v1');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== 'object') return;
+    const website = data.website || {};
+    const home = data.home || {};
+    const name = String(home.name || '').trim();
+    const role = String(home.role || '').trim();
+    if (name || role) {
+      siteName = [name, role].filter(Boolean).join(' — ') || siteName;
+    }
+    defaultSeoTitle = String(website.seoTitle || '').trim();
+    defaultSeoDescription = metaPlainText(website.seoDescription);
+
+    if (defaultSeoTitle) {
+      browserTitle = defaultSeoTitle;
+    } else if (website.title) {
+      browserTitle = String(website.title).trim();
+    } else if (siteName) {
+      browserTitle = siteName;
+    }
+
+    defaultDescription = defaultSeoDescription || metaPlainText(website.description);
+    defaultShareTitle = String(website.shareTitle || '').trim() || browserTitle;
+    defaultShareDescription = metaPlainText(website.shareDescription) || defaultDescription;
+
+    if (website.shareImage) {
+      defaultShareImage = String(website.shareImage).trim();
+    }
+    const effectiveCanonicalUrl = String(website.canonicalUrl || website.url || '').trim();
+    if (effectiveCanonicalUrl) {
+      canonicalSiteUrl = effectiveCanonicalUrl;
+    }
+    allowIndexingState = website.allowIndexing !== false;
+  } catch {
+    /* ignore session storage parse error */
+  }
+}
+getCachedSiteMeta();
+
 function metaPlainText(value = '') {
   return String(value || '')
     .replace(/<br\s*\/?\s*>/gi, ' ')
@@ -56,19 +105,56 @@ export function setFavicon(faviconUrl) {
   link.href = faviconUrl;
 }
 
-export function setSiteIdentity({ name, role, title, description, shareImage, url, favicon } = {}) {
+function upsertCanonical(href) {
+  if (!href) return;
+  let link = document.querySelector("link[rel='canonical']");
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'canonical';
+    document.head.appendChild(link);
+  }
+  link.href = href;
+}
+
+function upsertRobots(allowIndexing) {
+  let el = document.querySelector('meta[name="robots"]');
+  const content = allowIndexing ? 'index, follow' : 'noindex, nofollow';
+  if (!el) {
+    el = document.createElement('meta');
+    el.setAttribute('name', 'robots');
+    document.head.appendChild(el);
+  }
+  el.setAttribute('content', content);
+}
+
+export function setSiteIdentity({ name, role, title, description, shareTitle, shareDescription, seoTitle, seoDescription, shareImage, url, canonicalUrl, favicon, allowIndexing } = {}) {
   const cleanName = String(name || '').trim();
   const cleanRole = String(role || '').trim();
   siteName = [cleanName, cleanRole].filter(Boolean).join(' — ') || siteName;
-  browserTitle = String(title || '').trim() || siteName;
-  defaultDescription = metaPlainText(description);
+
+  defaultSeoTitle = String(seoTitle || '').trim();
+  defaultSeoDescription = metaPlainText(seoDescription);
+
+  browserTitle = defaultSeoTitle || String(title || '').trim() || siteName;
+  defaultDescription = defaultSeoDescription || metaPlainText(description);
+
+  defaultShareTitle = String(shareTitle || '').trim() || browserTitle;
+  defaultShareDescription = metaPlainText(shareDescription) || defaultDescription;
+
   defaultShareImage = String(shareImage || '').trim();
-  if (url && String(url).trim()) {
-    canonicalSiteUrl = String(url).trim();
+
+  const effectiveCanonicalUrl = String(canonicalUrl || url || '').trim();
+  if (effectiveCanonicalUrl) {
+    canonicalSiteUrl = effectiveCanonicalUrl;
   }
+
   if (favicon) {
     setFavicon(favicon);
   }
+
+  allowIndexingState = allowIndexing !== false;
+  upsertCanonical(canonicalSiteUrl);
+  upsertRobots(allowIndexingState);
 }
 
 function upsertMeta(attr, key, content) {
