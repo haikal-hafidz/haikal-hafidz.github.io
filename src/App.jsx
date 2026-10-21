@@ -139,6 +139,34 @@ const normalizeGeneral = (raw) => ({
   },
 });
 
+const DEFAULT_WEBSITE = {
+  title: 'Haikal A. Hafidz — Content Writer & Editor',
+  description: 'Portfolio Haikal A. Hafidz — writing, editing, creative work, and selected projects.',
+  url: 'https://haikal-hafidz.github.io/',
+  favicon: '',
+  shareTitle: '',
+  shareDescription: '',
+  shareImage: '',
+  seoTitle: '',
+  seoDescription: '',
+  canonicalUrl: 'https://haikal-hafidz.github.io/',
+  allowIndexing: true,
+  devNotes: '',
+};
+
+const normalizeWebsite = (raw) => ({
+  ...DEFAULT_WEBSITE,
+  ...(raw || {}),
+  url: raw?.url || DEFAULT_WEBSITE.url,
+  shareTitle: raw?.shareTitle ?? '',
+  shareDescription: raw?.shareDescription ?? '',
+  shareImage: raw?.shareImage ?? '',
+  seoTitle: raw?.seoTitle ?? '',
+  seoDescription: raw?.seoDescription ?? '',
+  canonicalUrl: raw?.canonicalUrl || raw?.url || DEFAULT_WEBSITE.url,
+  allowIndexing: raw?.allowIndexing !== false,
+});
+
 const EMPTY_FEATURED_WORK = { type: '', itemId: '', sectionId: '', teaser: '' };
 const DEFAULT_DYNAMIC_STATEMENT = {
   enabled: true,
@@ -287,11 +315,13 @@ export default function App() {
       return {
         ...cached,
         general: normalizeGeneral(cached.general),
+        website: normalizeWebsite(cached.website),
       };
     }
     return {
       ...initialPortfolioData,
       general: normalizeGeneral(initialPortfolioData.general),
+      website: normalizeWebsite(initialPortfolioData.website),
     };
   });
   const [language, setLanguage] = useState(() => {
@@ -407,7 +437,13 @@ export default function App() {
               description: data.data.website?.description || 'Portfolio Haikal A. Hafidz — writing, editing, creative work, and selected projects.',
               url: data.data.website?.url || 'https://haikal-hafidz.github.io/',
               favicon: data.data.website?.favicon || '',
+              shareTitle: data.data.website?.shareTitle || '',
+              shareDescription: data.data.website?.shareDescription || '',
               shareImage: data.data.website?.shareImage || '',
+              seoTitle: data.data.website?.seoTitle || '',
+              seoDescription: data.data.website?.seoDescription || '',
+              canonicalUrl: data.data.website?.canonicalUrl || data.data.website?.url || 'https://haikal-hafidz.github.io/',
+              allowIndexing: data.data.website?.allowIndexing !== false,
             },
           };
           setPortfolioData(normalizedLiveData);
@@ -782,8 +818,15 @@ export default function App() {
       role: portfolioData.home?.role,
       title: portfolioData.website?.title,
       description: portfolioData.website?.description,
+      shareTitle: portfolioData.website?.shareTitle,
+      shareDescription: portfolioData.website?.shareDescription,
       shareImage: portfolioData.website?.shareImage,
+      seoTitle: portfolioData.website?.seoTitle,
+      seoDescription: portfolioData.website?.seoDescription,
       url: portfolioData.website?.url,
+      canonicalUrl: portfolioData.website?.canonicalUrl,
+      favicon: portfolioData.website?.favicon,
+      allowIndexing: portfolioData.website?.allowIndexing,
     });
     const tabMeta = {
       Home: {
