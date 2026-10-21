@@ -14,7 +14,7 @@ import RichContent from '../components/RichContent';
 // dari editor CMS / convert Word), plus styling dasar buat heading/list/link di dalamnya.
 const PROJECT_DETAIL_TITLE_CLASS = 'font-serif text-[1.5em] sm:text-[1.875em] font-extrabold leading-snug tracking-normal normal-case text-left text-gray-900 dark:text-white';
 const ARTICLE_TEXT_CLASS =
-  'text-[0.875em] sm:text-[1em] text-gray-700 dark:text-gray-300 leading-relaxed [&_p]:my-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1 [&_h1]:my-5 [&_h1]:text-[1.5em] [&_h1]:font-bold [&_h1]:leading-tight [&_h1]:text-gray-900 dark:[&_h1]:text-white [&_h2]:my-4 [&_h2]:text-[1.25em] [&_h2]:font-bold [&_h2]:leading-tight [&_h2]:text-gray-900 dark:[&_h2]:text-white [&_h3]:my-3 [&_h3]:font-bold [&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-[#2B579A] [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-gray-500 [&_a]:text-[#2B579A] dark:[&_a]:text-[#6FA8DC] [&_a]:underline [&_a]:font-medium';
+  'text-[0.875em] sm:text-[1em] text-gray-700 dark:text-gray-300 leading-relaxed [&_p]:mt-0 [&_p]:mb-3 [&_p:empty]:hidden [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1 [&_h1]:my-5 [&_h1]:text-[1.5em] [&_h1]:font-bold [&_h1]:leading-tight [&_h1]:text-gray-900 dark:[&_h1]:text-white [&_h2]:my-4 [&_h2]:text-[1.25em] [&_h2]:font-bold [&_h2]:leading-tight [&_h2]:text-gray-900 dark:[&_h2]:text-white [&_h3]:my-3 [&_h3]:font-bold [&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-[#2B579A] [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-gray-500 [&_a]:text-[#2B579A] dark:[&_a]:text-[#6FA8DC] [&_a]:underline [&_a]:font-medium';
 
 // TEMPLATE BAKU buat lebar & posisi kontainer tulisan panjang — biar semua konten
 // tulisan di halaman Projects ke-center kayak halaman A4 (gak nempel ke kiri), bukan cuma
@@ -134,6 +134,210 @@ function ThreeColumnIndexListing({
   );
 }
 
+function getWritingCategoryType(item = {}, genre = '', activeCustomSection = null) {
+  const label = String(
+    genre ||
+    item.category ||
+    item.type ||
+    item.genre ||
+    activeCustomSection?.label ||
+    ''
+  ).toLowerCase();
+
+  const activeCustomType = (activeCustomSection?.contentType || '').toLowerCase();
+
+  if (activeCustomType === 'audio' || /song|music|lagu|lirik|lyric/i.test(label)) {
+    return 'song';
+  }
+  if (/script|screenplay|naskah/i.test(label)) {
+    return 'script';
+  }
+  if (/story|fiction|fiksi|cerpen/i.test(label)) {
+    return 'story';
+  }
+  return 'article';
+}
+
+function UniversalWritingRenderer({ item = {}, genre = '', activeCustomSection = null, html = '' }) {
+  const categoryType = getWritingCategoryType(item, genre, activeCustomSection);
+  const cleanHtml = sanitizeHtmlContent(html);
+
+  if (!cleanHtml) return null;
+
+  if (categoryType === 'song') {
+    return <SongLyricsRenderer html={cleanHtml} />;
+  }
+
+  if (categoryType === 'script') {
+    return (
+      <div
+        className="font-mono text-[0.875em] sm:text-[0.9375em] tracking-[0.005em] leading-relaxed text-gray-800 dark:text-gray-200 [&_p]:mb-4 [&_p]:mt-0 [&_p:empty]:hidden [&_h1]:my-4 [&_h2]:my-3 [&_h3]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-[#2B579A] [&_blockquote]:pl-4 [&_blockquote]:italic"
+        dangerouslySetInnerHTML={{ __html: cleanHtml }}
+      />
+    );
+  }
+
+  if (categoryType === 'story') {
+    return (
+      <div
+        className="font-serif text-[0.9375em] sm:text-[1.0625em] leading-relaxed text-gray-800 dark:text-gray-200 [&_p]:mb-4 [&_p]:mt-0 [&_p:empty]:hidden [&_h1]:my-4 [&_h2]:my-3 [&_h3]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-[#2B579A] [&_blockquote]:pl-4 [&_blockquote]:italic"
+        dangerouslySetInnerHTML={{ __html: cleanHtml }}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`${ARTICLE_TEXT_CLASS} space-y-3 pt-0 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
+      dangerouslySetInnerHTML={{ __html: cleanHtml }}
+    />
+  );
+}
+
+function cmsBlockToHtml(block) {
+  if (!block) return "";
+  const type = block.type;
+  if (type === "text" || type === "word") {
+    return block.text || block.html || block.content || "";
+  }
+  if (type === "image" && block.url) {
+    return `<figure class="my-4"><img src="${block.url}" alt="${block.caption || ""}" class="max-w-full h-auto rounded" />${block.caption ? `<figcaption class="text-xs text-gray-500 text-center mt-1">${block.caption}</figcaption>` : ""}</figure>`;
+  }
+  if (type === "video" && block.url) {
+    const media =
+      getMediaEmbed(block.mediaType, block.url) ||
+      getMediaEmbed("youtube", block.url) ||
+      getMediaEmbed("vimeo", block.url) ||
+      getMediaEmbed("drive", block.url) ||
+      { kind: "video", src: block.url };
+    if (media.kind === "iframe") {
+      return `<figure class="my-4"><div class="aspect-video w-full overflow-hidden rounded-md bg-black"><iframe src="${media.src}" title="${block.caption || "Video"}" class="h-full w-full" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen></iframe></div>${block.caption ? `<figcaption class="text-xs text-gray-500 text-center mt-1">${block.caption}</figcaption>` : ""}</figure>`;
+    }
+    return `<figure class="my-4"><video src="${media.src}" controls playsInline preload="metadata" class="w-full rounded-md"></video>${block.caption ? `<figcaption class="text-xs text-gray-500 text-center mt-1">${block.caption}</figcaption>` : ""}</figure>`;
+  }
+  if (type === "audio" && block.url) {
+    return `<div class="mt-2 mb-3">${block.label ? `<p class="mb-1 text-xs font-bold uppercase tracking-wider text-[#2B579A]">${block.label}</p>` : ""}<audio src="${block.url}" controls preload="metadata" class="w-full"></audio>${block.caption ? `<p class="text-xs text-gray-500 mt-1">${block.caption}</p>` : ""}</div>`;
+  }
+  if ((type === "embed" || type === "iframe") && (block.text || block.url)) {
+    const raw = String(block.text || block.url || "").trim();
+    if (/<iframe[^>]*>[\s\S]*?<\/iframe>/i.test(raw)) {
+      return `<div class="my-4 aspect-video w-full overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">${raw}</div>`;
+    }
+    if (/^https?:\/\//i.test(raw)) {
+      return `<div class="my-4 aspect-video w-full overflow-hidden rounded-md border border-gray-200 dark:border-gray-700"><iframe src="${raw}" title="${block.label || "Embed"}" class="h-full w-full" loading="lazy"></iframe></div>`;
+    }
+    return raw;
+  }
+  if (type === "gallery" && Array.isArray(block.items) && block.items.length) {
+    return `<figure class="my-4"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">${block.items.map((url) => `<img src="${url}" alt="" class="w-full h-auto rounded-md object-cover" />`).join("")}</div>${block.caption ? `<figcaption class="text-xs text-gray-400 text-center mt-2">${block.caption}</figcaption>` : ""}</figure>`;
+  }
+  if ((type === "link" || type === "file") && block.url) {
+    return `<div class="my-4 text-center"><a href="${block.url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded bg-[#2B579A] px-4 py-2 text-xs font-bold text-white">${block.label || (type === "file" ? "Buka File" : "Buka Tautan")} ↗</a></div>`;
+  }
+  if (type === "divider") {
+    return `<hr class="my-6 border-gray-200 dark:border-gray-700" />`;
+  }
+  return block.text || block.html || block.content || "";
+}
+
+function cmsBlocksToHtml(cmsBlocks) {
+  if (!Array.isArray(cmsBlocks)) return "";
+  return cmsBlocks.filter(Boolean).map(cmsBlockToHtml).filter(Boolean).join("");
+}
+
+function sanitizeHtmlContent(html = '') {
+  if (!html) return '';
+  return String(html)
+    .replace(/<p[^>]*>\s*(?:<br\s*\/?>|&nbsp;|\s)*\s*<\/p>/gi, '');
+}
+
+function formatSongLyricsHtml(html = '') {
+  return sanitizeHtmlContent(html);
+}
+
+function parseLyricsToStanzas(rawInput = '') {
+  if (!rawInput) return [];
+  const str = String(rawInput);
+
+  // If input contains rich media elements or headings/lists, return [] to fallback to standard article HTML rendering
+  if (/<(figure|iframe|video|audio|h[1-6]|blockquote|ul|ol|table)\b/i.test(str)) {
+    return [];
+  }
+
+  let normalized = str
+    .replace(/<p[^>]*>\s*(?:<br\s*\/?>|&nbsp;|<span[^>]*>\s*<\/span>|\s)*\s*<\/p>/gi, '===STANZA===')
+    .replace(/(?:<br\s*\/?>\s*){2,}/gi, '===STANZA===')
+    .replace(/\n{2,}/g, '===STANZA===');
+
+  const rawStanzaChunks = normalized.split('===STANZA===').filter((chunk) => {
+    const textOnly = chunk.replace(/<[^>]+>/g, '').trim();
+    return textOnly.length > 0;
+  });
+
+  if (rawStanzaChunks.length === 0) return [];
+
+  const stanzas = rawStanzaChunks.map((chunk) => {
+    let lines = [];
+
+    if (/<p[^>]*>/i.test(chunk)) {
+      const pMatches = chunk.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [chunk];
+      pMatches.forEach((pStr) => {
+        const contentInside = pStr.replace(/^<p[^>]*>/gi, '').replace(/<\/p>$/gi, '');
+        const lineParts = contentInside.split(/<br\s*\/?>|\n/gi);
+        lineParts.forEach((part) => {
+          const cleanLine = part.replace(/<\/?(p|div)\b[^>]*>/gi, '').trim();
+          if (cleanLine) lines.push(cleanLine);
+        });
+      });
+    } else {
+      const lineParts = chunk.split(/<br\s*\/?>|\n/gi);
+      lineParts.forEach((part) => {
+        const cleanLine = part.replace(/<\/?(p|div)\b[^>]*>/gi, '').trim();
+        if (cleanLine) lines.push(cleanLine);
+      });
+    }
+
+    return lines;
+  }).filter((stanzaLines) => stanzaLines.length > 0);
+
+  return stanzas;
+}
+
+function SongLyricsRenderer({ html = '', rawText = '' }) {
+  const input = html || rawText;
+  const isRichArticle = /<(h[1-6]|blockquote|ul|ol|table|figure|iframe|video|audio)\b/i.test(input);
+
+  const stanzas = useMemo(() => {
+    if (isRichArticle) return [];
+    return parseLyricsToStanzas(input);
+  }, [input, isRichArticle]);
+
+  if (isRichArticle || !stanzas || stanzas.length === 0) {
+    return (
+      <div
+        className={`${ARTICLE_TEXT_CLASS} space-y-3 pt-0 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtmlContent(input) }}
+      />
+    );
+  }
+
+  return (
+    <div className="song-lyrics-container space-y-5 text-gray-800 dark:text-gray-200">
+      {stanzas.map((stanzaLines, stanzaIdx) => (
+        <div key={stanzaIdx} className="song-stanza space-y-1">
+          {stanzaLines.map((line, lineIdx) => (
+            <p
+              key={lineIdx}
+              className="my-0 py-0 text-[0.9375em] sm:text-[1em] leading-snug font-normal text-gray-800 dark:text-gray-200"
+              dangerouslySetInnerHTML={{ __html: line }}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function stripImageAndMediaTags(html = '') {
   if (!html) return '';
   return String(html)
@@ -151,13 +355,11 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
   const displayGenre = genre || item.category || item.type || item.genre || 'General';
   const displayDate = date || item.date || item.year || '2026';
 
-  const textBlocks = Array.isArray(item.cmsBlocks)
-    ? item.cmsBlocks
-        .filter((b) => b?.type === 'text' || b?.type === 'word')
-        .map((b) => b?.text || b?.html || b?.content || '')
-        .filter(Boolean)
-        .join('')
-    : '';
+  const primaryMedia = (item.mediaUrl || (item.url && item.mediaType))
+    ? getMediaEmbed(item.mediaType || 'youtube', item.mediaUrl || item.url)
+    : null;
+
+  const textBlocks = cmsBlocksToHtml(item.cmsBlocks);
 
   const rawBody =
     textBlocks ||
@@ -167,8 +369,6 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
     item.description ||
     item.snippet ||
     '';
-
-  const cleanBody = stripImageAndMediaTags(rawBody);
 
   const additionalText = [];
   if (item.contribution) additionalText.push({ label: 'About the Project', html: stripImageAndMediaTags(item.contribution) });
@@ -208,15 +408,47 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
         </h1>
       </header>
 
+      {primaryMedia && (
+        <figure className="mt-2 mb-3">
+          {primaryMedia.kind === 'iframe' ? (
+            <div className="aspect-video w-full overflow-hidden rounded-md bg-black">
+              <iframe
+                src={primaryMedia.src}
+                title={title}
+                className="h-full w-full border-0"
+                loading="lazy"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+          ) : primaryMedia.kind === 'video' ? (
+            <video
+              src={primaryMedia.src}
+              poster={item.posterImage || item.imageUrl || undefined}
+              controls
+              playsInline
+              preload="metadata"
+              className="w-full rounded-md"
+            />
+          ) : (
+            <a
+              href={primaryMedia.src}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded bg-[#2B579A] px-4 py-2 text-xs font-bold text-white"
+            >
+              Buka Media ↗
+            </a>
+          )}
+        </figure>
+      )}
+
       {item.snippet && item.snippet !== rawBody && (
         <RichContent value={stripImageAndMediaTags(item.snippet)} className="font-medium text-[0.95em] text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#252526] p-4 rounded border-l-4 border-[#2B579A] dark:border-[#6FA8DC]" />
       )}
 
-      {cleanBody && (
-        <div
-          className={`${ARTICLE_TEXT_CLASS} space-y-4 pt-1 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
-          dangerouslySetInnerHTML={{ __html: cleanBody }}
-        />
+      {rawBody && (
+        <UniversalWritingRenderer item={item} genre={displayGenre} html={rawBody} />
       )}
 
       {additionalText.map((sec, idx) => (
@@ -252,21 +484,20 @@ function ProjectPager({ page, totalPages, onPageChange }) {
 function getMediaEmbed(mediaType, rawUrl) {
   const url = (rawUrl || '').trim();
   if (!url) return null;
+
+  // First auto-check URL patterns regardless of explicitly specified mediaType
+  const ytMatch = url.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/))([^?&#/]+)/i);
+  if (ytMatch) return { kind: 'iframe', src: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}` };
+
+  const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/i);
+  if (vimeoMatch) return { kind: 'iframe', src: `https://player.vimeo.com/video/${vimeoMatch[1]}` };
+
+  const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
+  if (driveMatch) return { kind: 'iframe', src: `https://drive.google.com/file/d/${driveMatch[1]}/preview` };
+
   if (mediaType === 'video') return { kind: 'video', src: url };
   if (mediaType === 'external') return { kind: 'external', src: url };
 
-  if (mediaType === 'youtube') {
-    const match = url.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/))([^?&#/]+)/i);
-    return match ? { kind: 'iframe', src: `https://www.youtube-nocookie.com/embed/${match[1]}` } : null;
-  }
-  if (mediaType === 'vimeo') {
-    const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/i);
-    return match ? { kind: 'iframe', src: `https://player.vimeo.com/video/${match[1]}` } : null;
-  }
-  if (mediaType === 'drive') {
-    const match = url.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
-    return match ? { kind: 'iframe', src: `https://drive.google.com/file/d/${match[1]}/preview` } : null;
-  }
   return null;
 }
 
@@ -1765,18 +1996,11 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     const workGenre = readingWork.category || readingWork.genre || readingWork.type || 'General';
     const workDate = readingWork.date || readingWork.year || '2026';
 
-    const textBlocks = Array.isArray(readingWork.cmsBlocks)
-      ? readingWork.cmsBlocks
-          .filter((b) => b?.type === 'text' || b?.type === 'word' || b?.type === 'image')
-          .map((b) => {
-            if (b?.type === 'image' && b?.url) {
-              return `<figure className="my-4"><img src="${b.url}" alt="${b.caption || ''}" className="max-w-full h-auto rounded" />${b.caption ? `<figcaption className="text-xs text-gray-500 text-center mt-1">${b.caption}</figcaption>` : ''}</figure>`;
-            }
-            return b?.text || b?.html || b?.content || '';
-          })
-          .filter(Boolean)
-          .join('')
-      : '';
+    const readingPrimaryMedia = (readingWork.mediaUrl || (readingWork.url && readingWork.mediaType))
+      ? getMediaEmbed(readingWork.mediaType || 'youtube', readingWork.mediaUrl || readingWork.url)
+      : null;
+
+    const textBlocks = cmsBlocksToHtml(readingWork.cmsBlocks);
 
     const rawBody =
       textBlocks ||
@@ -1786,6 +2010,8 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
       readingWork.snippet ||
       readingWork.premise ||
       '';
+
+    const cleanBody = formatSongLyricsHtml(rawBody);
 
     const handleBackFromReading = () => {
       const targetCategory = activeCategoryKey;
@@ -1877,14 +2103,48 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                   {workTitle}
                 </h1>
 
+                {readingPrimaryMedia && (
+                  <figure className="mt-2 mb-3">
+                    {readingPrimaryMedia.kind === 'iframe' ? (
+                      <div className="aspect-video w-full overflow-hidden rounded-md bg-black">
+                        <iframe
+                          src={readingPrimaryMedia.src}
+                          title={workTitle}
+                          className="h-full w-full border-0"
+                          loading="lazy"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : readingPrimaryMedia.kind === 'video' ? (
+                      <video
+                        src={readingPrimaryMedia.src}
+                        poster={readingWork.posterImage || readingWork.imageUrl || undefined}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        className="w-full rounded-md"
+                      />
+                    ) : (
+                      <a
+                        href={readingPrimaryMedia.src}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded bg-[#2B579A] px-4 py-2 text-xs font-bold text-white"
+                      >
+                        Buka Media ↗
+                      </a>
+                    )}
+                  </figure>
+                )}
+
                 {readingWork.snippet && readingWork.snippet !== rawBody && (
                   <RichContent value={readingWork.snippet} className="mt-6 font-medium text-[1em] leading-relaxed text-gray-800 dark:text-gray-200 bg-[#f0eee6] dark:bg-[#2a2a2b] p-5 rounded border-l-4 border-[#2B579A] dark:border-[#6FA8DC]" />
                 )}
 
-                <div
-                  className={`${ARTICLE_TEXT_CLASS} mt-8 space-y-5 text-gray-800 dark:text-gray-200 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
-                  dangerouslySetInnerHTML={{ __html: rawBody }}
-                />
+                <div className="mt-6">
+                  <UniversalWritingRenderer item={readingWork} genre={workGenre} html={rawBody} />
+                </div>
               </section>
 
               {/* Prev / Next navigation buttons strictly scoped to active tab */}
@@ -1949,10 +2209,44 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
             </h1>
           </header>
 
-          <div
-            className={`${ARTICLE_TEXT_CLASS} space-y-4 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
-            dangerouslySetInnerHTML={{ __html: rawBody }}
-          />
+          {readingPrimaryMedia && (
+            <figure className="mt-2 mb-3">
+              {readingPrimaryMedia.kind === 'iframe' ? (
+                <div className="aspect-video w-full overflow-hidden rounded-md bg-black">
+                  <iframe
+                    src={readingPrimaryMedia.src}
+                    title={workTitle}
+                    className="h-full w-full border-0"
+                    loading="lazy"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                </div>
+              ) : readingPrimaryMedia.kind === 'video' ? (
+                <video
+                  src={readingPrimaryMedia.src}
+                  poster={readingWork.posterImage || readingWork.imageUrl || undefined}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="w-full rounded-md"
+                />
+              ) : (
+                <a
+                  href={readingPrimaryMedia.src}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded bg-[#2B579A] px-4 py-2 text-xs font-bold text-white"
+                >
+                  Buka Media ↗
+                </a>
+              )}
+            </figure>
+          )}
+
+          <div className="mt-4">
+            <UniversalWritingRenderer item={readingWork} genre={workGenre} html={rawBody} />
+          </div>
         </article>
       </div>
     );
@@ -2012,29 +2306,27 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
       </div>}
 
       {activeCategory === 'overview' && (
-        <section className="view-reveal py-3 sm:py-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4">
-            {visibleProjectSections.map((section) => (
-              <button
-                key={section.key}
-                type="button"
-                onClick={() => {
-                  setActiveCategory(section.key);
-                  if (typeof window !== 'undefined') {
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('tab', 'Projects');
-                    url.searchParams.set('category', section.key);
-                    window.history.pushState(null, '', url);
-                  }
-                }}
-                className="flex w-full items-center justify-center py-2.5 px-3.5 sm:p-6 border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#222222] hover:border-gray-400 dark:hover:border-gray-500 transition-colors rounded-none text-center cursor-pointer min-h-[2.85rem] sm:min-h-[5rem]"
-              >
-                <span className="text-[0.875em] sm:text-[1.125em] font-semibold text-gray-900 dark:text-gray-100 truncate">
-                  {section.label}
-                </span>
-              </button>
-            ))}
-          </div>
+        <section className="view-reveal w-full space-y-1 py-2">
+          {visibleProjectSections.map((section) => (
+            <button
+              key={section.key}
+              type="button"
+              onClick={() => {
+                setActiveCategory(section.key);
+                if (typeof window !== 'undefined') {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('tab', 'Projects');
+                  url.searchParams.set('category', section.key);
+                  window.history.pushState(null, '', url);
+                }
+              }}
+              className="group flex w-full items-center justify-center py-2.5 sm:py-2 border-b border-gray-100 dark:border-gray-800/60 cursor-pointer text-center focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]"
+            >
+              <span className="text-[0.9375em] sm:text-[1.0em] font-medium text-center text-gray-900 dark:text-gray-100 transition group-hover:text-[#2B579A] dark:group-hover:text-[#6FA8DC]">
+                {section.label}
+              </span>
+            </button>
+          ))}
         </section>
       )}
 
