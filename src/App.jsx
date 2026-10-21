@@ -709,6 +709,8 @@ export default function App() {
   // (activeTab) — biar visitor bisa nyalain hint sekali terus keliling semua tab
   // sambil hint-nya tetep nyala, sampe dia matiin manual lewat tombolnya lagi.
   const [hintActive, setHintActive] = useState(false);
+  const [isPatchOpen, setIsPatchOpen] = useState(false);
+  const [hasUnreadPatch, setHasUnreadPatch] = useState(false);
 
   // Kirim "page view" tiap kali visitor pindah tab (Home/About/Career/dst) — biar
   // tiap tab kehitung sebagai halaman sendiri di laporan Analytics, bukan cuma
@@ -1086,6 +1088,9 @@ export default function App() {
           onLanguageChange={setLanguage}
           helpActive={hintActive}
           onToggleHelp={() => setHintActive((v) => !v)}
+          hasUnreadPatch={hasUnreadPatch}
+          onTogglePatch={() => setIsPatchOpen((v) => !v)}
+          patchActive={isPatchOpen}
         />
 
         {/* Notifikasi welcome tetap muncul di HP juga; posisinya mengikuti
@@ -1094,6 +1099,9 @@ export default function App() {
           <WelcomeToast
             settings={portfolioData.general?.welcomeNotification}
             isMobileLayout={isMobileLayout}
+            isOpen={isPatchOpen}
+            onClose={() => setIsPatchOpen(false)}
+            onUnreadStateChange={setHasUnreadPatch}
           />
         )}
 
