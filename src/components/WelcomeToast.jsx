@@ -24,10 +24,20 @@ export default function WelcomeToast({ settings, isMobileLayout, isOpen, onClose
     } catch {
       alreadySeen = false;
     }
+
+    if (isOpen && !alreadySeen) {
+      try {
+        localStorage.setItem(seenKey, 'true');
+      } catch {
+        /* optional */
+      }
+      alreadySeen = true;
+    }
+
     if (onUnreadStateChange) {
       onUnreadStateChange(!alreadySeen);
     }
-  }, [enabled, seenKey, onUnreadStateChange]);
+  }, [enabled, seenKey, isOpen, onUnreadStateChange]);
 
   const handleClose = () => {
     try {

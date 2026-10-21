@@ -171,7 +171,7 @@ function UniversalWritingRenderer({ item = {}, genre = '', activeCustomSection =
   if (categoryType === 'script') {
     return (
       <div
-        className="font-mono text-[0.875em] sm:text-[0.9375em] tracking-[0.005em] leading-relaxed text-gray-800 dark:text-gray-200 [&_p]:mb-4 [&_p]:mt-0 [&_p:empty]:hidden [&_h1]:my-4 [&_h2]:my-3 [&_h3]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-[#2B579A] [&_blockquote]:pl-4 [&_blockquote]:italic"
+        className="font-mono text-[0.875em] sm:text-[0.9375em] tracking-[0.005em] leading-relaxed text-gray-800 dark:text-gray-200 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all [&_p]:mb-4 [&_p]:mt-0 [&_p:empty]:hidden [&_h1]:my-4 [&_h2]:my-3 [&_h3]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-[#2B579A] [&_blockquote]:pl-4 [&_blockquote]:italic"
         dangerouslySetInnerHTML={{ __html: cleanHtml }}
       />
     );
