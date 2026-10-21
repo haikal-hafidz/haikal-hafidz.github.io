@@ -1726,6 +1726,13 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
         url.searchParams.set('category', targetCategory);
       }
       window.history.pushState(null, '', url);
+
+      setTimeout(() => {
+        const el = document.getElementById('section-Projects');
+        if (el) {
+          el.scrollIntoView({ behavior: 'instant', block: 'start' });
+        }
+      }, 0);
     };
 
     const handleShareReadingWork = async () => {
