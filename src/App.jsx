@@ -135,6 +135,7 @@ const normalizeGeneral = (raw) => ({
     ...DEFAULT_GENERAL.welcomeNotification,
     ...(raw?.welcomeNotification || {}),
     enabled: raw?.welcomeNotification?.enabled !== false,
+    version: String(raw?.welcomeNotification?.version || DEFAULT_GENERAL.welcomeNotification.version).trim() || DEFAULT_GENERAL.welcomeNotification.version,
   },
 });
 
@@ -280,7 +281,19 @@ export default function App() {
   const [desktopLeftRailStyle, setDesktopLeftRailStyle] = useState(null);
   const [railPrintedTab, setRailPrintedTab] = useState(null);
   const railPrintTimerRef = useRef(null);
-  const [portfolioData, setPortfolioData] = useState(() => readSessionPortfolioCache() || initialPortfolioData);
+  const [portfolioData, setPortfolioData] = useState(() => {
+    const cached = readSessionPortfolioCache();
+    if (cached) {
+      return {
+        ...cached,
+        general: normalizeGeneral(cached.general),
+      };
+    }
+    return {
+      ...initialPortfolioData,
+      general: normalizeGeneral(initialPortfolioData.general),
+    };
+  });
   const [language, setLanguage] = useState(() => {
     try { return localStorage.getItem('portfolio_language') === 'en' ? 'en' : 'id'; } catch { return 'id'; }
   });
@@ -716,10 +729,10 @@ export default function App() {
   // Synchronize patch unread state from portfolioData settings
   const patchSettings = normalizeGeneral(portfolioData.general).welcomeNotification;
   const patchEnabled = patchSettings.enabled !== false;
-  const patchVersion = String(patchSettings?.version || '').trim();
-  const patchTitle = patchSettings?.title || 'Update terbaru';
-  const patchMessage = patchSettings?.message || '';
-  const patchItems = Array.isArray(patchSettings?.items) ? patchSettings.items.filter((item) => item?.title?.trim() || item?.description?.trim()) : [];
+  const patchVersion = String(patchSettings.version || DEFAULT_GENERAL.welcomeNotification.version).trim();
+  const patchTitle = patchSettings.title || 'Update terbaru';
+  const patchMessage = patchSettings.message || '';
+  const patchItems = Array.isArray(patchSettings.items) ? patchSettings.items.filter((item) => item?.title?.trim() || item?.description?.trim()) : [];
   const patchId = patchVersion || `${patchTitle}|${patchMessage}|${patchItems.map((item) => `${item.title}:${item.description}`).join('|')}`;
   const patchSeenKey = `portfolio_patch_seen:${patchId}`;
 
@@ -1132,7 +1145,7 @@ export default function App() {
             isMobileLayout di dalam komponennya sendiri. */}
         {!isAdminMode && (
           <WelcomeToast
-            settings={portfolioData.general?.welcomeNotification}
+            settings={patchSettings}
             isMobileLayout={isMobileLayout}
             isOpen={isPatchOpen}
             onClose={() => setIsPatchOpen(false)}

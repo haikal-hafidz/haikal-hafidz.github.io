@@ -7,7 +7,7 @@ export default function WelcomeToast({ settings, isMobileLayout, isOpen, onClose
   const title = settings?.title || 'Update terbaru';
   const message = settings?.message || '';
   const items = Array.isArray(settings?.items) ? settings.items.filter((item) => item?.title?.trim() || item?.description?.trim()) : [];
-  const version = String(settings?.version || '').trim();
+  const version = String(settings?.version || '1.0.0').trim();
 
   const patchId = version || `${title}|${message}|${items.map((item) => `${item.title}:${item.description}`).join('|')}`;
   const seenKey = `portfolio_patch_seen:${patchId}`;
