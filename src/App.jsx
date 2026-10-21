@@ -712,6 +712,40 @@ export default function App() {
   const [isPatchOpen, setIsPatchOpen] = useState(false);
   const [hasUnreadPatch, setHasUnreadPatch] = useState(false);
 
+  // Synchronize patch unread state from portfolioData settings
+  const patchSettings = portfolioData.general?.welcomeNotification;
+  const patchEnabled = patchSettings?.enabled;
+  const patchVersion = String(patchSettings?.version || '').trim();
+  const patchTitle = patchSettings?.title || 'Update terbaru';
+  const patchMessage = patchSettings?.message || '';
+  const patchItems = Array.isArray(patchSettings?.items) ? patchSettings.items.filter((item) => item?.title?.trim() || item?.description?.trim()) : [];
+  const patchId = patchVersion || `${patchTitle}|${patchMessage}|${patchItems.map((item) => `${item.title}:${item.description}`).join('|')}`;
+  const patchSeenKey = `portfolio_patch_seen:${patchId}`;
+
+  useEffect(() => {
+    if (!patchEnabled) {
+      setHasUnreadPatch(false);
+      return;
+    }
+    try {
+      const alreadySeen = localStorage.getItem(patchSeenKey) === 'true';
+      setHasUnreadPatch(!alreadySeen);
+    } catch {
+      setHasUnreadPatch(true);
+    }
+  }, [patchEnabled, patchSeenKey]);
+
+  useEffect(() => {
+    if (isPatchOpen && patchEnabled) {
+      try {
+        localStorage.setItem(patchSeenKey, 'true');
+      } catch {
+        /* optional */
+      }
+      setHasUnreadPatch(false);
+    }
+  }, [isPatchOpen, patchEnabled, patchSeenKey]);
+
   // Kirim "page view" tiap kali visitor pindah tab (Home/About/Career/dst) — biar
   // tiap tab kehitung sebagai halaman sendiri di laporan Analytics, bukan cuma
   // sekali doang pas web pertama dibuka. Skip pas lagi di Admin Mode.

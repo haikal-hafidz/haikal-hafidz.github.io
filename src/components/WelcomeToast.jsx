@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export default function WelcomeToast({ settings, isMobileLayout, isOpen, onClose, onUnreadStateChange }) {
   const [closing, setClosing] = useState(false);
@@ -11,33 +11,6 @@ export default function WelcomeToast({ settings, isMobileLayout, isOpen, onClose
 
   const patchId = version || `${title}|${message}|${items.map((item) => `${item.title}:${item.description}`).join('|')}`;
   const seenKey = `portfolio_patch_seen:${patchId}`;
-
-  useEffect(() => {
-    if (!enabled) {
-      if (onUnreadStateChange) onUnreadStateChange(false);
-      return;
-    }
-
-    let alreadySeen = false;
-    try {
-      alreadySeen = localStorage.getItem(seenKey) === 'true';
-    } catch {
-      alreadySeen = false;
-    }
-
-    if (isOpen && !alreadySeen) {
-      try {
-        localStorage.setItem(seenKey, 'true');
-      } catch {
-        /* optional */
-      }
-      alreadySeen = true;
-    }
-
-    if (onUnreadStateChange) {
-      onUnreadStateChange(!alreadySeen);
-    }
-  }, [enabled, seenKey, isOpen, onUnreadStateChange]);
 
   const handleClose = () => {
     try {
