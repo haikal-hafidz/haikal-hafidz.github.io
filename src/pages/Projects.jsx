@@ -134,6 +134,66 @@ function ThreeColumnIndexListing({
   );
 }
 
+function getWritingCategoryType(item = {}, genre = '', activeCustomSection = null) {
+  const label = String(
+    genre ||
+    item.category ||
+    item.type ||
+    item.genre ||
+    activeCustomSection?.label ||
+    ''
+  ).toLowerCase();
+
+  const activeCustomType = (activeCustomSection?.contentType || '').toLowerCase();
+
+  if (activeCustomType === 'audio' || /song|music|lagu|lirik|lyric/i.test(label)) {
+    return 'song';
+  }
+  if (/script|screenplay|naskah/i.test(label)) {
+    return 'script';
+  }
+  if (/story|fiction|fiksi|cerpen/i.test(label)) {
+    return 'story';
+  }
+  return 'article';
+}
+
+function UniversalWritingRenderer({ item = {}, genre = '', activeCustomSection = null, html = '' }) {
+  const categoryType = getWritingCategoryType(item, genre, activeCustomSection);
+  const cleanHtml = sanitizeHtmlContent(html);
+
+  if (!cleanHtml) return null;
+
+  if (categoryType === 'song') {
+    return <SongLyricsRenderer html={cleanHtml} />;
+  }
+
+  if (categoryType === 'script') {
+    return (
+      <div
+        className="font-mono text-[0.875em] sm:text-[0.9375em] tracking-[0.005em] leading-relaxed text-gray-800 dark:text-gray-200 [&_p]:mb-4 [&_p]:mt-0 [&_p:empty]:hidden [&_h1]:my-4 [&_h2]:my-3 [&_h3]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-[#2B579A] [&_blockquote]:pl-4 [&_blockquote]:italic"
+        dangerouslySetInnerHTML={{ __html: cleanHtml }}
+      />
+    );
+  }
+
+  if (categoryType === 'story') {
+    return (
+      <div
+        className="font-serif text-[0.9375em] sm:text-[1.0625em] leading-relaxed text-gray-800 dark:text-gray-200 [&_p]:mb-4 [&_p]:mt-0 [&_p:empty]:hidden [&_h1]:my-4 [&_h2]:my-3 [&_h3]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-[#2B579A] [&_blockquote]:pl-4 [&_blockquote]:italic"
+        dangerouslySetInnerHTML={{ __html: cleanHtml }}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`${ARTICLE_TEXT_CLASS} space-y-3 pt-0 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
+      dangerouslySetInnerHTML={{ __html: cleanHtml }}
+    />
+  );
+}
+
 function cmsBlockToHtml(block) {
   if (!block) return "";
   const type = block.type;
@@ -310,8 +370,6 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
     item.snippet ||
     '';
 
-  const cleanBody = formatSongLyricsHtml(rawBody);
-
   const additionalText = [];
   if (item.contribution) additionalText.push({ label: 'About the Project', html: stripImageAndMediaTags(item.contribution) });
   if (item.credits) additionalText.push({ label: 'Credits', html: stripImageAndMediaTags(item.credits) });
@@ -390,7 +448,7 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
       )}
 
       {rawBody && (
-        <SongLyricsRenderer html={rawBody} />
+        <UniversalWritingRenderer item={item} genre={displayGenre} html={rawBody} />
       )}
 
       {additionalText.map((sec, idx) => (
@@ -2085,7 +2143,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                 )}
 
                 <div className="mt-6">
-                  <SongLyricsRenderer html={rawBody} />
+                  <UniversalWritingRenderer item={readingWork} genre={workGenre} html={rawBody} />
                 </div>
               </section>
 
@@ -2187,7 +2245,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
           )}
 
           <div className="mt-4">
-            <SongLyricsRenderer html={rawBody} />
+            <UniversalWritingRenderer item={readingWork} genre={workGenre} html={rawBody} />
           </div>
         </article>
       </div>
