@@ -202,6 +202,10 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
   const displayGenre = genre || item.category || item.type || item.genre || 'General';
   const displayDate = date || item.date || item.year || '2026';
 
+  const primaryMedia = (item.mediaUrl || (item.url && item.mediaType))
+    ? getMediaEmbed(item.mediaType || 'youtube', item.mediaUrl || item.url)
+    : null;
+
   const textBlocks = cmsBlocksToHtml(item.cmsBlocks);
 
   const rawBody =
@@ -252,6 +256,41 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
           {title}
         </h1>
       </header>
+
+      {primaryMedia && (
+        <figure className="my-4">
+          {primaryMedia.kind === 'iframe' ? (
+            <div className="aspect-video w-full overflow-hidden rounded-md bg-black">
+              <iframe
+                src={primaryMedia.src}
+                title={title}
+                className="h-full w-full border-0"
+                loading="lazy"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+          ) : primaryMedia.kind === 'video' ? (
+            <video
+              src={primaryMedia.src}
+              poster={item.posterImage || item.imageUrl || undefined}
+              controls
+              playsInline
+              preload="metadata"
+              className="w-full rounded-md"
+            />
+          ) : (
+            <a
+              href={primaryMedia.src}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded bg-[#2B579A] px-4 py-2 text-xs font-bold text-white"
+            >
+              Buka Media ↗
+            </a>
+          )}
+        </figure>
+      )}
 
       {item.snippet && item.snippet !== rawBody && (
         <RichContent value={stripImageAndMediaTags(item.snippet)} className="font-medium text-[0.95em] text-gray-800 dark:text-gray-200 bg-gray-50 dark:bg-[#252526] p-4 rounded border-l-4 border-[#2B579A] dark:border-[#6FA8DC]" />
@@ -1809,6 +1848,10 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     const workGenre = readingWork.category || readingWork.genre || readingWork.type || 'General';
     const workDate = readingWork.date || readingWork.year || '2026';
 
+    const readingPrimaryMedia = (readingWork.mediaUrl || (readingWork.url && readingWork.mediaType))
+      ? getMediaEmbed(readingWork.mediaType || 'youtube', readingWork.mediaUrl || readingWork.url)
+      : null;
+
     const textBlocks = cmsBlocksToHtml(readingWork.cmsBlocks);
 
     const rawBody =
@@ -1910,6 +1953,41 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                   {workTitle}
                 </h1>
 
+                {readingPrimaryMedia && (
+                  <figure className="my-6">
+                    {readingPrimaryMedia.kind === 'iframe' ? (
+                      <div className="aspect-video w-full overflow-hidden rounded-md bg-black">
+                        <iframe
+                          src={readingPrimaryMedia.src}
+                          title={workTitle}
+                          className="h-full w-full border-0"
+                          loading="lazy"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                        />
+                      </div>
+                    ) : readingPrimaryMedia.kind === 'video' ? (
+                      <video
+                        src={readingPrimaryMedia.src}
+                        poster={readingWork.posterImage || readingWork.imageUrl || undefined}
+                        controls
+                        playsInline
+                        preload="metadata"
+                        className="w-full rounded-md"
+                      />
+                    ) : (
+                      <a
+                        href={readingPrimaryMedia.src}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded bg-[#2B579A] px-4 py-2 text-xs font-bold text-white"
+                      >
+                        Buka Media ↗
+                      </a>
+                    )}
+                  </figure>
+                )}
+
                 {readingWork.snippet && readingWork.snippet !== rawBody && (
                   <RichContent value={readingWork.snippet} className="mt-6 font-medium text-[1em] leading-relaxed text-gray-800 dark:text-gray-200 bg-[#f0eee6] dark:bg-[#2a2a2b] p-5 rounded border-l-4 border-[#2B579A] dark:border-[#6FA8DC]" />
                 )}
@@ -1981,6 +2059,41 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
               {workTitle}
             </h1>
           </header>
+
+          {readingPrimaryMedia && (
+            <figure className="my-6">
+              {readingPrimaryMedia.kind === 'iframe' ? (
+                <div className="aspect-video w-full overflow-hidden rounded-md bg-black">
+                  <iframe
+                    src={readingPrimaryMedia.src}
+                    title={workTitle}
+                    className="h-full w-full border-0"
+                    loading="lazy"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                </div>
+              ) : readingPrimaryMedia.kind === 'video' ? (
+                <video
+                  src={readingPrimaryMedia.src}
+                  poster={readingWork.posterImage || readingWork.imageUrl || undefined}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="w-full rounded-md"
+                />
+              ) : (
+                <a
+                  href={readingPrimaryMedia.src}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded bg-[#2B579A] px-4 py-2 text-xs font-bold text-white"
+                >
+                  Buka Media ↗
+                </a>
+              )}
+            </figure>
+          )}
 
           <div
             className={`${ARTICLE_TEXT_CLASS} space-y-4 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
