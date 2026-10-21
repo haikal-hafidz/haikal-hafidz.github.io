@@ -472,6 +472,10 @@ export default function App() {
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
       setReadingWorkId(params.get('work') || null);
+      const tabParam = params.get('tab');
+      if (tabParam && VALID_TABS.includes(tabParam)) {
+        setActiveTab(tabParam);
+      }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -947,36 +951,6 @@ export default function App() {
     [activeTab, portfolioData]
   );
 
-  if (readingWorkId) {
-    return (
-      <div className={darkMode ? 'dark' : ''}>
-        {isLoading && (
-          <DocumentLoader
-            isDataReady={isDataReady}
-            onFinished={() => {
-              try { sessionStorage.setItem(PORTFOLIO_SPLASH_SEEN_KEY, '1'); } catch {}
-              setIsSplashDone(true);
-              setIsLoading(false);
-            }}
-          />
-        )}
-        <div className="min-h-screen bg-white dark:bg-[#181818] text-gray-900 dark:text-gray-100 selection:bg-blue-500 selection:text-white">
-          <Suspense fallback={null}>
-            <Projects
-              data={publicPortfolioData.projects}
-              interactiveWords={publicPortfolioData.interactiveWords}
-              onNavigate={handleNavigate}
-              initialArticleId={initialArticleId}
-              initialWorkTarget={workNavigation?.type !== 'book' ? workNavigation : null}
-              navigationRequestKey={workNavigation?.requestKey}
-              readingWorkId={readingWorkId}
-              onSetReadingWorkId={setReadingWorkId}
-            />
-          </Suspense>
-        </div>
-      </div>
-    );
-  }
 
   const documentBody = (
     <Suspense fallback={null}>
