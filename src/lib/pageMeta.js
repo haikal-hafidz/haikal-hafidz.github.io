@@ -38,7 +38,7 @@ let allowIndexingState = true;
 function getCachedSiteMeta() {
   if (typeof window === 'undefined') return;
   try {
-    const raw = sessionStorage.getItem('portfolio_live_session_cache_v1');
+    const raw = sessionStorage.getItem('portfolio_live_session_cache_v1') || localStorage.getItem('portfolio_live_session_cache_v1');
     if (!raw) return;
     const data = JSON.parse(raw);
     if (!data || typeof data !== 'object') return;

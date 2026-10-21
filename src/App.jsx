@@ -90,7 +90,7 @@ const PORTFOLIO_SPLASH_SEEN_KEY = 'portfolio_splash_seen_v1';
 
 function readSessionPortfolioCache() {
   try {
-    const raw = sessionStorage.getItem(PORTFOLIO_SESSION_CACHE_KEY);
+    const raw = sessionStorage.getItem(PORTFOLIO_SESSION_CACHE_KEY) || localStorage.getItem(PORTFOLIO_SESSION_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === 'object' ? parsed : null;
@@ -104,7 +104,9 @@ function hasSeenPortfolioSplash() {
 
 function rememberPortfolioSession(data) {
   try {
-    sessionStorage.setItem(PORTFOLIO_SESSION_CACHE_KEY, JSON.stringify(data));
+    const serialized = JSON.stringify(data);
+    sessionStorage.setItem(PORTFOLIO_SESSION_CACHE_KEY, serialized);
+    localStorage.setItem(PORTFOLIO_SESSION_CACHE_KEY, serialized);
     sessionStorage.setItem(PORTFOLIO_SPLASH_SEEN_KEY, '1');
   } catch { /* session cache is only a UX optimization */ }
 }
