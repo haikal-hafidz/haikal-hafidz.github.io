@@ -134,6 +134,7 @@ const normalizeGeneral = (raw) => ({
   welcomeNotification: {
     ...DEFAULT_GENERAL.welcomeNotification,
     ...(raw?.welcomeNotification || {}),
+    enabled: raw?.welcomeNotification?.enabled !== false,
   },
 });
 
@@ -713,8 +714,8 @@ export default function App() {
   const [hasUnreadPatch, setHasUnreadPatch] = useState(false);
 
   // Synchronize patch unread state from portfolioData settings
-  const patchSettings = portfolioData.general?.welcomeNotification;
-  const patchEnabled = patchSettings?.enabled;
+  const patchSettings = normalizeGeneral(portfolioData.general).welcomeNotification;
+  const patchEnabled = patchSettings.enabled !== false;
   const patchVersion = String(patchSettings?.version || '').trim();
   const patchTitle = patchSettings?.title || 'Update terbaru';
   const patchMessage = patchSettings?.message || '';

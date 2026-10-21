@@ -3,7 +3,7 @@ import { useState } from 'react';
 export default function WelcomeToast({ settings, isMobileLayout, isOpen, onClose, onUnreadStateChange }) {
   const [closing, setClosing] = useState(false);
 
-  const enabled = settings?.enabled;
+  const enabled = settings?.enabled !== false;
   const title = settings?.title || 'Update terbaru';
   const message = settings?.message || '';
   const items = Array.isArray(settings?.items) ? settings.items.filter((item) => item?.title?.trim() || item?.description?.trim()) : [];
