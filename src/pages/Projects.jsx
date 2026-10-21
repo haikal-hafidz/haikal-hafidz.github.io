@@ -145,7 +145,7 @@ function cmsBlockToHtml(block) {
   }
   if (type === "video" && block.url) {
     const media =
-      getMediaEmbed(block.mediaType || "youtube", block.url) ||
+      getMediaEmbed(block.mediaType, block.url) ||
       getMediaEmbed("youtube", block.url) ||
       getMediaEmbed("vimeo", block.url) ||
       getMediaEmbed("drive", block.url) ||
@@ -153,7 +153,7 @@ function cmsBlockToHtml(block) {
     if (media.kind === "iframe") {
       return `<figure class="my-4"><div class="aspect-video w-full overflow-hidden rounded-md bg-black"><iframe src="${media.src}" title="${block.caption || "Video"}" class="h-full w-full" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen></iframe></div>${block.caption ? `<figcaption class="text-xs text-gray-500 text-center mt-1">${block.caption}</figcaption>` : ""}</figure>`;
     }
-    return `<figure class="my-4"><video src="${media.src}" controls playsInline preload="metadata" class="w-full rounded-md" />${block.caption ? `<figcaption class="text-xs text-gray-500 text-center mt-1">${block.caption}</figcaption>` : ""}</figure>`;
+    return `<figure class="my-4"><video src="${media.src}" controls playsInline preload="metadata" class="w-full rounded-md"></video>${block.caption ? `<figcaption class="text-xs text-gray-500 text-center mt-1">${block.caption}</figcaption>` : ""}</figure>`;
   }
   if (type === "audio" && block.url) {
     return `<div class="my-4">${block.label ? `<p class="mb-1 text-xs font-bold uppercase tracking-wider text-[#2B579A]">${block.label}</p>` : ""}<audio src="${block.url}" controls preload="metadata" class="w-full" />${block.caption ? `<p class="text-xs text-gray-500 mt-1">${block.caption}</p>` : ""}</div>`;
@@ -216,8 +216,8 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
   const cleanBody = rawBody;
 
   const additionalText = [];
-  if (item.contribution) additionalText.push({ label: 'About the Project', html: item.contribution });
-  if (item.credits) additionalText.push({ label: 'Credits', html: item.credits });
+  if (item.contribution) additionalText.push({ label: 'About the Project', html: stripImageAndMediaTags(item.contribution) });
+  if (item.credits) additionalText.push({ label: 'Credits', html: stripImageAndMediaTags(item.credits) });
 
   return (
     <article className={`${ARTICLE_CONTAINER_CLASS} space-y-6 view-reveal py-2`}>
@@ -297,21 +297,20 @@ function ProjectPager({ page, totalPages, onPageChange }) {
 function getMediaEmbed(mediaType, rawUrl) {
   const url = (rawUrl || '').trim();
   if (!url) return null;
+
+  // First auto-check URL patterns regardless of explicitly specified mediaType
+  const ytMatch = url.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/))([^?&#/]+)/i);
+  if (ytMatch) return { kind: 'iframe', src: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}` };
+
+  const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/i);
+  if (vimeoMatch) return { kind: 'iframe', src: `https://player.vimeo.com/video/${vimeoMatch[1]}` };
+
+  const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
+  if (driveMatch) return { kind: 'iframe', src: `https://drive.google.com/file/d/${driveMatch[1]}/preview` };
+
   if (mediaType === 'video') return { kind: 'video', src: url };
   if (mediaType === 'external') return { kind: 'external', src: url };
 
-  if (mediaType === 'youtube') {
-    const match = url.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/))([^?&#/]+)/i);
-    return match ? { kind: 'iframe', src: `https://www.youtube-nocookie.com/embed/${match[1]}` } : null;
-  }
-  if (mediaType === 'vimeo') {
-    const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/i);
-    return match ? { kind: 'iframe', src: `https://player.vimeo.com/video/${match[1]}` } : null;
-  }
-  if (mediaType === 'drive') {
-    const match = url.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
-    return match ? { kind: 'iframe', src: `https://drive.google.com/file/d/${match[1]}/preview` } : null;
-  }
   return null;
 }
 
@@ -1810,7 +1809,18 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     const workGenre = readingWork.category || readingWork.genre || readingWork.type || 'General';
     const workDate = readingWork.date || readingWork.year || '2026';
 
-    const textBlocks = cmsBlocksToHtml(readingWork.cmsBlocks);
+    const textBlocks = Array.isArray(readingWork.cmsBlocks)
+      ? readingWork.cmsBlocks
+          .filter((b) => b?.type === 'text' || b?.type === 'word' || b?.type === 'image')
+          .map((b) => {
+            if (b?.type === 'image' && b?.url) {
+              return `<figure className="my-4"><img src="${b.url}" alt="${b.caption || ''}" className="max-w-full h-auto rounded" />${b.caption ? `<figcaption className="text-xs text-gray-500 text-center mt-1">${b.caption}</figcaption>` : ''}</figure>`;
+            }
+            return b?.text || b?.html || b?.content || '';
+          })
+          .filter(Boolean)
+          .join('')
+      : '';
 
     const rawBody =
       textBlocks ||
