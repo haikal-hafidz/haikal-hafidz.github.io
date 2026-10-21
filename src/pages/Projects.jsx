@@ -14,7 +14,7 @@ import RichContent from '../components/RichContent';
 // dari editor CMS / convert Word), plus styling dasar buat heading/list/link di dalamnya.
 const PROJECT_DETAIL_TITLE_CLASS = 'font-serif text-[1.5em] sm:text-[1.875em] font-extrabold leading-snug tracking-normal normal-case text-left text-gray-900 dark:text-white';
 const ARTICLE_TEXT_CLASS =
-  'text-[0.875em] sm:text-[1em] text-gray-700 dark:text-gray-300 leading-relaxed [&_p]:my-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1 [&_h1]:my-5 [&_h1]:text-[1.5em] [&_h1]:font-bold [&_h1]:leading-tight [&_h1]:text-gray-900 dark:[&_h1]:text-white [&_h2]:my-4 [&_h2]:text-[1.25em] [&_h2]:font-bold [&_h2]:leading-tight [&_h2]:text-gray-900 dark:[&_h2]:text-white [&_h3]:my-3 [&_h3]:font-bold [&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-[#2B579A] [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-gray-500 [&_a]:text-[#2B579A] dark:[&_a]:text-[#6FA8DC] [&_a]:underline [&_a]:font-medium';
+  'text-[0.875em] sm:text-[1em] text-gray-700 dark:text-gray-300 leading-relaxed [&_p]:mt-0 [&_p]:mb-3 [&_p:empty]:hidden [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1 [&_h1]:my-5 [&_h1]:text-[1.5em] [&_h1]:font-bold [&_h1]:leading-tight [&_h1]:text-gray-900 dark:[&_h1]:text-white [&_h2]:my-4 [&_h2]:text-[1.25em] [&_h2]:font-bold [&_h2]:leading-tight [&_h2]:text-gray-900 dark:[&_h2]:text-white [&_h3]:my-3 [&_h3]:font-bold [&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-[#2B579A] [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-gray-500 [&_a]:text-[#2B579A] dark:[&_a]:text-[#6FA8DC] [&_a]:underline [&_a]:font-medium';
 
 // TEMPLATE BAKU buat lebar & posisi kontainer tulisan panjang — biar semua konten
 // tulisan di halaman Projects ke-center kayak halaman A4 (gak nempel ke kiri), bukan cuma
@@ -156,7 +156,7 @@ function cmsBlockToHtml(block) {
     return `<figure class="my-4"><video src="${media.src}" controls playsInline preload="metadata" class="w-full rounded-md"></video>${block.caption ? `<figcaption class="text-xs text-gray-500 text-center mt-1">${block.caption}</figcaption>` : ""}</figure>`;
   }
   if (type === "audio" && block.url) {
-    return `<div class="my-4">${block.label ? `<p class="mb-1 text-xs font-bold uppercase tracking-wider text-[#2B579A]">${block.label}</p>` : ""}<audio src="${block.url}" controls preload="metadata" class="w-full"></audio>${block.caption ? `<p class="text-xs text-gray-500 mt-1">${block.caption}</p>` : ""}</div>`;
+    return `<div class="mt-2 mb-3">${block.label ? `<p class="mb-1 text-xs font-bold uppercase tracking-wider text-[#2B579A]">${block.label}</p>` : ""}<audio src="${block.url}" controls preload="metadata" class="w-full"></audio>${block.caption ? `<p class="text-xs text-gray-500 mt-1">${block.caption}</p>` : ""}</div>`;
   }
   if ((type === "embed" || type === "iframe") && (block.text || block.url)) {
     const raw = String(block.text || block.url || "").trim();
@@ -183,6 +183,12 @@ function cmsBlockToHtml(block) {
 function cmsBlocksToHtml(cmsBlocks) {
   if (!Array.isArray(cmsBlocks)) return "";
   return cmsBlocks.filter(Boolean).map(cmsBlockToHtml).filter(Boolean).join("");
+}
+
+function sanitizeHtmlContent(html = '') {
+  if (!html) return '';
+  return String(html)
+    .replace(/<p[^>]*>\s*(?:<br\s*\/?>|&nbsp;|\s)*\s*<\/p>/gi, '');
 }
 
 function stripImageAndMediaTags(html = '') {
@@ -217,7 +223,7 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
     item.snippet ||
     '';
 
-  const cleanBody = rawBody;
+  const cleanBody = sanitizeHtmlContent(rawBody);
 
   const additionalText = [];
   if (item.contribution) additionalText.push({ label: 'About the Project', html: stripImageAndMediaTags(item.contribution) });
@@ -258,7 +264,7 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
       </header>
 
       {primaryMedia && (
-        <figure className="my-4">
+        <figure className="mt-2 mb-3">
           {primaryMedia.kind === 'iframe' ? (
             <div className="aspect-video w-full overflow-hidden rounded-md bg-black">
               <iframe
@@ -298,7 +304,7 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
 
       {cleanBody && (
         <div
-          className={`${ARTICLE_TEXT_CLASS} space-y-4 pt-1 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
+          className={`${ARTICLE_TEXT_CLASS} space-y-3 pt-0 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
           dangerouslySetInnerHTML={{ __html: cleanBody }}
         />
       )}
@@ -1863,6 +1869,8 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
       readingWork.premise ||
       '';
 
+    const cleanBody = sanitizeHtmlContent(rawBody);
+
     const handleBackFromReading = () => {
       const targetCategory = activeCategoryKey;
 
@@ -1954,7 +1962,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                 </h1>
 
                 {readingPrimaryMedia && (
-                  <figure className="my-6">
+                  <figure className="mt-2 mb-3">
                     {readingPrimaryMedia.kind === 'iframe' ? (
                       <div className="aspect-video w-full overflow-hidden rounded-md bg-black">
                         <iframe
@@ -1993,8 +2001,8 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                 )}
 
                 <div
-                  className={`${ARTICLE_TEXT_CLASS} mt-8 space-y-5 text-gray-800 dark:text-gray-200 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
-                  dangerouslySetInnerHTML={{ __html: rawBody }}
+                  className={`${ARTICLE_TEXT_CLASS} mt-4 space-y-3 text-gray-800 dark:text-gray-200 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
+                  dangerouslySetInnerHTML={{ __html: cleanBody }}
                 />
               </section>
 
@@ -2061,7 +2069,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
           </header>
 
           {readingPrimaryMedia && (
-            <figure className="my-6">
+            <figure className="mt-2 mb-3">
               {readingPrimaryMedia.kind === 'iframe' ? (
                 <div className="aspect-video w-full overflow-hidden rounded-md bg-black">
                   <iframe
@@ -2096,8 +2104,8 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
           )}
 
           <div
-            className={`${ARTICLE_TEXT_CLASS} space-y-4 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
-            dangerouslySetInnerHTML={{ __html: rawBody }}
+            className={`${ARTICLE_TEXT_CLASS} space-y-3 min-w-0 max-w-full break-words [overflow-wrap:anywhere] [&_*]:max-w-full [&_a]:break-all`}
+            dangerouslySetInnerHTML={{ __html: cleanBody }}
           />
         </article>
       </div>
