@@ -2158,29 +2158,27 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
       </div>}
 
       {activeCategory === 'overview' && (
-        <section className="view-reveal py-3 sm:py-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-4">
-            {visibleProjectSections.map((section) => (
-              <button
-                key={section.key}
-                type="button"
-                onClick={() => {
-                  setActiveCategory(section.key);
-                  if (typeof window !== 'undefined') {
-                    const url = new URL(window.location.href);
-                    url.searchParams.set('tab', 'Projects');
-                    url.searchParams.set('category', section.key);
-                    window.history.pushState(null, '', url);
-                  }
-                }}
-                className="flex w-full items-center justify-center py-2.5 px-3.5 sm:p-6 border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#222222] hover:border-gray-400 dark:hover:border-gray-500 transition-colors rounded-none text-center cursor-pointer min-h-[2.85rem] sm:min-h-[5rem]"
-              >
-                <span className="text-[0.875em] sm:text-[1.125em] font-semibold text-gray-900 dark:text-gray-100 truncate">
-                  {section.label}
-                </span>
-              </button>
-            ))}
-          </div>
+        <section className="view-reveal w-full space-y-1 py-2">
+          {visibleProjectSections.map((section) => (
+            <button
+              key={section.key}
+              type="button"
+              onClick={() => {
+                setActiveCategory(section.key);
+                if (typeof window !== 'undefined') {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('tab', 'Projects');
+                  url.searchParams.set('category', section.key);
+                  window.history.pushState(null, '', url);
+                }
+              }}
+              className="group flex w-full items-center justify-between py-2.5 sm:py-2 border-b border-gray-100 dark:border-gray-800/60 cursor-pointer text-left focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]"
+            >
+              <span className="text-[0.9375em] sm:text-[1.0em] font-medium text-gray-900 dark:text-gray-100 transition group-hover:text-[#2B579A] dark:group-hover:text-[#6FA8DC]">
+                {section.label}
+              </span>
+            </button>
+          ))}
         </section>
       )}
 
