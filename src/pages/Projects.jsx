@@ -134,6 +134,57 @@ function ThreeColumnIndexListing({
   );
 }
 
+function cmsBlockToHtml(block) {
+  if (!block) return "";
+  const type = block.type;
+  if (type === "text" || type === "word") {
+    return block.text || block.html || block.content || "";
+  }
+  if (type === "image" && block.url) {
+    return `<figure class="my-4"><img src="${block.url}" alt="${block.caption || ""}" class="max-w-full h-auto rounded" />${block.caption ? `<figcaption class="text-xs text-gray-500 text-center mt-1">${block.caption}</figcaption>` : ""}</figure>`;
+  }
+  if (type === "video" && block.url) {
+    const media =
+      getMediaEmbed(block.mediaType || "youtube", block.url) ||
+      getMediaEmbed("youtube", block.url) ||
+      getMediaEmbed("vimeo", block.url) ||
+      getMediaEmbed("drive", block.url) ||
+      { kind: "video", src: block.url };
+    if (media.kind === "iframe") {
+      return `<figure class="my-4"><div class="aspect-video w-full overflow-hidden rounded-md bg-black"><iframe src="${media.src}" title="${block.caption || "Video"}" class="h-full w-full" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen></iframe></div>${block.caption ? `<figcaption class="text-xs text-gray-500 text-center mt-1">${block.caption}</figcaption>` : ""}</figure>`;
+    }
+    return `<figure class="my-4"><video src="${media.src}" controls playsInline preload="metadata" class="w-full rounded-md" />${block.caption ? `<figcaption class="text-xs text-gray-500 text-center mt-1">${block.caption}</figcaption>` : ""}</figure>`;
+  }
+  if (type === "audio" && block.url) {
+    return `<div class="my-4">${block.label ? `<p class="mb-1 text-xs font-bold uppercase tracking-wider text-[#2B579A]">${block.label}</p>` : ""}<audio src="${block.url}" controls preload="metadata" class="w-full" />${block.caption ? `<p class="text-xs text-gray-500 mt-1">${block.caption}</p>` : ""}</div>`;
+  }
+  if ((type === "embed" || type === "iframe") && (block.text || block.url)) {
+    const raw = String(block.text || block.url || "").trim();
+    if (/<iframe[^>]*>[\s\S]*?<\/iframe>/i.test(raw)) {
+      return `<div class="my-4 aspect-video w-full overflow-hidden rounded-md border border-gray-200 dark:border-gray-700">${raw}</div>`;
+    }
+    if (/^https?:\/\//i.test(raw)) {
+      return `<div class="my-4 aspect-video w-full overflow-hidden rounded-md border border-gray-200 dark:border-gray-700"><iframe src="${raw}" title="${block.label || "Embed"}" class="h-full w-full" loading="lazy"></iframe></div>`;
+    }
+    return raw;
+  }
+  if (type === "gallery" && Array.isArray(block.items) && block.items.length) {
+    return `<figure class="my-4"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">${block.items.map((url) => `<img src="${url}" alt="" class="w-full h-auto rounded-md object-cover" />`).join("")}</div>${block.caption ? `<figcaption class="text-xs text-gray-400 text-center mt-2">${block.caption}</figcaption>` : ""}</figure>`;
+  }
+  if ((type === "link" || type === "file") && block.url) {
+    return `<div class="my-4 text-center"><a href="${block.url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 rounded bg-[#2B579A] px-4 py-2 text-xs font-bold text-white">${block.label || (type === "file" ? "Buka File" : "Buka Tautan")} ↗</a></div>`;
+  }
+  if (type === "divider") {
+    return `<hr class="my-6 border-gray-200 dark:border-gray-700" />`;
+  }
+  return block.text || block.html || block.content || "";
+}
+
+function cmsBlocksToHtml(cmsBlocks) {
+  if (!Array.isArray(cmsBlocks)) return "";
+  return cmsBlocks.filter(Boolean).map(cmsBlockToHtml).filter(Boolean).join("");
+}
+
 function stripImageAndMediaTags(html = '') {
   if (!html) return '';
   return String(html)
@@ -151,13 +202,7 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
   const displayGenre = genre || item.category || item.type || item.genre || 'General';
   const displayDate = date || item.date || item.year || '2026';
 
-  const textBlocks = Array.isArray(item.cmsBlocks)
-    ? item.cmsBlocks
-        .filter((b) => b?.type === 'text' || b?.type === 'word')
-        .map((b) => b?.text || b?.html || b?.content || '')
-        .filter(Boolean)
-        .join('')
-    : '';
+  const textBlocks = cmsBlocksToHtml(item.cmsBlocks);
 
   const rawBody =
     textBlocks ||
@@ -168,11 +213,11 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
     item.snippet ||
     '';
 
-  const cleanBody = stripImageAndMediaTags(rawBody);
+  const cleanBody = rawBody;
 
   const additionalText = [];
-  if (item.contribution) additionalText.push({ label: 'About the Project', html: stripImageAndMediaTags(item.contribution) });
-  if (item.credits) additionalText.push({ label: 'Credits', html: stripImageAndMediaTags(item.credits) });
+  if (item.contribution) additionalText.push({ label: 'About the Project', html: item.contribution });
+  if (item.credits) additionalText.push({ label: 'Credits', html: item.credits });
 
   return (
     <article className={`${ARTICLE_CONTAINER_CLASS} space-y-6 view-reveal py-2`}>
@@ -1765,18 +1810,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     const workGenre = readingWork.category || readingWork.genre || readingWork.type || 'General';
     const workDate = readingWork.date || readingWork.year || '2026';
 
-    const textBlocks = Array.isArray(readingWork.cmsBlocks)
-      ? readingWork.cmsBlocks
-          .filter((b) => b?.type === 'text' || b?.type === 'word' || b?.type === 'image')
-          .map((b) => {
-            if (b?.type === 'image' && b?.url) {
-              return `<figure className="my-4"><img src="${b.url}" alt="${b.caption || ''}" className="max-w-full h-auto rounded" />${b.caption ? `<figcaption className="text-xs text-gray-500 text-center mt-1">${b.caption}</figcaption>` : ''}</figure>`;
-            }
-            return b?.text || b?.html || b?.content || '';
-          })
-          .filter(Boolean)
-          .join('')
-      : '';
+    const textBlocks = cmsBlocksToHtml(readingWork.cmsBlocks);
 
     const rawBody =
       textBlocks ||
