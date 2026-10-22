@@ -8521,7 +8521,7 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
       };
       case 'about': return {
         source: formData.about, rootPath: 'about',
-        allowedPaths: ['about.heading', 'about.subheading', 'about.headline', 'about.locationLine', 'about.bio', 'about.signature', 'about.authorNoteTabLabel', 'about.bitsTabLabel', 'about.bitsAndPieces.items', 'about.listeningFootnote.nowPlayingLabel', 'about.listeningFootnote.lastPlayedLabel', 'about.listeningFootnote.fallbackLabel', 'about.listeningFootnote.fallbackTitle', 'about.listeningFootnote.fallbackArtist'],
+        allowedPaths: ['about.heading', 'about.subheading', 'about.headline', 'about.locationLine', 'about.bio', 'about.signature', 'about.authorNoteTabLabel', 'about.bitsTabLabel', 'about.bitsAndPieces.items', 'about.listeningFootnote.nowPlayingLabel', 'about.listeningFootnote.lastPlayedLabel', 'about.listeningFootnote.fallbackLabel', 'about.listeningFootnote.fallbackTitle', 'about.listeningFootnote.fallbackArtist', 'about.listeningFootnote.accentColor'],
       };
       case 'career': return {
         source: formData.career, rootPath: 'career',
@@ -8558,7 +8558,7 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
       case 'leaderboardSystems': return { source: {}, rootPath: '', allowedPaths: [] };
       case 'general': return {
         source: formData.general, rootPath: 'general',
-        allowedPaths: ['general.welcomeNotification.title', 'general.welcomeNotification.message', 'general.welcomeNotification.items', 'general.welcomeNotification.version', 'general.soundEffects'],
+        allowedPaths: ['general.welcomeNotification.title', 'general.welcomeNotification.message', 'general.welcomeNotification.items', 'general.welcomeNotification.version', 'general.welcomeNotification.accentColor', 'general.soundEffects'],
       };
       case 'websikee': return { source: {}, rootPath: '', allowedPaths: [] };
       default: return { source: {}, rootPath: '', allowedPaths: [] };
@@ -9276,7 +9276,25 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
                     onRemove={() => removeBitsAndPiecesItem(index)}
                   >
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-[0.35fr_1fr]">
-                      <Field label="Tab Name"><input value={item.label || ''} onChange={(e) => updateBitsAndPiecesItem(index, { label: e.target.value })} className={inputCls} placeholder="Status / Currently Writing / Currently Reading" /></Field>
+                      <Field label="Tab Name">
+                        <input value={item.label || ''} onChange={(e) => updateBitsAndPiecesItem(index, { label: e.target.value })} className={inputCls} placeholder="Status / Currently Writing / Currently Reading" />
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="text-[10px] font-bold uppercase text-gray-400">Accent HEX:</span>
+                          <input
+                            type="color"
+                            value={/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(item.color || '') ? item.color : '#888888'}
+                            onChange={(e) => updateBitsAndPiecesItem(index, { color: e.target.value })}
+                            className="h-6 w-8 cursor-pointer rounded border border-gray-300 dark:border-gray-600 bg-transparent p-0.5"
+                          />
+                          <input
+                            type="text"
+                            value={item.color || ''}
+                            onChange={(e) => updateBitsAndPiecesItem(index, { color: e.target.value })}
+                            placeholder="#888888"
+                            className={`${inputClsSm} max-w-[100px] font-mono`}
+                          />
+                        </div>
+                      </Field>
                       <Field label="Isi"><RichTextEditor fieldMode initialValue={item.value || ''} onChange={(html) => updateBitsAndPiecesItem(index, { value: html })} placeholder="Isi tab" /></Field>
                     </div>
                   </ContentCard>
@@ -9312,6 +9330,23 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
                 <Field label="URL cover fallback" sourceValue={sourceFormData.about.listeningFootnote.fallbackImage || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.fallbackImage || ''} onChange={(e) => setListeningFootnote('fallbackImage', e.target.value)} className={inputCls} /></Field>
                 <Field label="Link lagu fallback" sourceValue={sourceFormData.about.listeningFootnote.fallbackUrl || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.fallbackUrl || ''} onChange={(e) => setListeningFootnote('fallbackUrl', e.target.value)} className={inputCls} /></Field>
               </div>
+              <Field label="Accent Color (HEX)" sourceValue={sourceFormData.about.listeningFootnote.accentColor || '#2B579A'} cmsLanguage={cmsLanguage}>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(formData.about.listeningFootnote.accentColor || '') ? formData.about.listeningFootnote.accentColor : '#2B579A'}
+                    onChange={(e) => setListeningFootnote('accentColor', e.target.value)}
+                    className="h-8 w-10 cursor-pointer rounded border border-gray-300 dark:border-gray-600 bg-transparent p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={formData.about.listeningFootnote.accentColor || ''}
+                    onChange={(e) => setListeningFootnote('accentColor', e.target.value)}
+                    placeholder="#2B579A"
+                    className={`${inputCls} max-w-[140px] font-mono`}
+                  />
+                </div>
+              </Field>
             </CollapsibleSection>
           </div>
         )}
@@ -10531,6 +10566,24 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
                   placeholder="Update terbaru"
                   className={inputCls}
                 />
+              </Field>
+
+              <Field label="Accent Color (HEX)" sourceValue={sourceFormData.general.welcomeNotification.accentColor || '#2B579A'} cmsLanguage={cmsLanguage}>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(formData.general.welcomeNotification.accentColor || '') ? formData.general.welcomeNotification.accentColor : '#2B579A'}
+                    onChange={(e) => setWelcomeNotification('accentColor', e.target.value)}
+                    className="h-8 w-10 cursor-pointer rounded border border-gray-300 dark:border-gray-600 bg-transparent p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={formData.general.welcomeNotification.accentColor || ''}
+                    onChange={(e) => setWelcomeNotification('accentColor', e.target.value)}
+                    placeholder="#2B579A"
+                    className={`${inputCls} max-w-[140px] font-mono`}
+                  />
+                </div>
               </Field>
 
               <Field label="Update List">
