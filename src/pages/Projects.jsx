@@ -354,21 +354,29 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
   const author = item.author || item.writer || item.role || '';
   const displayGenre = genre || item.category || item.type || item.genre || 'General';
   const displayDate = date || item.date || item.year || '2026';
-
-  const primaryMedia = (item.mediaUrl || (item.url && item.mediaType))
-    ? getMediaEmbed(item.mediaType || 'youtube', item.mediaUrl || item.url)
-    : null;
+  const categoryType = getWritingCategoryType(item, displayGenre);
+  const audioUrl = getItemAudio(item);
+  const isSongWork = categoryType === 'song' || !!audioUrl;
 
   const textBlocks = cmsBlocksToHtml(item.cmsBlocks);
 
-  const rawBody =
+  const lyricsBody =
     textBlocks ||
     item.content ||
     item.wordContent ||
-    item.premise ||
-    item.description ||
-    item.snippet ||
-    '';
+    (isSongWork ? '' : (item.description || item.snippet || item.premise || ''));
+
+  const songDescription = isSongWork
+    ? (item.description || (item.snippet !== lyricsBody ? item.snippet : ''))
+    : '';
+
+  const rawBody = isSongWork
+    ? lyricsBody
+    : (lyricsBody || item.description || item.snippet || item.premise || '');
+
+  const primaryMedia = (!isSongWork && (item.mediaUrl || (item.url && item.mediaType)))
+    ? getMediaEmbed(item.mediaType || 'youtube', item.mediaUrl || item.url)
+    : null;
 
   const additionalText = [];
   if (item.contribution) additionalText.push({ label: 'About the Project', html: stripImageAndMediaTags(item.contribution) });
@@ -408,7 +416,33 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
         </h1>
       </header>
 
-      {primaryMedia && (
+      {/* 1. Song description directly above audio player */}
+      {isSongWork && songDescription && (
+        <div className="font-sans text-[0.9375em] sm:text-[1em] leading-relaxed text-gray-700 dark:text-gray-300 bg-gray-50/70 dark:bg-[#252526] p-4 sm:p-5 rounded-lg border border-gray-200/80 dark:border-gray-700/70">
+          <RichContent value={songDescription} className="[&_p]:my-0" />
+        </div>
+      )}
+
+      {/* 2. Audio player directly above lyrics */}
+      {audioUrl && (
+        <div className="rounded-xl border border-gray-200/90 dark:border-gray-700/80 bg-gray-50/80 dark:bg-[#252526] p-4 sm:p-5 shadow-sm">
+          <div className="mb-2.5 flex items-center justify-between gap-2 font-mono text-[0.6875em] font-bold uppercase tracking-[0.16em] text-[#2B579A] dark:text-[#6FA8DC]">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="flex h-2 w-2 shrink-0 rounded-full bg-[#2B579A] dark:bg-[#6FA8DC] animate-pulse" />
+              <span className="truncate">{title}</span>
+            </div>
+            <span className="shrink-0 text-gray-400 dark:text-gray-500">Audio Track</span>
+          </div>
+          <audio
+            src={audioUrl}
+            controls
+            preload="metadata"
+            className="w-full h-10 accent-[#2B579A] dark:accent-[#6FA8DC]"
+          />
+        </div>
+      )}
+
+      {!isSongWork && primaryMedia && (
         <figure className="mt-2 mb-3">
           {primaryMedia.kind === 'iframe' ? (
             <div className="aspect-video w-full overflow-hidden rounded-md bg-black">
@@ -1494,7 +1528,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
       if (!cs) return true; // Default fallback to reading for custom sections
       const type = (cs.contentType || (cs.layout === 'articles' ? 'writing' : 'image')).toLowerCase();
       const label = (cs.label || '').toLowerCase();
-      if (type === 'video' || type === 'audio' || /video|film|directing|audio|voice|podcast|sound/i.test(label)) {
+      if (type === 'video' || /video|film|directing/i.test(label)) {
         return false;
       }
       return true; // writing, image, story, script, etc. are reading/picture tabs
@@ -1666,12 +1700,83 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
   const normalizedQuery = projectQuery.trim().toLocaleLowerCase('id');
   const searchResults = normalizedQuery ? searchableWorks.filter(({ item, sectionLabel }) => `${item.title || ''} ${item.category || ''} ${item.description || ''} ${item.snippet || ''} ${sectionLabel}`.toLocaleLowerCase('id').includes(normalizedQuery)).slice(0, 12) : [];
 
+  const openWork = useCallback((item) => {
+    if (!item) return;
+
+    const currentCat = (activeCategory && activeCategory !== 'overview')
+      ? activeCategory
+      : findCategoryForWork(item.id);
+
+    // Explicit displayMode handling if configured in CMS:
+    if (item.displayMode === 'reading' && onSetReadingWorkId && item.id) {
+      onSetReadingWorkId(item.id);
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'Projects');
+      url.searchParams.set('work', item.id);
+      if (currentCat) {
+        url.searchParams.set('category', currentCat);
+        setActiveCategory(currentCat);
+      }
+      window.history.pushState(null, '', url);
+      return;
+    }
+    if (item.displayMode === 'existing') {
+      const cat = currentCat || activeCategory;
+      if (cat === 'articles') {
+        if (currentCat) setActiveCategory(currentCat);
+        openArticle(item);
+        return;
+      }
+      if (cat === 'directing') {
+        if (currentCat) setActiveCategory(currentCat);
+        const idx = directingItems.indexOf(item);
+        if (idx >= 0) setSelectedDirectingIndex(idx);
+        return;
+      }
+      if (cat?.startsWith('custom:')) {
+        if (currentCat) setActiveCategory(currentCat);
+        const idx = activeCustomItems.indexOf(item);
+        if (idx >= 0) setSelectedCustomIndex(idx);
+        return;
+      }
+    }
+
+    // Default fallback if displayMode is not explicitly set:
+    const cat = currentCat || activeCategory;
+    if (cat === 'directing') {
+      if (currentCat) setActiveCategory(currentCat);
+      const idx = directingItems.indexOf(item);
+      if (idx >= 0) setSelectedDirectingIndex(idx);
+      return;
+    }
+    if (cat?.startsWith('custom:') && (activeCustomType === 'video' || activeCustomType === 'image')) {
+      if (currentCat) setActiveCategory(currentCat);
+      const idx = activeCustomItems.indexOf(item);
+      if (idx >= 0) setSelectedCustomIndex(idx);
+      return;
+    }
+    if (onSetReadingWorkId && item.id) {
+      onSetReadingWorkId(item.id);
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'Projects');
+      url.searchParams.set('work', item.id);
+      if (currentCat) {
+        url.searchParams.set('category', currentCat);
+        setActiveCategory(currentCat);
+      }
+      window.history.pushState(null, '', url);
+      return;
+    }
+    if (currentCat) setActiveCategory(currentCat);
+    openArticle(item);
+  }, [activeCategory, activeCustomFamily, activeCustomItems, activeCustomType, directingItems, findCategoryForWork, onSetReadingWorkId]);
+
   const openSearchResult = (result) => {
     setActiveCategory(result.sectionKey);
-    if (result.sectionKey === 'articles') openArticle(result.item);
-    else if (result.sectionKey === 'directing') setSelectedDirectingIndex(result.index);
+    if (result.sectionKey === 'articles') openWork(result.item);
+    else if (result.sectionKey === 'directing') openWork(result.item);
     else if (result.sectionKey === 'poster') setSelectedGalleryIndex(result.index);
-    else setSelectedCustomIndex(result.index);
+    else openWork(result.item);
     setProjectQuery('');
   };
 
@@ -1681,17 +1786,15 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     if (initialWorkTarget.type === 'article') {
       const item = articles.find((entry) => entry.id === initialWorkTarget.itemId);
       if (item) {
-        setActiveCategory('articles');
-        openArticle(item);
+        openWork(item);
       }
       return;
     }
 
     if (initialWorkTarget.type === 'directing') {
-      const index = directingItems.findIndex((item) => item.id === initialWorkTarget.itemId);
-      if (index >= 0) {
-        setActiveCategory('directing');
-        setSelectedDirectingIndex(index);
+      const item = directingItems.find((entry) => entry.id === initialWorkTarget.itemId);
+      if (item) {
+        openWork(item);
       }
       return;
     }
@@ -1707,15 +1810,14 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     }
 
     if (initialWorkTarget.type === 'custom') {
-      const sectionIndex = customSections.findIndex((section) => section.id === initialWorkTarget.sectionId);
-      if (sectionIndex < 0) return;
-      const itemIndex = (customSections[sectionIndex].items || []).findIndex((item) => item.id === initialWorkTarget.itemId);
-      if (itemIndex >= 0) {
-        setActiveCategory(`custom:${customSections[sectionIndex].id}`);
-        setSelectedCustomIndex(itemIndex);
+      const section = customSections.find((s) => s.id === initialWorkTarget.sectionId);
+      if (!section) return;
+      const item = (section.items || []).find((entry) => entry.id === initialWorkTarget.itemId);
+      if (item) {
+        openWork(item);
       }
     }
-  }, [navigationRequestKey, initialWorkTarget, articles, directingItems, posterItems, customSections]);
+  }, [navigationRequestKey, initialWorkTarget, articles, directingItems, posterItems, customSections, openWork]);
 
   const readingWork = useMemo(() => {
     if (!readingWorkId) return null;
@@ -1744,71 +1846,6 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialArticleId, articles.length]);
 
-  const openWork = (item) => {
-    if (!item) return;
-
-    const currentCat = (activeCategory && activeCategory !== 'overview')
-      ? activeCategory
-      : findCategoryForWork(item.id);
-
-    // Explicit displayMode handling if configured in CMS:
-    if (item.displayMode === 'reading' && onSetReadingWorkId && item.id) {
-      onSetReadingWorkId(item.id);
-      const url = new URL(window.location.href);
-      url.searchParams.set('tab', 'Projects');
-      url.searchParams.set('work', item.id);
-      if (currentCat) {
-        url.searchParams.set('category', currentCat);
-        setActiveCategory(currentCat);
-      }
-      window.history.pushState(null, '', url);
-      return;
-    }
-    if (item.displayMode === 'existing') {
-      if (activeCategory === 'articles') {
-        openArticle(item);
-        return;
-      }
-      if (activeCategory === 'directing') {
-        const idx = directingItems.indexOf(item);
-        if (idx >= 0) setSelectedDirectingIndex(idx);
-        return;
-      }
-      if (activeCategory.startsWith('custom:')) {
-        const idx = activeCustomItems.indexOf(item);
-        if (idx >= 0) setSelectedCustomIndex(idx);
-        return;
-      }
-    }
-
-    // Default fallback if displayMode is not explicitly set:
-    if (activeCategory === 'directing') {
-      const idx = directingItems.indexOf(item);
-      if (idx >= 0) setSelectedDirectingIndex(idx);
-      return;
-    }
-    if (activeCategory.startsWith('custom:') && (activeCustomType === 'video' || activeCustomType === 'image' || activeCustomFamily === 'audio')) {
-      const idx = activeCustomItems.indexOf(item);
-      if (idx >= 0) setSelectedCustomIndex(idx);
-      return;
-    }
-    if (onSetReadingWorkId && item.id) {
-      onSetReadingWorkId(item.id);
-      const url = new URL(window.location.href);
-      url.searchParams.set('tab', 'Projects');
-      url.searchParams.set('work', item.id);
-      if (currentCat) {
-        url.searchParams.set('category', currentCat);
-        setActiveCategory(currentCat);
-      }
-      window.history.pushState(null, '', url);
-      return;
-    }
-    openArticle(item);
-  };
-
-  // Sinkronin URL browser tiap kali buka/tutup artikel — INI yang bikin link Share
-  // beneran ngarah ke artikel yang tepat (bukan cuma mendarat di halaman awal).
   const openArticle = (art) => {
     setSelectedArticle(art);
     const url = new URL(window.location.href);
@@ -1995,21 +2032,29 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     const workAuthor = readingWork.author || readingWork.writer || readingWork.role || '';
     const workGenre = readingWork.category || readingWork.genre || readingWork.type || 'General';
     const workDate = readingWork.date || readingWork.year || '2026';
-
-    const readingPrimaryMedia = (readingWork.mediaUrl || (readingWork.url && readingWork.mediaType))
-      ? getMediaEmbed(readingWork.mediaType || 'youtube', readingWork.mediaUrl || readingWork.url)
-      : null;
+    const categoryType = getWritingCategoryType(readingWork, workGenre, activeCustomSection);
+    const audioUrl = getItemAudio(readingWork);
+    const isSongWork = categoryType === 'song' || !!audioUrl;
 
     const textBlocks = cmsBlocksToHtml(readingWork.cmsBlocks);
 
-    const rawBody =
+    const lyricsBody =
       textBlocks ||
       readingWork.content ||
       readingWork.wordContent ||
-      readingWork.description ||
-      readingWork.snippet ||
-      readingWork.premise ||
-      '';
+      (isSongWork ? '' : (readingWork.description || readingWork.snippet || readingWork.premise || ''));
+
+    const songDescription = isSongWork
+      ? (readingWork.description || (readingWork.snippet !== lyricsBody ? readingWork.snippet : ''))
+      : '';
+
+    const rawBody = isSongWork
+      ? lyricsBody
+      : (lyricsBody || readingWork.description || readingWork.snippet || readingWork.premise || '');
+
+    const readingPrimaryMedia = (!isSongWork && (readingWork.mediaUrl || (readingWork.url && readingWork.mediaType)))
+      ? getMediaEmbed(readingWork.mediaType || 'youtube', readingWork.mediaUrl || readingWork.url)
+      : null;
 
     const cleanBody = formatSongLyricsHtml(rawBody);
 
@@ -2116,7 +2161,33 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                   {workTitle}
                 </h1>
 
-                {readingPrimaryMedia && (
+                {/* 1. Song description directly above audio player */}
+                {isSongWork && songDescription && (
+                  <div className="mb-6 font-sans text-[0.9375em] sm:text-[1em] leading-relaxed text-gray-700 dark:text-gray-300 bg-gray-50/70 dark:bg-[#222225] p-4 sm:p-5 rounded-lg border border-gray-200/80 dark:border-gray-700/70">
+                    <RichContent value={songDescription} className="[&_p]:my-0" />
+                  </div>
+                )}
+
+                {/* 2. Audio player directly above lyrics */}
+                {audioUrl && (
+                  <div className="mb-8 rounded-xl border border-gray-200/90 dark:border-gray-700/80 bg-gray-50/80 dark:bg-[#222225] p-4 sm:p-5 shadow-sm">
+                    <div className="mb-2.5 flex items-center justify-between gap-2 font-mono text-[0.6875em] font-bold uppercase tracking-[0.16em] text-[#2B579A] dark:text-[#6FA8DC]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="flex h-2 w-2 shrink-0 rounded-full bg-[#2B579A] dark:bg-[#6FA8DC] animate-pulse" />
+                        <span className="truncate">{workTitle}</span>
+                      </div>
+                      <span className="shrink-0 text-gray-400 dark:text-gray-500">Audio Track</span>
+                    </div>
+                    <audio
+                      src={audioUrl}
+                      controls
+                      preload="metadata"
+                      className="w-full h-10 accent-[#2B579A] dark:accent-[#6FA8DC]"
+                    />
+                  </div>
+                )}
+
+                {!isSongWork && readingPrimaryMedia && (
                   <figure className="mb-6">
                     {readingPrimaryMedia.kind === 'iframe' ? (
                       <div className="aspect-video w-full overflow-hidden rounded-md bg-black">
@@ -2161,12 +2232,12 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
               </section>
 
               {/* Prev / Next navigation buttons strictly scoped to active tab */}
-              <footer className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 dark:border-gray-800 pt-6 font-mono text-[0.75em] font-semibold uppercase tracking-wider">
+              <footer className="mt-10 grid grid-cols-2 gap-2.5 sm:flex sm:items-center sm:justify-between sm:gap-4 border-t border-gray-200 dark:border-gray-800 pt-6 font-mono text-[0.75em] font-semibold uppercase tracking-wider">
                 <button
                   type="button"
                   disabled={!hasPrev}
                   onClick={() => navigateToWork(categoryItems[currentIndex - 1])}
-                  className="px-4 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#252528] text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  className="order-1 col-span-1 sm:order-none px-3 sm:px-4 py-2.5 sm:py-2 flex items-center justify-center rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#252528] text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer text-center"
                 >
                   ← Prev
                 </button>
@@ -2174,7 +2245,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                 <button
                   type="button"
                   onClick={handleBackFromReading}
-                  className="px-4 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#252528] text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] transition-colors cursor-pointer"
+                  className="order-3 col-span-2 sm:order-none px-3 sm:px-4 py-2.5 sm:py-2 flex items-center justify-center rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#252528] text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] transition-colors cursor-pointer text-center"
                 >
                   Back to List
                 </button>
@@ -2183,7 +2254,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                   type="button"
                   disabled={!hasNext}
                   onClick={() => navigateToWork(categoryItems[currentIndex + 1])}
-                  className="px-4 py-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#252528] text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  className="order-2 col-span-1 sm:order-none px-3 sm:px-4 py-2.5 sm:py-2 flex items-center justify-center rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-[#252528] text-gray-800 dark:text-gray-200 hover:bg-[#2B579A] hover:text-white hover:border-[#2B579A] dark:hover:bg-[#6FA8DC] dark:hover:text-[#161616] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer text-center"
                 >
                   Next →
                 </button>
