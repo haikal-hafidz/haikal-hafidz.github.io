@@ -72,12 +72,21 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
     () => items.find((item) => item.featured) || items.find((item) => item.status === 'writing') || items[0],
     [items]
   );
-  const startHereBook = useMemo(
-    () => items.find((item) => item.startHere) || items.find((item) => item.status === 'published') || items[0],
-    [items]
+
+  // Recommendation from the other tab if available and not present in active carousel items
+  const otherTabItems = bookTab === 'reading' ? workItems : readingItems;
+  const externalRecommendation = useMemo(
+    () => otherTabItems.find((item) => item.startHere || item.featured) || null,
+    [otherTabItems]
   );
+
   const selectedBook = items.find((item) => item.id === selectedId) || currentBook;
   const detailBook = items.find((item) => item.id === detailId) || null;
+  const [expandedAutopsyKeys, setExpandedAutopsyKeys] = useState({});
+
+  const toggleAutopsyKey = (key) => {
+    setExpandedAutopsyKeys((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   useEffect(() => {
     if (!initialBookId || !navigationRequestKey) return;
@@ -94,13 +103,34 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
     setDetailId(null);
   }, [bookTab]);
 
+  const wheelLockRef = useRef(false);
+  const selectRelativeBook = useCallback((offset) => {
+    if (items.length < 2) return;
+    const currentIdx = Math.max(0, items.findIndex((item) => item.id === (selectedBook?.id || items[0]?.id)));
+    const nextIndex = (currentIdx + offset + items.length) % items.length;
+    setSelectedId(items[nextIndex].id);
+  }, [items, selectedBook]);
+
+  const handleWheel = useCallback((event) => {
+    if (items.length < 2 || wheelLockRef.current || detailId) return;
+    if (Math.abs(event.deltaX) > 15) {
+      wheelLockRef.current = true;
+      selectRelativeBook(event.deltaX > 0 ? 1 : -1);
+      setTimeout(() => { wheelLockRef.current = false; }, 350);
+    }
+  }, [detailId, items.length, selectRelativeBook]);
+
   useEffect(() => {
     const onKeyDown = (event) => {
       if (event.key === 'Escape') setDetailId(null);
+      if (!detailId && items.length > 1) {
+        if (event.key === 'ArrowLeft') selectRelativeBook(-1);
+        if (event.key === 'ArrowRight') selectRelativeBook(1);
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [detailId, items.length, selectRelativeBook]);
 
   const bookTabs = (
     <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label="Book sections">
@@ -168,36 +198,12 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
   const selectedStatus = selectedBook?.status || 'published';
   const selectedRoles = parseRoles(selectedBook?.myRoles);
   const selectedIndex = Math.max(0, items.findIndex((item) => item.id === selectedBook.id));
-  const loosePageText = String(
-    selectedBook?.fullDescription ||
-    selectedBook?.summary ||
-    selectedBook?.whyWritten ||
-    selectedBook?.pitch ||
-    ''
-  ).trim();
-  const loosePageExcerpt = loosePageText.length > 260 ? `${loosePageText.slice(0, 257).trimEnd()}…` : loosePageText;
-  const loosePage = loosePageExcerpt ? (
-    <button
-      type="button"
-      onClick={() => setDetailId(selectedBook.id)}
-      className="group block w-full rotate-[-1deg] border border-gray-300 bg-[#fffef8] p-5 text-left shadow-lg transition hover:-translate-y-1 hover:rotate-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:border-gray-700 dark:bg-[#252522]"
-      aria-label={`Peek inside ${selectedBook.title}`}
-    >
-      <p className="font-mono text-[0.5625em] font-bold uppercase tracking-[0.2em] text-gray-400">Loose page · Peek inside</p>
-      <p className="mt-4 font-serif text-[0.8125em] leading-[1.7] text-gray-700 dark:text-gray-300">“{loosePageExcerpt}”</p>
-      <span className="mt-5 inline-block font-mono text-[0.5625em] font-bold uppercase tracking-[0.16em] text-[#2B579A] group-hover:underline dark:text-[#6FA8DC]">Open document →</span>
-    </button>
-  ) : null;
-  const selectRelativeBook = (offset) => {
-    if (items.length < 2) return;
-    const nextIndex = (selectedIndex + offset + items.length) % items.length;
-    setSelectedId(items[nextIndex].id);
-  };
+
   const autopsyNotes = [
-    { label: 'Origin', value: selectedBook.origin || selectedBook.whyWritten || selectedBook.summary, position: 'md:col-start-1 md:row-start-1 md:self-end md:text-right' },
-    { label: 'Core question', value: selectedBook.coreQuestion || selectedBook.pitch, position: 'md:col-start-3 md:row-start-1 md:self-end' },
-    { label: 'Written during', value: selectedBook.writtenDuring || selectedBook.publicationDate || selectedBook.year, position: 'md:col-start-1 md:row-start-2 md:self-start md:text-right' },
-    { label: 'Almost deleted', value: selectedBook.almostDeleted, position: 'md:col-start-3 md:row-start-2 md:self-start' },
+    { key: 'origin', label: 'Origin', value: selectedBook.origin || selectedBook.whyWritten || selectedBook.summary, position: 'md:col-start-1 md:row-start-1 md:self-end md:text-right' },
+    { key: 'coreQuestion', label: 'Core question', value: selectedBook.coreQuestion || selectedBook.pitch, position: 'md:col-start-3 md:row-start-1 md:self-end' },
+    { key: 'writtenDuring', label: 'Written during', value: selectedBook.writtenDuring || selectedBook.publicationDate || selectedBook.year, position: 'md:col-start-1 md:row-start-2 md:self-start md:text-right' },
+    { key: 'almostDeleted', label: 'Almost deleted', value: selectedBook.almostDeleted, position: 'md:col-start-3 md:row-start-2 md:self-start' },
   ].filter((note) => note.value).slice(0, 4);
   return (
     <div className="view-reveal w-full py-3 text-gray-900 dark:text-gray-100">
@@ -212,29 +218,72 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
 
         <div className="grid grid-cols-1 gap-7 md:grid-cols-[minmax(0,1fr)_15rem_minmax(0,1fr)] md:grid-rows-2 md:gap-x-8 md:gap-y-10">
           <div className="mx-auto w-full max-w-[15rem] md:col-start-2 md:row-span-2 md:row-start-1 md:self-center">
-          <button type="button" onClick={() => { if (coverDidSwipe.current) { coverDidSwipe.current = false; return; } setDetailId(selectedBook.id); }} onPointerDown={(event) => { coverSwipeStart.current = event.clientX; coverDidSwipe.current = false; }} onPointerUp={(event) => { if (coverSwipeStart.current === null) return; const distance = event.clientX - coverSwipeStart.current; coverSwipeStart.current = null; if (Math.abs(distance) > 42 && items.length > 1) { coverDidSwipe.current = true; selectRelativeBook(distance < 0 ? 1 : -1); } }} onPointerCancel={() => { coverSwipeStart.current = null; coverDidSwipe.current = false; }} {...(selectedBook.hintEnabled !== false ? { 'data-hint-id': 'book-open-active' } : {})} className="group relative block w-full touch-pan-y text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
+          <button type="button" onWheel={handleWheel} onClick={() => { if (coverDidSwipe.current) { coverDidSwipe.current = false; return; } setDetailId(selectedBook.id); }} onPointerDown={(event) => { coverSwipeStart.current = event.clientX; coverDidSwipe.current = false; }} onPointerUp={(event) => { if (coverSwipeStart.current === null) return; const distance = event.clientX - coverSwipeStart.current; coverSwipeStart.current = null; if (Math.abs(distance) > 30 && items.length > 1) { coverDidSwipe.current = true; selectRelativeBook(distance < 0 ? 1 : -1); } }} onPointerCancel={() => { coverSwipeStart.current = null; coverDidSwipe.current = false; }} {...(selectedBook.hintEnabled !== false ? { 'data-hint-id': 'book-open-active' } : {})} className="group relative block w-full touch-pan-y text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] cursor-grab active:cursor-grabbing">
             <div className="absolute -bottom-4 left-[8%] h-6 w-[84%] rounded-full bg-black/20 blur-xl dark:bg-black/50" />
             <div className="relative flex justify-center transition duration-300 group-hover:-translate-y-1 group-hover:rotate-[-1deg]"><BookCover book={selectedBook} size="hero" priority /></div>
           </button>
-          {items.length > 1 && <div className="mt-5"><div className="flex items-center justify-center gap-0.5" aria-label="Pilih buku">{items.map((book, index) => <button key={book.id} type="button" onClick={() => setSelectedId(book.id)} aria-label={`Pilih ${book.title}`} aria-pressed={index === selectedIndex} title={book.title} className="grid h-11 min-w-11 place-items-center rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]"><span aria-hidden="true" className={`h-2 rounded-full transition-all ${index === selectedIndex ? 'w-7 bg-[#2B579A] dark:bg-[#6FA8DC]' : 'w-2 bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500'}`} /></button>)}</div><p className="text-center font-mono text-[0.5em] uppercase tracking-[0.16em] text-gray-500 dark:text-gray-300">Swipe cover · {selectedIndex + 1} of {items.length}</p></div>}
+          {items.length > 1 && <div className="mt-5"><div className="flex items-center justify-center gap-0.5" aria-label="Pilih buku">{items.map((book, index) => <button key={book.id} type="button" onClick={() => setSelectedId(book.id)} aria-label={`Pilih ${book.title}`} aria-pressed={index === selectedIndex} title={book.title} className="grid h-11 min-w-11 place-items-center rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]"><span aria-hidden="true" className={`h-2 rounded-full transition-all ${index === selectedIndex ? 'w-7 bg-[#2B579A] dark:bg-[#6FA8DC]' : 'w-2 bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500'}`} /></button>)}</div><p className="text-center font-mono text-[0.5em] uppercase tracking-[0.16em] text-gray-500 dark:text-gray-300">{selectedIndex + 1} of {items.length}</p></div>}
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:contents">
-            {autopsyNotes.map((note, index) => <article key={note.label} className={`relative rounded-md border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-[#202020]/70 ${note.position}`}><span aria-hidden="true" className={`absolute top-1/2 hidden h-px w-8 bg-gray-300 md:block dark:bg-gray-700 ${index % 2 === 0 ? '-right-8' : '-left-8'}`} /><p className="font-mono text-[0.5625em] font-bold uppercase tracking-[0.2em] text-gray-400">{note.label}</p><RichContent value={note.value} className="mt-2 text-[0.8125em] leading-relaxed text-gray-600 dark:text-gray-300" /></article>)}
+            {autopsyNotes.map((note, index) => {
+              const textVal = String(note.value || '');
+              const isLong = textVal.length > 200;
+              const isExpanded = expandedAutopsyKeys[note.key];
+              return (
+                <article key={note.label} className={`relative rounded-md border border-gray-200 bg-gray-50/70 p-3.5 dark:border-gray-700 dark:bg-[#202020]/70 ${note.position}`}>
+                  <span aria-hidden="true" className={`absolute top-1/2 hidden h-px w-8 bg-gray-300 md:block dark:bg-gray-700 ${index % 2 === 0 ? '-right-8' : '-left-8'}`} />
+                  <p className="font-mono text-[0.5625em] font-bold uppercase tracking-[0.2em] text-gray-400">{note.label}</p>
+                  <div className={isLong && !isExpanded ? 'line-clamp-3 overflow-hidden' : ''}>
+                    <RichContent value={note.value} className="mt-1.5 text-[0.8125em] leading-relaxed text-gray-600 dark:text-gray-300" />
+                  </div>
+                  {isLong && (
+                    <button type="button" onClick={() => toggleAutopsyKey(note.key)} className="mt-1 font-mono text-[0.5625em] font-bold uppercase tracking-wider text-[#2B579A] hover:underline dark:text-[#6FA8DC]">
+                      {isExpanded ? 'Collapse ↑' : 'Read more ↓'}
+                    </button>
+                  )}
+                </article>
+              );
+            })}
           </div>
         </div>
 
-        <div className="mx-auto mt-8 max-w-3xl border-t border-gray-200 pt-6 text-center dark:border-gray-700"><h2 className="text-[1.75em] font-semibold leading-tight tracking-tight sm:text-[2.25em]">{selectedBook.title}</h2>{selectedBook.author && <p className="mt-2 text-[0.8125em] text-gray-500 dark:text-gray-400">Written by <span className="font-semibold text-gray-800 dark:text-gray-100">{selectedBook.author}</span>{selectedBook.publisher ? ` · ${selectedBook.publisher}` : ''}</p>}{selectedRoles.length > 0 && <div className="mt-3 flex flex-wrap items-center justify-center gap-2"><span className="mr-1 font-mono text-[0.5625em] font-bold uppercase tracking-[0.18em] text-gray-400">My contribution</span>{selectedRoles.map((role) => <span key={role} className="rounded-full border border-[#2B579A]/30 bg-[#2B579A]/[0.04] px-2.5 py-1 font-mono text-[0.5625em] font-bold uppercase tracking-wider text-[#2B579A] dark:border-[#6FA8DC]/35 dark:bg-[#6FA8DC]/[0.06] dark:text-[#6FA8DC]">{role}</span>)}</div>}<RichContent value={selectedBook.pitch || selectedBook.summary} className="mx-auto mt-3 max-w-2xl text-[0.875em] leading-relaxed text-gray-600 dark:text-gray-300" /><div className="mt-4 flex flex-wrap justify-center gap-x-5 gap-y-2 font-mono text-[0.625em] uppercase tracking-wider text-gray-400">{(selectedBook.publicationDate || selectedBook.year) && <span>{selectedBook.publicationDate || selectedBook.year}</span>}{(selectedBook.format || selectedBook.category) && <span>{selectedBook.format || selectedBook.category}</span>}{selectedBook.language && <span>{selectedBook.language}</span>}{selectedBook.pageCount && <span>{selectedBook.pageCount} pages</span>}{selectedBook.edition && <span>{selectedBook.edition}</span>}</div><button type="button" onClick={() => setDetailId(selectedBook.id)} className="mt-6 rounded-sm bg-[#2B579A] px-4 py-2.5 font-mono text-[0.6875em] font-bold uppercase tracking-wider text-white hover:bg-[#1e3f73] dark:bg-[#6FA8DC] dark:text-[#171717]">Open document →</button></div>
-        {isMobileLayout && loosePage && <div className="mx-auto mt-8 max-w-sm">{loosePage}</div>}
+        {/* Integrated About the Book details for the currently selected book */}
+        <div className="mx-auto mt-8 max-w-3xl border-t border-gray-200 pt-6 text-center dark:border-gray-700">
+          <p className="font-mono text-[0.5625em] font-bold uppercase tracking-[0.22em] text-[#2B579A] dark:text-[#6FA8DC] mb-2">About this book</p>
+          <h2 className="text-[1.75em] font-semibold leading-tight tracking-tight sm:text-[2.25em]">{selectedBook.title}</h2>
+          {selectedBook.author && (
+            <p className="mt-2 text-[0.8125em] text-gray-500 dark:text-gray-400">Written by <span className="font-semibold text-gray-800 dark:text-gray-100">{selectedBook.author}</span>{selectedBook.publisher ? ` · ${selectedBook.publisher}` : ''}</p>
+          )}
+          {selectedRoles.length > 0 && (
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+              <span className="mr-1 font-mono text-[0.5625em] font-bold uppercase tracking-[0.18em] text-gray-400">My contribution</span>
+              {selectedRoles.map((role) => (
+                <span key={role} className="rounded-full border border-[#2B579A]/30 bg-[#2B579A]/[0.04] px-2.5 py-1 font-mono text-[0.5625em] font-bold uppercase tracking-wider text-[#2B579A] dark:border-[#6FA8DC]/35 dark:bg-[#6FA8DC]/[0.06] dark:text-[#6FA8DC]">{role}</span>
+              ))}
+            </div>
+          )}
+          <RichContent value={selectedBook.pitch || selectedBook.summary || selectedBook.fullDescription} className="mx-auto mt-4 max-w-2xl text-[0.875em] leading-relaxed text-gray-600 dark:text-gray-300" />
+          <div className="mt-4 flex flex-wrap justify-center gap-x-5 gap-y-2 font-mono text-[0.625em] uppercase tracking-wider text-gray-400">
+            {(selectedBook.publicationDate || selectedBook.year) && <span>{selectedBook.publicationDate || selectedBook.year}</span>}
+            {(selectedBook.format || selectedBook.category) && <span>{selectedBook.format || selectedBook.category}</span>}
+            {selectedBook.language && <span>{selectedBook.language}</span>}
+            {selectedBook.pageCount && <span>{selectedBook.pageCount} pages</span>}
+            {selectedBook.edition && <span>{selectedBook.edition}</span>}
+          </div>
+          <button type="button" onClick={() => setDetailId(selectedBook.id)} className="mt-6 rounded-sm bg-[#2B579A] px-4 py-2.5 font-mono text-[0.6875em] font-bold uppercase tracking-wider text-white hover:bg-[#1e3f73] dark:bg-[#6FA8DC] dark:text-[#171717]">Open document →</button>
+        </div>
       </section>
 
-      {startHereBook && startHereBook.id !== selectedBook.id && <aside className="mb-7 flex flex-col justify-between gap-4 rounded-lg border border-[#2B579A]/25 bg-[#2B579A]/[0.04] p-4 sm:flex-row sm:items-center dark:border-[#6FA8DC]/25 dark:bg-[#6FA8DC]/[0.05]"><div><p className="font-mono text-[0.5625em] font-bold uppercase tracking-[0.2em] text-[#2B579A] dark:text-[#6FA8DC]">New here? Start here</p><p className="mt-1 text-[0.875em] font-semibold">{startHereBook.title}</p></div><button type="button" onClick={() => { setSelectedId(startHereBook.id); setDetailId(startHereBook.id); }} className="shrink-0 font-mono text-[0.625em] font-bold uppercase tracking-wider text-[#2B579A] hover:underline dark:text-[#6FA8DC]">Open recommendation →</button></aside>}
-
-      {!isMobileLayout && railStyle && loosePage && typeof document !== 'undefined' && createPortal(
-        <aside className="fixed z-30" style={railStyle} aria-label="Book loose page">
-          {loosePage}
-        </aside>,
-        document.body
+      {/* Render recommendation only if from an external list not currently in active carousel */}
+      {externalRecommendation && !items.some((item) => item.id === externalRecommendation.id) && (
+        <aside className="mb-7 flex flex-col justify-between gap-4 rounded-lg border border-[#2B579A]/25 bg-[#2B579A]/[0.04] p-4 sm:flex-row sm:items-center dark:border-[#6FA8DC]/25 dark:bg-[#6FA8DC]/[0.05]">
+          <div>
+            <p className="font-mono text-[0.5625em] font-bold uppercase tracking-[0.2em] text-[#2B579A] dark:text-[#6FA8DC]">Recommended work</p>
+            <p className="mt-1 text-[0.875em] font-semibold">{externalRecommendation.title}</p>
+          </div>
+          <button type="button" onClick={() => { setBookTab(bookTab === 'reading' ? 'works' : 'reading'); setSelectedId(externalRecommendation.id); setDetailId(externalRecommendation.id); }} className="shrink-0 font-mono text-[0.625em] font-bold uppercase tracking-wider text-[#2B579A] hover:underline dark:text-[#6FA8DC]">Open recommendation →</button>
+        </aside>
       )}
 
       <style>{`@keyframes viewReveal{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}.view-reveal{animation:viewReveal .32s cubic-bezier(.16,1,.3,1)}@media(prefers-reduced-motion:reduce){.view-reveal{animation:none}}`}</style>
