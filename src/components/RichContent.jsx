@@ -32,6 +32,8 @@ export default function RichContent({
         [&_blockquote]:my-3 [&_blockquote]:border-l-4 [&_blockquote]:border-[#2B579A] [&_blockquote]:pl-3 [&_blockquote]:italic
         [&_a]:text-[#2B579A] [&_a]:underline dark:[&_a]:text-[#7fb0f1]
         [&_strong]:font-bold [&_em]:italic
+        [&_code]:font-sans [&_code]:bg-transparent [&_code]:p-0 [&_code]:text-inherit [&_code]:rounded-none [&_code]:inline
+        [&_pre]:font-sans [&_pre]:bg-transparent [&_pre]:p-0 [&_pre]:whitespace-pre-wrap [&_pre]:text-inherit
         ${className}
       `}
       dangerouslySetInnerHTML={{ __html: html }}

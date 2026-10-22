@@ -82,6 +82,9 @@ export default function LastFmFootnote({ data = {}, style, darkMode = false }) {
   }
   const time = !shown.nowPlaying && !shown.fallback ? relativeTime(shown.playedAt) : '';
 
+  const isValidHex = (hex) => typeof hex === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex.trim());
+  const customAccent = isValidHex(data.accentColor) ? data.accentColor.trim() : null;
+
   // Tastemaker Minimalist Card Design
   const card = (
     <div
@@ -107,7 +110,10 @@ export default function LastFmFootnote({ data = {}, style, darkMode = false }) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1 mb-0.5">
-            <span className={`inline-block h-1.5 w-1.5 rounded-full ${shown.nowPlaying ? 'bg-emerald-500 animate-pulse' : 'bg-[#2B579A] dark:bg-[#6FA8DC]'}`} />
+            <span
+              className={`inline-block h-1.5 w-1.5 rounded-full ${shown.nowPlaying ? 'bg-emerald-500 animate-pulse' : 'bg-[#2B579A] dark:bg-[#6FA8DC]'}`}
+              style={!shown.nowPlaying && customAccent ? { backgroundColor: customAccent } : undefined}
+            />
             <span className="font-mono text-[0.52em] uppercase tracking-[0.16em] text-gray-400 font-semibold">
               {shown.nowPlaying ? 'Now' : 'Listening'}
             </span>
