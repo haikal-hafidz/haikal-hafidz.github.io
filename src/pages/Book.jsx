@@ -23,6 +23,22 @@ function StatusBadge({ status }) {
   return <span className={`inline-flex rounded-full border px-2.5 py-1 font-mono text-[0.5625em] font-bold uppercase tracking-[0.16em] ${meta.className}`}>{meta.label}</span>;
 }
 
+function hasTextContent(val) {
+  if (!val) return false;
+  const stripped = String(val)
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .trim();
+  return stripped.length > 0;
+}
+
+function getFirstNonEmpty(...vals) {
+  for (const v of vals) {
+    if (hasTextContent(v)) return v;
+  }
+  return null;
+}
+
 function parseRoles(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
   return String(value || '').split(',').map((role) => role.trim()).filter(Boolean);
@@ -338,11 +354,98 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
   const selectedIndex = Math.max(0, items.findIndex((item) => item.id === selectedBook.id));
 
   const autopsyNotes = [
-    { key: 'origin', label: 'Origin', value: selectedBook.origin || selectedBook.whyWritten || selectedBook.summary, position: 'md:col-start-1 md:row-start-1 md:self-end md:text-right' },
-    { key: 'coreQuestion', label: 'Core question', value: selectedBook.coreQuestion || selectedBook.pitch, position: 'md:col-start-3 md:row-start-1 md:self-end' },
-    { key: 'writtenDuring', label: 'Written during', value: selectedBook.writtenDuring || selectedBook.publicationDate || selectedBook.year, position: 'md:col-start-1 md:row-start-2 md:self-start md:text-right' },
-    { key: 'almostDeleted', label: 'Almost deleted', value: selectedBook.almostDeleted, position: 'md:col-start-3 md:row-start-2 md:self-start' },
+    { key: 'origin', label: 'Origin', value: getFirstNonEmpty(selectedBook.origin, selectedBook.whyWritten, selectedBook.summary), position: 'md:col-start-1 md:row-start-1 md:self-end md:text-right' },
+    { key: 'coreQuestion', label: 'Core question', value: getFirstNonEmpty(selectedBook.coreQuestion, selectedBook.pitch), position: 'md:col-start-3 md:row-start-1 md:self-end' },
+    { key: 'writtenDuring', label: 'Written during', value: getFirstNonEmpty(selectedBook.writtenDuring, selectedBook.publicationDate, selectedBook.year), position: 'md:col-start-1 md:row-start-2 md:self-start md:text-right' },
+    { key: 'almostDeleted', label: 'Almost deleted', value: getFirstNonEmpty(selectedBook.almostDeleted), position: 'md:col-start-3 md:row-start-2 md:self-start' },
   ].filter((note) => note.value).slice(0, 4);
+
+  const hasAutopsy = autopsyNotes.length > 0;
+
+  const carouselCore = (
+    <div className="mx-auto flex w-full max-w-[16rem] flex-col items-center">
+      <button
+        type="button"
+        onWheel={handleWheel}
+        onClick={() => {
+          if (coverDidSwipe.current) {
+            coverDidSwipe.current = false;
+            return;
+          }
+          setDetailId(selectedBook.id);
+        }}
+        onPointerDown={(event) => {
+          coverSwipeStart.current = event.clientX;
+          coverDidSwipe.current = false;
+          if (event.currentTarget && event.currentTarget.setPointerCapture) {
+            try {
+              event.currentTarget.setPointerCapture(event.pointerId);
+            } catch (_) {}
+          }
+        }}
+        onPointerUp={(event) => {
+          if (event.currentTarget && event.currentTarget.releasePointerCapture) {
+            try {
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                event.currentTarget.releasePointerCapture(event.pointerId);
+              }
+            } catch (_) {}
+          }
+          if (coverSwipeStart.current === null) return;
+          const distance = event.clientX - coverSwipeStart.current;
+          coverSwipeStart.current = null;
+          if (Math.abs(distance) > 25 && items.length > 1) {
+            coverDidSwipe.current = true;
+            selectRelativeBook(distance < 0 ? 1 : -1);
+          }
+        }}
+        onPointerCancel={(event) => {
+          if (event.currentTarget && event.currentTarget.releasePointerCapture) {
+            try {
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                event.currentTarget.releasePointerCapture(event.pointerId);
+              }
+            } catch (_) {}
+          }
+          coverSwipeStart.current = null;
+          coverDidSwipe.current = false;
+        }}
+        {...(selectedBook.hintEnabled !== false ? { 'data-hint-id': 'book-open-active' } : {})}
+        className="group relative block w-full select-none touch-pan-y text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] cursor-grab active:cursor-grabbing"
+      >
+        <div className="absolute -bottom-4 left-[8%] h-6 w-[84%] rounded-full bg-black/20 blur-xl dark:bg-black/50" />
+        <div className="relative flex justify-center transition duration-300 group-hover:-translate-y-1 group-hover:rotate-[-1deg]"><BookCover book={selectedBook} size="hero" priority /></div>
+      </button>
+
+      <div className="mt-4 w-full text-center">
+        <h2 className="text-[1.25em] font-semibold leading-tight tracking-tight sm:text-[1.4em]">{selectedBook.title}</h2>
+        {selectedBook.author && (
+          <p className="mt-1 text-[0.75em] text-gray-500 dark:text-gray-400">Written by <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedBook.author}</span></p>
+        )}
+        <div className="mt-3.5 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setDetailId(selectedBook.id)}
+            className="rounded-sm bg-[#2B579A] px-4 py-2 font-mono text-[0.625em] font-bold uppercase tracking-wider text-white hover:bg-[#1e3f73] dark:bg-[#6FA8DC] dark:text-[#171717]"
+          >
+            Open document →
+          </button>
+        </div>
+      </div>
+
+      {items.length > 1 && (
+        <div className="mt-4 flex flex-col items-center">
+          <div className="flex items-center justify-center gap-0.5" aria-label="Select book">
+            {items.map((book, index) => (
+              <button key={book.id} type="button" onClick={() => setSelectedId(book.id)} aria-label={`Select ${book.title}`} aria-pressed={index === selectedIndex} title={book.title} className="grid h-9 min-w-9 place-items-center rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
+                <span aria-hidden="true" className={`h-2 rounded-full transition-all ${index === selectedIndex ? 'w-6 bg-[#2B579A] dark:bg-[#6FA8DC]' : 'w-2 bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500'}`} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="view-reveal w-full py-3 text-gray-900 dark:text-gray-100">
@@ -364,112 +467,39 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
           )}
         </div>
 
-        <div className="grid grid-cols-1 gap-7 md:grid-cols-[minmax(0,1fr)_16rem_minmax(0,1fr)] md:grid-rows-2 md:gap-x-8 md:gap-y-10">
-          <div className="mx-auto flex w-full max-w-[16rem] flex-col items-center md:col-start-2 md:row-span-2 md:row-start-1 md:self-center">
-            <button
-              type="button"
-              onWheel={handleWheel}
-              onClick={() => {
-                if (coverDidSwipe.current) {
-                  coverDidSwipe.current = false;
-                  return;
-                }
-                setDetailId(selectedBook.id);
-              }}
-              onPointerDown={(event) => {
-                coverSwipeStart.current = event.clientX;
-                coverDidSwipe.current = false;
-                if (event.currentTarget && event.currentTarget.setPointerCapture) {
-                  try {
-                    event.currentTarget.setPointerCapture(event.pointerId);
-                  } catch (_) {}
-                }
-              }}
-              onPointerUp={(event) => {
-                if (event.currentTarget && event.currentTarget.releasePointerCapture) {
-                  try {
-                    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                      event.currentTarget.releasePointerCapture(event.pointerId);
-                    }
-                  } catch (_) {}
-                }
-                if (coverSwipeStart.current === null) return;
-                const distance = event.clientX - coverSwipeStart.current;
-                coverSwipeStart.current = null;
-                if (Math.abs(distance) > 25 && items.length > 1) {
-                  coverDidSwipe.current = true;
-                  selectRelativeBook(distance < 0 ? 1 : -1);
-                }
-              }}
-              onPointerCancel={(event) => {
-                if (event.currentTarget && event.currentTarget.releasePointerCapture) {
-                  try {
-                    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                      event.currentTarget.releasePointerCapture(event.pointerId);
-                    }
-                  } catch (_) {}
-                }
-                coverSwipeStart.current = null;
-                coverDidSwipe.current = false;
-              }}
-              {...(selectedBook.hintEnabled !== false ? { 'data-hint-id': 'book-open-active' } : {})}
-              className="group relative block w-full select-none touch-pan-y text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] cursor-grab active:cursor-grabbing"
-            >
-              <div className="absolute -bottom-4 left-[8%] h-6 w-[84%] rounded-full bg-black/20 blur-xl dark:bg-black/50" />
-              <div className="relative flex justify-center transition duration-300 group-hover:-translate-y-1 group-hover:rotate-[-1deg]"><BookCover book={selectedBook} size="hero" priority /></div>
-            </button>
-
-            <div className="mt-4 w-full text-center">
-              <h2 className="text-[1.25em] font-semibold leading-tight tracking-tight sm:text-[1.4em]">{selectedBook.title}</h2>
-              {selectedBook.author && (
-                <p className="mt-1 text-[0.75em] text-gray-500 dark:text-gray-400">Written by <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedBook.author}</span></p>
-              )}
-              <div className="mt-3.5 flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => setDetailId(selectedBook.id)}
-                  className="rounded-sm bg-[#2B579A] px-4 py-2 font-mono text-[0.625em] font-bold uppercase tracking-wider text-white hover:bg-[#1e3f73] dark:bg-[#6FA8DC] dark:text-[#171717]"
-                >
-                  Open document →
-                </button>
-              </div>
+        {hasAutopsy ? (
+          <div className="grid grid-cols-1 gap-7 md:grid-cols-[minmax(0,1fr)_16rem_minmax(0,1fr)] md:grid-rows-2 md:gap-x-8 md:gap-y-10">
+            <div className="md:col-start-2 md:row-span-2 md:row-start-1 md:self-center">
+              {carouselCore}
             </div>
 
-            {items.length > 1 && (
-              <div className="mt-4 flex flex-col items-center">
-                <div className="flex items-center justify-center gap-0.5" aria-label="Select book">
-                  {items.map((book, index) => (
-                    <button key={book.id} type="button" onClick={() => setSelectedId(book.id)} aria-label={`Select ${book.title}`} aria-pressed={index === selectedIndex} title={book.title} className="grid h-9 min-w-9 place-items-center rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
-                      <span aria-hidden="true" className={`h-2 rounded-full transition-all ${index === selectedIndex ? 'w-6 bg-[#2B579A] dark:bg-[#6FA8DC]' : 'w-2 bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500'}`} />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:contents">
+              {autopsyNotes.map((note, index) => {
+                const textVal = String(note.value || '');
+                const isLong = textVal.length > 200;
+                const isExpanded = expandedAutopsyKeys[note.key];
+                return (
+                  <article key={note.label} className={`relative rounded-md border border-gray-200 bg-gray-50/70 p-3.5 dark:border-gray-700 dark:bg-[#202020]/70 ${note.position}`}>
+                    <span aria-hidden="true" className={`absolute top-1/2 hidden h-px w-8 bg-gray-300 md:block dark:bg-gray-700 ${index % 2 === 0 ? '-right-8' : '-left-8'}`} />
+                    <p className="font-mono text-[0.5625em] font-bold uppercase tracking-[0.2em] text-gray-400">{note.label}</p>
+                    <div className={isLong && !isExpanded ? 'line-clamp-3 overflow-hidden' : ''}>
+                      <RichContent value={note.value} className="mt-1.5 text-[0.8125em] leading-relaxed text-gray-600 dark:text-gray-300" />
+                    </div>
+                    {isLong && (
+                      <button type="button" onClick={() => toggleAutopsyKey(note.key)} className="mt-1 font-mono text-[0.5625em] font-bold uppercase tracking-wider text-[#2B579A] hover:underline dark:text-[#6FA8DC]">
+                        {isExpanded ? 'Collapse ↑' : 'Read more ↓'}
+                      </button>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
           </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:contents">
-            {autopsyNotes.map((note, index) => {
-              const textVal = String(note.value || '');
-              const isLong = textVal.length > 200;
-              const isExpanded = expandedAutopsyKeys[note.key];
-              return (
-                <article key={note.label} className={`relative rounded-md border border-gray-200 bg-gray-50/70 p-3.5 dark:border-gray-700 dark:bg-[#202020]/70 ${note.position}`}>
-                  <span aria-hidden="true" className={`absolute top-1/2 hidden h-px w-8 bg-gray-300 md:block dark:bg-gray-700 ${index % 2 === 0 ? '-right-8' : '-left-8'}`} />
-                  <p className="font-mono text-[0.5625em] font-bold uppercase tracking-[0.2em] text-gray-400">{note.label}</p>
-                  <div className={isLong && !isExpanded ? 'line-clamp-3 overflow-hidden' : ''}>
-                    <RichContent value={note.value} className="mt-1.5 text-[0.8125em] leading-relaxed text-gray-600 dark:text-gray-300" />
-                  </div>
-                  {isLong && (
-                    <button type="button" onClick={() => toggleAutopsyKey(note.key)} className="mt-1 font-mono text-[0.5625em] font-bold uppercase tracking-wider text-[#2B579A] hover:underline dark:text-[#6FA8DC]">
-                      {isExpanded ? 'Collapse ↑' : 'Read more ↓'}
-                    </button>
-                  )}
-                </article>
-              );
-            })}
+        ) : (
+          <div className="flex justify-center">
+            {carouselCore}
           </div>
-        </div>
+        )}
       </section>
 
       {/* Render recommendation only if from an external list not currently in active carousel */}
