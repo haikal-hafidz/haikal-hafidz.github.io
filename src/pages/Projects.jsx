@@ -162,10 +162,10 @@ function UniversalWritingRenderer({ item = {}, genre = '', activeCustomSection =
   const categoryType = getWritingCategoryType(item, genre, activeCustomSection);
   const cleanHtml = sanitizeHtmlContent(html);
 
-  if (!cleanHtml) return null;
+  if (!cleanHtml && !html) return null;
 
   if (categoryType === 'song') {
-    return <SongLyricsRenderer html={cleanHtml} />;
+    return <SongLyricsRenderer html={html} />;
   }
 
   if (categoryType === 'script') {
@@ -240,9 +240,14 @@ function cmsBlockToHtml(block) {
   return block.text || block.html || block.content || "";
 }
 
-function cmsBlocksToHtml(cmsBlocks) {
+function cmsBlocksToHtml(cmsBlocks, filterType = null) {
   if (!Array.isArray(cmsBlocks)) return "";
-  return cmsBlocks.filter(Boolean).map(cmsBlockToHtml).filter(Boolean).join("");
+  return cmsBlocks
+    .filter(Boolean)
+    .filter((block) => (filterType ? block.type !== filterType : true))
+    .map(cmsBlockToHtml)
+    .filter(Boolean)
+    .join("");
 }
 
 function sanitizeHtmlContent(html = '') {
@@ -265,7 +270,7 @@ function parseLyricsToStanzas(rawInput = '') {
   }
 
   let normalized = str
-    .replace(/<p[^>]*>\s*(?:<br\s*\/?>|&nbsp;|<span[^>]*>\s*<\/span>|\s)*\s*<\/p>/gi, '===STANZA===')
+    .replace(/<(p|div)[^>]*>\s*(?:<br\s*\/?>|&nbsp;|<span[^>]*>\s*<\/span>|\s)*\s*<\/\1>/gi, '===STANZA===')
     .replace(/(?:<br\s*\/?>\s*){2,}/gi, '===STANZA===')
     .replace(/\n{2,}/g, '===STANZA===');
 
@@ -279,23 +284,15 @@ function parseLyricsToStanzas(rawInput = '') {
   const stanzas = rawStanzaChunks.map((chunk) => {
     let lines = [];
 
-    if (/<p[^>]*>/i.test(chunk)) {
-      const pMatches = chunk.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [chunk];
-      pMatches.forEach((pStr) => {
-        const contentInside = pStr.replace(/^<p[^>]*>/gi, '').replace(/<\/p>$/gi, '');
-        const lineParts = contentInside.split(/<br\s*\/?>|\n/gi);
-        lineParts.forEach((part) => {
-          const cleanLine = part.replace(/<\/?(p|div)\b[^>]*>/gi, '').trim();
-          if (cleanLine) lines.push(cleanLine);
-        });
-      });
-    } else {
-      const lineParts = chunk.split(/<br\s*\/?>|\n/gi);
-      lineParts.forEach((part) => {
-        const cleanLine = part.replace(/<\/?(p|div)\b[^>]*>/gi, '').trim();
-        if (cleanLine) lines.push(cleanLine);
-      });
-    }
+    const blockNormalized = chunk
+      .replace(/<\/(p|div)>/gi, '\n')
+      .replace(/<(p|div)[^>]*>/gi, '');
+
+    const lineParts = blockNormalized.split(/<br\s*\/?>|\n/gi);
+    lineParts.forEach((part) => {
+      const cleanLine = part.replace(/<[^>]+>/g, '').trim();
+      if (cleanLine) lines.push(cleanLine);
+    });
 
     return lines;
   }).filter((stanzaLines) => stanzaLines.length > 0);
@@ -338,6 +335,11 @@ function SongLyricsRenderer({ html = '', rawText = '' }) {
   );
 }
 
+function getItemAudio(item = {}) {
+  const audioBlock = Array.isArray(item.cmsBlocks) ? item.cmsBlocks.find((block) => block?.type === 'audio' && block?.url) : null;
+  return audioBlock?.url || item.audioUrl || item.fileUrl || (/\.(mp3|m4a|wav|ogg|aac)(\?|$)/i.test(item.url || '') ? item.url : '');
+}
+
 function stripImageAndMediaTags(html = '') {
   if (!html) return '';
   return String(html)
@@ -358,7 +360,7 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
   const audioUrl = getItemAudio(item);
   const isSongWork = categoryType === 'song' || !!audioUrl;
 
-  const textBlocks = cmsBlocksToHtml(item.cmsBlocks);
+  const textBlocks = cmsBlocksToHtml(item.cmsBlocks, isSongWork || audioUrl ? 'audio' : null);
 
   const lyricsBody =
     textBlocks ||
@@ -2036,7 +2038,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     const audioUrl = getItemAudio(readingWork);
     const isSongWork = categoryType === 'song' || !!audioUrl;
 
-    const textBlocks = cmsBlocksToHtml(readingWork.cmsBlocks);
+    const textBlocks = cmsBlocksToHtml(readingWork.cmsBlocks, isSongWork || audioUrl ? 'audio' : null);
 
     const lyricsBody =
       textBlocks ||
