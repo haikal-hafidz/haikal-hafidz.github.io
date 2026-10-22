@@ -1547,15 +1547,15 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
   // Semua tab navigasi jadi 1 daftar: Articles & Poster bawaan, diikuti tab tambahan
   // apa pun yang ditambah lewat CMS (jumlahnya bebas, gak dibatasin cuma 2).
   const navTabs = useMemo(() => [
-    { key: 'articles', label: articlesLabel, count: articles.length },
-    { key: 'directing', label: directingLabel, count: directingItems.length },
-    { key: 'poster', label: posterLabel, count: posterItems.length },
+    ...(!projectsData.articlesDeleted ? [{ key: 'articles', label: articlesLabel, count: articles.length }] : []),
+    ...(!projectsData.directingDeleted ? [{ key: 'directing', label: directingLabel, count: directingItems.length }] : []),
+    ...(!projectsData.posterDeleted ? [{ key: 'poster', label: posterLabel, count: posterItems.length }] : []),
     ...customSections.filter((cs) => cs.label?.trim()).map((cs) => ({
       key: `custom:${cs.id}`,
       label: cs.label.trim(),
       count: Array.isArray(cs.items) ? cs.items.length : 0,
     })),
-  ], [articlesLabel, directingLabel, posterLabel, customSections, articles.length, directingItems.length, posterItems.length]);
+  ], [articlesLabel, directingLabel, posterLabel, customSections, articles.length, directingItems.length, posterItems.length, projectsData.articlesDeleted, projectsData.directingDeleted, projectsData.posterDeleted]);
 
   const findCategoryForWork = useCallback((workId) => {
     if (!workId) return null;
@@ -1671,9 +1671,9 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     selectedCustomIndex !== null;
 
   const projectSections = useMemo(() => [
-    { key: 'articles', label: articlesLabel, type: 'writing', count: articles.length, image: getProjectCover(articles[0]), imagePosition: getCoverPosition(articles[0]), description: projectsData.articlesDescription ?? '' },
-    { key: 'directing', label: directingLabel, type: 'video', count: directingItems.length, image: getProjectCover(directingItems.find((item) => item?.posterImage) || directingItems.find((item) => getProjectCover(item)) || directingItems[0]), imagePosition: getCoverPosition(directingItems.find((item) => item?.posterImage) || directingItems.find((item) => getProjectCover(item)) || directingItems[0]), description: projectsData.directingDescription ?? '' },
-    { key: 'poster', label: posterLabel, type: 'image', count: posterItems.length, image: getProjectCover(posterItems[0]), imagePosition: getCoverPosition(posterItems[0]), description: projectsData.posterDescription ?? '' },
+    ...(!projectsData.articlesDeleted ? [{ key: 'articles', label: articlesLabel, type: 'writing', count: articles.length, image: getProjectCover(articles[0]), imagePosition: getCoverPosition(articles[0]), description: projectsData.articlesDescription ?? '' }] : []),
+    ...(!projectsData.directingDeleted ? [{ key: 'directing', label: directingLabel, type: 'video', count: directingItems.length, image: getProjectCover(directingItems.find((item) => item?.posterImage) || directingItems.find((item) => getProjectCover(item)) || directingItems[0]), imagePosition: getCoverPosition(directingItems.find((item) => item?.posterImage) || directingItems.find((item) => getProjectCover(item)) || directingItems[0]), description: projectsData.directingDescription ?? '' }] : []),
+    ...(!projectsData.posterDeleted ? [{ key: 'poster', label: posterLabel, type: 'image', count: posterItems.length, image: getProjectCover(posterItems[0]), imagePosition: getCoverPosition(posterItems[0]), description: projectsData.posterDescription ?? '' }] : []),
     ...customSections.filter((section) => section.label?.trim()).map((section) => ({
       key: `custom:${section.id}`,
       label: section.label.trim(),
@@ -1683,18 +1683,18 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
       imagePosition: getCoverPosition(section.items?.[0]),
       description: section.description ?? '',
     })),
-  ], [articles, articlesLabel, directingItems, directingLabel, posterItems, posterLabel, customSections, projectsData.articlesDescription, projectsData.directingDescription, projectsData.posterDescription]);
+  ], [articles, articlesLabel, directingItems, directingLabel, posterItems, posterLabel, customSections, projectsData.articlesDescription, projectsData.directingDescription, projectsData.posterDescription, projectsData.articlesDeleted, projectsData.directingDeleted, projectsData.posterDeleted]);
   const visibleProjectSections = useMemo(
     () => projectSections.filter((section) => section.label?.trim()),
     [projectSections]
   );
 
   const searchableWorks = useMemo(() => [
-    ...articles.map((item, index) => ({ item, index, sectionKey: 'articles', sectionLabel: articlesLabel, type: 'writing', image: getProjectCover(item) })),
-    ...directingItems.map((item, index) => ({ item, index, sectionKey: 'directing', sectionLabel: directingLabel, type: 'video', image: getProjectCover(item) })),
-    ...posterItems.map((item, index) => ({ item, index, sectionKey: 'poster', sectionLabel: posterLabel, type: 'image', image: getProjectCover(item) })),
+    ...(!projectsData.articlesDeleted ? articles.map((item, index) => ({ item, index, sectionKey: 'articles', sectionLabel: articlesLabel, type: 'writing', image: getProjectCover(item) })) : []),
+    ...(!projectsData.directingDeleted ? directingItems.map((item, index) => ({ item, index, sectionKey: 'directing', sectionLabel: directingLabel, type: 'video', image: getProjectCover(item) })) : []),
+    ...(!projectsData.posterDeleted ? posterItems.map((item, index) => ({ item, index, sectionKey: 'poster', sectionLabel: posterLabel, type: 'image', image: getProjectCover(item) })) : []),
     ...customSections.filter((section) => section.label?.trim()).flatMap((section) => (section.items || []).map((item, index) => ({ item, index, sectionKey: `custom:${section.id}`, sectionLabel: section.label.trim(), type: section.contentType || (section.layout === 'articles' ? 'writing' : 'image'), image: getProjectCover(item) }))),
-  ], [articles, articlesLabel, directingItems, directingLabel, posterItems, posterLabel, customSections]);
+  ], [articles, articlesLabel, directingItems, directingLabel, posterItems, posterLabel, customSections, projectsData.articlesDeleted, projectsData.directingDeleted, projectsData.posterDeleted]);
   const normalizedQuery = projectQuery.trim().toLocaleLowerCase('id');
   const searchResults = normalizedQuery ? searchableWorks.filter(({ item, sectionLabel }) => `${item.title || ''} ${item.category || ''} ${item.description || ''} ${item.snippet || ''} ${sectionLabel}`.toLocaleLowerCase('id').includes(normalizedQuery)).slice(0, 12) : [];
 

@@ -40,12 +40,16 @@ export default function About({ data, interactiveWords = [], onNavigate }) {
         ) : (
           <section role="tabpanel" className="animate-[about-tab-in_220ms_ease-out]">
             {bitsItems.length ? <div className="border-t border-gray-200 dark:border-gray-700">
-              {bitsItems.map((item, index) => (
-                <div key={item.id || index} className="grid grid-cols-[minmax(0,0.38fr)_minmax(0,1fr)] gap-5 border-b border-gray-200 py-4 dark:border-gray-700">
-                  {item.label && <p className="font-mono text-[0.625em] font-bold uppercase tracking-[0.15em] text-gray-400">{item.label}</p>}
-                  {item.value && <RichContent value={item.value} className="text-[0.9375em] leading-relaxed text-gray-700 dark:text-gray-200" />}
-                </div>
-              ))}
+              {bitsItems.map((item, index) => {
+                const isValidHex = (hex) => typeof hex === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex.trim());
+                const customColor = isValidHex(item?.color) ? item.color.trim() : null;
+                return (
+                  <div key={item.id || index} className="grid grid-cols-[minmax(0,0.38fr)_minmax(0,1fr)] gap-5 border-b border-gray-200 py-4 dark:border-gray-700">
+                    {item.label && <p className="font-mono text-[0.625em] font-bold uppercase tracking-[0.15em] text-gray-400" style={customColor ? { color: customColor } : undefined}>{item.label}</p>}
+                    {item.value && <RichContent value={item.value} className="text-[0.9375em] leading-relaxed text-gray-700 dark:text-gray-200" />}
+                  </div>
+                );
+              })}
             </div> : <p className="py-6 text-sm text-gray-400">Belum ada isi Bits & Pieces.</p>}
           </section>
         )}

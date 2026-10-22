@@ -5185,6 +5185,11 @@ const DEFAULT_CONTACT = {
   email: '', location: 'Batam, Indonesia',
   draftButtonLabel: 'Create Email Draft',
   responseNote: 'Draft created — review before sending.',
+  nameLabel: 'My name is',
+  emailLabel: 'Reply to',
+  messagePromptLabel: 'Here is what you should know',
+  attachmentNote: 'Drive, Dropbox, portfolio, atau referensi lain.',
+  otherChannelLabel: 'Prefer another channel?',
   inquiryPaths: [
     { id: 'project', kind: 'project', label: 'Start a project', subject: 'Project Inquiry', enabled: true },
     { id: 'opportunity', kind: 'opportunity', label: 'Offer an opportunity', subject: 'Opportunity', enabled: true },
@@ -5508,6 +5513,9 @@ function normalizeProjectsData(raw) {
     articlesLabel: projects.articlesLabel || '',
     directingLabel: projects.directingLabel || '',
     posterLabel: projects.posterLabel || '',
+    articlesDeleted: projects.articlesDeleted === true,
+    directingDeleted: projects.directingDeleted === true,
+    posterDeleted: projects.posterDeleted === true,
     articles,
     directing: { items: Array.isArray(projects.directing?.items) ? projects.directing.items : [] },
     poster: { items },
@@ -8518,7 +8526,7 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
       };
       case 'about': return {
         source: formData.about, rootPath: 'about',
-        allowedPaths: ['about.heading', 'about.subheading', 'about.headline', 'about.locationLine', 'about.bio', 'about.signature', 'about.authorNoteTabLabel', 'about.bitsTabLabel', 'about.bitsAndPieces.items', 'about.listeningFootnote.nowPlayingLabel', 'about.listeningFootnote.lastPlayedLabel', 'about.listeningFootnote.fallbackLabel', 'about.listeningFootnote.fallbackTitle', 'about.listeningFootnote.fallbackArtist'],
+        allowedPaths: ['about.heading', 'about.subheading', 'about.headline', 'about.locationLine', 'about.bio', 'about.signature', 'about.authorNoteTabLabel', 'about.bitsTabLabel', 'about.bitsAndPieces.items', 'about.listeningFootnote.nowPlayingLabel', 'about.listeningFootnote.lastPlayedLabel', 'about.listeningFootnote.fallbackLabel', 'about.listeningFootnote.fallbackTitle', 'about.listeningFootnote.fallbackArtist', 'about.listeningFootnote.accentColor'],
       };
       case 'career': return {
         source: formData.career, rootPath: 'career',
@@ -8530,11 +8538,11 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
       };
       case 'projects': return {
         source: formData.projects, rootPath: 'projects',
-        allowedPaths: ['projects.heading', 'projects.subheading', 'projects.indexHeading', 'projects.indexDescription', 'projects.searchLabel', 'projects.openDrawerLabel', 'projects.backLabel', 'projects.articlesLabel', 'projects.articlesDescription', 'projects.posterLabel', 'projects.posterDescription', 'projects.directingLabel', 'projects.directingDescription', 'projects.articles', 'projects.poster', 'projects.directing', 'projects.customSections'],
+        allowedPaths: ['projects.heading', 'projects.subheading', 'projects.indexHeading', 'projects.indexDescription', 'projects.searchLabel', 'projects.openDrawerLabel', 'projects.backLabel', 'projects.articlesLabel', 'projects.articlesDescription', 'projects.posterLabel', 'projects.posterDescription', 'projects.directingLabel', 'projects.directingDescription', 'projects.articlesDeleted', 'projects.directingDeleted', 'projects.posterDeleted', 'projects.articles', 'projects.poster', 'projects.directing', 'projects.customSections'],
       };
       case 'contact': return {
         source: formData.contact, rootPath: 'contact',
-        allowedPaths: ['contact.heading', 'contact.subheading', 'contact.email', 'contact.location', 'contact.formTitle', 'contact.responseNote', 'contact.draftButtonLabel', 'contact.propertiesTitle', 'contact.properties', 'contact.inquiryPaths', 'contact.actionButtons', 'contact.socials'],
+        allowedPaths: ['contact.heading', 'contact.subheading', 'contact.email', 'contact.location', 'contact.formTitle', 'contact.responseNote', 'contact.draftButtonLabel', 'contact.propertiesTitle', 'contact.nameLabel', 'contact.emailLabel', 'contact.messagePromptLabel', 'contact.attachmentNote', 'contact.otherChannelLabel', 'contact.properties', 'contact.inquiryPaths', 'contact.actionButtons', 'contact.socials'],
       };
       case 'visitorIntroduction': return {
         source: formData.home?.visitorIntroduction || {}, rootPath: 'home.visitorIntroduction',
@@ -8555,7 +8563,7 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
       case 'leaderboardSystems': return { source: {}, rootPath: '', allowedPaths: [] };
       case 'general': return {
         source: formData.general, rootPath: 'general',
-        allowedPaths: ['general.welcomeNotification.title', 'general.welcomeNotification.message', 'general.welcomeNotification.items', 'general.welcomeNotification.version', 'general.soundEffects'],
+        allowedPaths: ['general.welcomeNotification.title', 'general.welcomeNotification.message', 'general.welcomeNotification.items', 'general.welcomeNotification.version', 'general.welcomeNotification.accentColor', 'general.soundEffects'],
       };
       case 'websikee': return { source: {}, rootPath: '', allowedPaths: [] };
       default: return { source: {}, rootPath: '', allowedPaths: [] };
@@ -9273,7 +9281,25 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
                     onRemove={() => removeBitsAndPiecesItem(index)}
                   >
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-[0.35fr_1fr]">
-                      <Field label="Tab Name"><input value={item.label || ''} onChange={(e) => updateBitsAndPiecesItem(index, { label: e.target.value })} className={inputCls} placeholder="Status / Currently Writing / Currently Reading" /></Field>
+                      <Field label="Tab Name">
+                        <input value={item.label || ''} onChange={(e) => updateBitsAndPiecesItem(index, { label: e.target.value })} className={inputCls} placeholder="Status / Currently Writing / Currently Reading" />
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="text-[10px] font-bold uppercase text-gray-400">Accent HEX:</span>
+                          <input
+                            type="color"
+                            value={/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(item.color || '') ? item.color : '#888888'}
+                            onChange={(e) => updateBitsAndPiecesItem(index, { color: e.target.value })}
+                            className="h-6 w-8 cursor-pointer rounded border border-gray-300 dark:border-gray-600 bg-transparent p-0.5"
+                          />
+                          <input
+                            type="text"
+                            value={item.color || ''}
+                            onChange={(e) => updateBitsAndPiecesItem(index, { color: e.target.value })}
+                            placeholder="#888888"
+                            className={`${inputClsSm} max-w-[100px] font-mono`}
+                          />
+                        </div>
+                      </Field>
                       <Field label="Isi"><RichTextEditor fieldMode initialValue={item.value || ''} onChange={(html) => updateBitsAndPiecesItem(index, { value: html })} placeholder="Isi tab" /></Field>
                     </div>
                   </ContentCard>
@@ -9309,6 +9335,23 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
                 <Field label="URL cover fallback" sourceValue={sourceFormData.about.listeningFootnote.fallbackImage || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.fallbackImage || ''} onChange={(e) => setListeningFootnote('fallbackImage', e.target.value)} className={inputCls} /></Field>
                 <Field label="Link lagu fallback" sourceValue={sourceFormData.about.listeningFootnote.fallbackUrl || ''} cmsLanguage={cmsLanguage}><input value={formData.about.listeningFootnote.fallbackUrl || ''} onChange={(e) => setListeningFootnote('fallbackUrl', e.target.value)} className={inputCls} /></Field>
               </div>
+              <Field label="Accent Color (HEX)" sourceValue={sourceFormData.about.listeningFootnote.accentColor || '#2B579A'} cmsLanguage={cmsLanguage}>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(formData.about.listeningFootnote.accentColor || '') ? formData.about.listeningFootnote.accentColor : '#2B579A'}
+                    onChange={(e) => setListeningFootnote('accentColor', e.target.value)}
+                    className="h-8 w-10 cursor-pointer rounded border border-gray-300 dark:border-gray-600 bg-transparent p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={formData.about.listeningFootnote.accentColor || ''}
+                    onChange={(e) => setListeningFootnote('accentColor', e.target.value)}
+                    placeholder="#2B579A"
+                    className={`${inputCls} max-w-[140px] font-mono`}
+                  />
+                </div>
+              </Field>
             </CollapsibleSection>
           </div>
         )}
@@ -9752,52 +9795,53 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
               <section className="mt-6 space-y-4 border-t border-gray-200 pt-6 dark:border-gray-700"><div className="flex items-center justify-between"><div><h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">My Books</h3><p className="mt-1 text-[10px] text-gray-400">My work / book settings.</p></div><AddBtn onClick={addBook} label="Add Book / Work" /></div>
               {formData.books.items.map((book, idx) => (
                 <ContentCard key={book.id || idx} cardKey={`book-${book.id || idx}`} listKey="books" idx={idx} count={formData.books.items.length} title={book.title || `Book / Work #${idx + 1}`} subtitle={[book.category, book.pageCount ? `${book.pageCount} pages` : ''].filter(Boolean).join(' · ')} onRemove={() => removeBook(idx)}>
-                    <div className="flex flex-wrap justify-end gap-4">
-                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
-                        <input type="checkbox" checked={book.featured === true} onChange={(e) => setExclusiveBookFlag(idx, 'featured', e.target.checked)} className="accent-blue-600" />
-                        Current Manuscript
-                      </label>
-                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
-                        <input type="checkbox" checked={book.startHere === true} onChange={(e) => setExclusiveBookFlag(idx, 'startHere', e.target.checked)} className="accent-blue-600" />
-                        Start Here
-                      </label>
-                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={book.hintEnabled !== false}
-                          onChange={(e) => setBookField(idx, 'hintEnabled', e.target.checked)}
-                          className="accent-blue-600"
-                        />
-                        Blink pas mode Hint
-                      </label>
+                  <div className="flex flex-wrap justify-end gap-4 pb-2 border-b border-gray-100 dark:border-gray-800">
+                    <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+                      <input type="checkbox" checked={book.featured === true} onChange={(e) => setExclusiveBookFlag(idx, 'featured', e.target.checked)} className="accent-blue-600" />
+                      Current Manuscript
+                    </label>
+                    <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+                      <input type="checkbox" checked={book.startHere === true} onChange={(e) => setExclusiveBookFlag(idx, 'startHere', e.target.checked)} className="accent-blue-600" />
+                      Start Here
+                    </label>
+                    <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+                      <input type="checkbox" checked={book.hintEnabled !== false} onChange={(e) => setBookField(idx, 'hintEnabled', e.target.checked)} className="accent-blue-600" />
+                      Blink pas mode Hint
+                    </label>
+                  </div>
+
+                  <div className="space-y-3 rounded-lg border border-gray-200/80 bg-white p-3 dark:border-gray-700/80 dark:bg-[#202020]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Basic Information</span>
+                    <input type="text" value={book.title} onChange={(e) => setBookField(idx, 'title', e.target.value)} placeholder="Book / Work Title" className={inputClsSm} />
+                    <Field label="Role / Kontribusi Saya">
+                      <input type="text" value={book.myRoles || ''} onChange={(e) => setBookField(idx, 'myRoles', e.target.value)} placeholder="Writer, Editor, Book Designer (separate with commas)" className={inputClsSm} />
+                    </Field>
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <input type="text" value={book.author || ''} onChange={(e) => setBookField(idx, 'author', e.target.value)} placeholder="Author name" className={inputClsSm} />
+                      <input type="text" value={book.publisher || ''} onChange={(e) => setBookField(idx, 'publisher', e.target.value)} placeholder="Penerbit / imprint" className={inputClsSm} />
+                      <input type="text" value={book.publicationDate || ''} onChange={(e) => setBookField(idx, 'publicationDate', e.target.value)} placeholder="Date terbit (mis. September 2026)" className={inputClsSm} />
+                      <input type="text" value={book.isbn || ''} onChange={(e) => setBookField(idx, 'isbn', e.target.value)} placeholder="ISBN (opsional)" className={inputClsSm} />
+                      <input type="text" value={book.edition || ''} onChange={(e) => setBookField(idx, 'edition', e.target.value)} placeholder="Edisi (opsional)" className={inputClsSm} />
+                      <input type="text" value={book.category} onChange={(e) => setBookField(idx, 'category', e.target.value)} placeholder="Category (e.g. Fiction / Essay)" className={inputClsSm} />
+                      <select value={book.status || 'published'} onChange={(e) => setBookField(idx, 'status', e.target.value)} className={inputClsSm}>
+                        <option value="published">Published</option><option value="writing">In Progress</option><option value="draft">Draft</option><option value="archived">Archived</option>
+                      </select>
+                      <input type="text" value={book.year || ''} onChange={(e) => setBookField(idx, 'year', e.target.value)} placeholder="Tahun (mis. 2026)" className={inputClsSm} />
+                      <input type="text" value={book.language || ''} onChange={(e) => setBookField(idx, 'language', e.target.value)} placeholder="Language" className={inputClsSm} />
+                      <input type="text" value={book.format || ''} onChange={(e) => setBookField(idx, 'format', e.target.value)} placeholder="Format (Novel, E-Book, Booklet...)" className={inputClsSm} />
+                      <input type="number" min="0" max="100" value={book.progress || ''} onChange={(e) => setBookField(idx, 'progress', e.target.value)} placeholder="Progress naskah (%)" className={inputClsSm} />
+                      <input type="text" value={book.pageCount || ''} onChange={(e) => setBookField(idx, 'pageCount', e.target.value)} placeholder="Page Count (e.g. 184)" className={inputClsSm} />
                     </div>
-                  <input type="text" value={book.title} onChange={(e) => setBookField(idx, 'title', e.target.value)} placeholder="Book / Work Title" className={inputClsSm} />
-                  <Field label="Role / Kontribusi Saya">
-                    <input type="text" value={book.myRoles || ''} onChange={(e) => setBookField(idx, 'myRoles', e.target.value)} placeholder="Writer, Editor, Book Designer (separate with commas)" className={inputClsSm} />
-                    <p className="mt-1 text-[10px] leading-relaxed text-gray-400">Use one or multiple roles. The order entered here becomes the chip order in Book Autopsy.</p>
-                  </Field>
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    <input type="text" value={book.author || ''} onChange={(e) => setBookField(idx, 'author', e.target.value)} placeholder="Author name" className={inputClsSm} />
-                    <input type="text" value={book.publisher || ''} onChange={(e) => setBookField(idx, 'publisher', e.target.value)} placeholder="Penerbit / imprint" className={inputClsSm} />
-                    <input type="text" value={book.publicationDate || ''} onChange={(e) => setBookField(idx, 'publicationDate', e.target.value)} placeholder="Date terbit (mis. September 2026)" className={inputClsSm} />
-                    <input type="text" value={book.isbn || ''} onChange={(e) => setBookField(idx, 'isbn', e.target.value)} placeholder="ISBN (opsional)" className={inputClsSm} />
-                    <input type="text" value={book.edition || ''} onChange={(e) => setBookField(idx, 'edition', e.target.value)} placeholder="Edisi (opsional)" className={inputClsSm} />
                   </div>
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    <input type="text" value={book.category} onChange={(e) => setBookField(idx, 'category', e.target.value)} placeholder="Category (e.g. Fiction / Essay)" className={inputClsSm} />
-                    <select value={book.status || 'published'} onChange={(e) => setBookField(idx, 'status', e.target.value)} className={inputClsSm}>
-                      <option value="published">Published</option><option value="writing">In Progress</option><option value="draft">Draft</option><option value="archived">Archived</option>
-                    </select>
-                    <input type="text" value={book.year || ''} onChange={(e) => setBookField(idx, 'year', e.target.value)} placeholder="Tahun (mis. 2026)" className={inputClsSm} />
-                    <input type="text" value={book.language || ''} onChange={(e) => setBookField(idx, 'language', e.target.value)} placeholder="Language" className={inputClsSm} />
-                    <input type="text" value={book.format || ''} onChange={(e) => setBookField(idx, 'format', e.target.value)} placeholder="Format (Novel, E-Book, Booklet...)" className={inputClsSm} />
-                    <input type="number" min="0" max="100" value={book.progress || ''} onChange={(e) => setBookField(idx, 'progress', e.target.value)} placeholder="Progress naskah (%)" className={inputClsSm} />
+
+                  <div className="space-y-3 rounded-lg border border-gray-200/80 bg-white p-3 dark:border-gray-700/80 dark:bg-[#202020]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Content & Descriptions</span>
+                    <RichTextEditor fieldMode initialValue={book.pitch || ''} onChange={(html) => setBookField(idx, 'pitch', html)} placeholder="One-line pitch — one sentence that sells the idea of the work" />
+                    <RichTextEditor fieldMode initialValue={book.summary} onChange={(html) => setBookField(idx, 'summary', html)} placeholder="Ringkasan singkat" />
+                    <RichTextEditor fieldMode initialValue={book.fullDescription} onChange={(html) => setBookField(idx, 'fullDescription', html)} placeholder="Full description" />
+                    <RichTextEditor fieldMode initialValue={book.whyWritten || ''} onChange={(html) => setBookField(idx, 'whyWritten', html)} placeholder="Why I wrote this — personal / creative reason for writing this work" />
                   </div>
-                  <RichTextEditor fieldMode initialValue={book.pitch || ''} onChange={(html) => setBookField(idx, 'pitch', html)} placeholder="One-line pitch — one sentence that sells the idea of the work" />
-                  <RichTextEditor fieldMode initialValue={book.summary} onChange={(html) => setBookField(idx, 'summary', html)} placeholder="Ringkasan singkat" />
-                  <RichTextEditor fieldMode initialValue={book.fullDescription} onChange={(html) => setBookField(idx, 'fullDescription', html)} placeholder="Full description" />
-                  <RichTextEditor fieldMode initialValue={book.whyWritten || ''} onChange={(html) => setBookField(idx, 'whyWritten', html)} placeholder="Why I wrote this — personal / creative reason for writing this work" />
-  
+
                   <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-900 dark:bg-blue-950/20">
                     <div className="mb-2">
                       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-700 dark:text-blue-300">Book Autopsy</p>
@@ -9810,65 +9854,65 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
                       <RichTextEditor fieldMode initialValue={book.almostDeleted || ''} onChange={(html) => setBookField(idx, 'almostDeleted', html)} placeholder="Almost Deleted — the part that was nearly removed" />
                     </div>
                   </div>
-  
-                  <div className="flex items-center gap-2">
-                    {book.coverImage && (
-                      <img src={book.coverImage} alt={book.title} className="w-10 h-14 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
-                    )}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      disabled={uploadingBookCover === idx}
-                      onChange={async (e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
-                        setUploadingBookCover(idx);
-                        const url = await uploadImageToStorage(file);
-                        setUploadingBookCover(null);
-                        if (url) setBookField(idx, 'coverImage', url);
-                        e.target.value = '';
-                      }}
-                      className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
-                    />
-                  </div>
-                  <input type="text" value={book.coverImage} onChange={(e) => setBookField(idx, 'coverImage', e.target.value)} placeholder="Or paste a Book Cover URL" className={inputClsSm} />
-  
-                  <div className="pt-1 border-t border-gray-200 dark:border-gray-700">
-                    <p className="text-[10px] text-gray-400 mb-1.5 mt-2">
-                      Foto overview — muncul di halaman kiri pas sampul buku diklik/dibuka di halaman publik (opsional)
-                    </p>
+
+                  <div className="space-y-3 rounded-lg border border-gray-200/80 bg-white p-3 dark:border-gray-700/80 dark:bg-[#202020]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Covers & Media</span>
                     <div className="flex items-center gap-2">
-                      {book.overviewImage && (
-                        <img src={book.overviewImage} alt="" className="w-14 h-10 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
+                      {book.coverImage && (
+                        <img src={book.coverImage} alt={book.title} className="w-10 h-14 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
                       )}
                       <input
                         type="file"
                         accept="image/*"
-                        disabled={uploadingBookOverview === idx}
+                        disabled={uploadingBookCover === idx}
                         onChange={async (e) => {
                           const file = e.target.files[0];
                           if (!file) return;
-                          setUploadingBookOverview(idx);
+                          setUploadingBookCover(idx);
                           const url = await uploadImageToStorage(file);
-                          setUploadingBookOverview(null);
-                          if (url) setBookField(idx, 'overviewImage', url);
+                          setUploadingBookCover(null);
+                          if (url) setBookField(idx, 'coverImage', url);
                           e.target.value = '';
                         }}
                         className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
                       />
                     </div>
-                    <input type="text" value={book.overviewImage || ''} onChange={(e) => setBookField(idx, 'overviewImage', e.target.value)} placeholder="Or paste an overview image URL" className={`${inputClsSm} mt-2`} />
+                    <input type="text" value={book.coverImage} onChange={(e) => setBookField(idx, 'coverImage', e.target.value)} placeholder="Or paste a Book Cover URL" className={inputClsSm} />
+
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-[10px] text-gray-400 mb-1.5">Overview image — optional preview page</p>
+                      <div className="flex items-center gap-2">
+                        {book.overviewImage && (
+                          <img src={book.overviewImage} alt="" className="w-14 h-10 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={uploadingBookOverview === idx}
+                          onChange={async (e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            setUploadingBookOverview(idx);
+                            const url = await uploadImageToStorage(file);
+                            setUploadingBookOverview(null);
+                            if (url) setBookField(idx, 'overviewImage', url);
+                            e.target.value = '';
+                          }}
+                          className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
+                        />
+                      </div>
+                      <input type="text" value={book.overviewImage || ''} onChange={(e) => setBookField(idx, 'overviewImage', e.target.value)} placeholder="Or paste an overview image URL" className={`${inputClsSm} mt-2`} />
+                    </div>
                   </div>
-  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <input type="text" value={book.pageCount || ''} onChange={(e) => setBookField(idx, 'pageCount', e.target.value)} placeholder="Page Count (e.g. 184)" className={inputClsSm} />
-                  </div>
-  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <input type="text" value={book.actionText} onChange={(e) => setBookField(idx, 'actionText', e.target.value)} placeholder="Button Text (e.g. Buy This Book)" className={inputClsSm} />
-                    <input type="text" value={book.actionUrl} onChange={(e) => setBookField(idx, 'actionUrl', e.target.value)} placeholder="Link Tombol" className={inputClsSm} />
-                    <input type="text" value={book.secondaryText || ''} onChange={(e) => setBookField(idx, 'secondaryText', e.target.value)} placeholder="Teks tombol kedua (opsional)" className={inputClsSm} />
-                    <input type="text" value={book.secondaryUrl || ''} onChange={(e) => setBookField(idx, 'secondaryUrl', e.target.value)} placeholder="Link tombol kedua" className={inputClsSm} />
+
+                  <div className="space-y-3 rounded-lg border border-gray-200/80 bg-white p-3 dark:border-gray-700/80 dark:bg-[#202020]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Action Links & Buttons</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <input type="text" value={book.actionText} onChange={(e) => setBookField(idx, 'actionText', e.target.value)} placeholder="Primary Button Text (e.g. Buy This Book)" className={inputClsSm} />
+                      <input type="text" value={book.actionUrl} onChange={(e) => setBookField(idx, 'actionUrl', e.target.value)} placeholder="Primary Button Link" className={inputClsSm} />
+                      <input type="text" value={book.secondaryText || ''} onChange={(e) => setBookField(idx, 'secondaryText', e.target.value)} placeholder="Secondary Button Text (optional)" className={inputClsSm} />
+                      <input type="text" value={book.secondaryUrl || ''} onChange={(e) => setBookField(idx, 'secondaryUrl', e.target.value)} placeholder="Secondary Button Link" className={inputClsSm} />
+                    </div>
                   </div>
                 </ContentCard>
               ))}
@@ -9884,53 +9928,54 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
                   <AddBtn onClick={addReadingBook} label="Add Reading Book" />
                 </div>
               {(formData.books.readingItems || []).map((book, idx) => (
-                <ContentCard key={book.id || idx} cardKey={`book-${book.id || idx}`} listKey="readingBooks" idx={idx} count={formData.books.items.length} title={book.title || `Book / Work #${idx + 1}`} subtitle={[book.category, book.pageCount ? `${book.pageCount} pages` : ''].filter(Boolean).join(' · ')} onRemove={() => removeReadingBook(idx)}>
-                    <div className="flex flex-wrap justify-end gap-4">
-                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
-                        <input type="checkbox" checked={book.featured === true} onChange={(e) => setExclusiveReadingBookFlag(idx, 'featured', e.target.checked)} className="accent-blue-600" />
-                        Current Manuscript
-                      </label>
-                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
-                        <input type="checkbox" checked={book.startHere === true} onChange={(e) => setExclusiveReadingBookFlag(idx, 'startHere', e.target.checked)} className="accent-blue-600" />
-                        Start Here
-                      </label>
-                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={book.hintEnabled !== false}
-                          onChange={(e) => setReadingBookField(idx, 'hintEnabled', e.target.checked)}
-                          className="accent-blue-600"
-                        />
-                        Blink pas mode Hint
-                      </label>
+                <ContentCard key={book.id || idx} cardKey={`reading-book-${book.id || idx}`} listKey="readingBooks" idx={idx} count={(formData.books.readingItems || []).length} title={book.title || `Book / Work #${idx + 1}`} subtitle={[book.category, book.pageCount ? `${book.pageCount} pages` : ''].filter(Boolean).join(' · ')} onRemove={() => removeReadingBook(idx)}>
+                  <div className="flex flex-wrap justify-end gap-4 pb-2 border-b border-gray-100 dark:border-gray-800">
+                    <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+                      <input type="checkbox" checked={book.featured === true} onChange={(e) => setExclusiveReadingBookFlag(idx, 'featured', e.target.checked)} className="accent-blue-600" />
+                      Current Manuscript
+                    </label>
+                    <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+                      <input type="checkbox" checked={book.startHere === true} onChange={(e) => setExclusiveReadingBookFlag(idx, 'startHere', e.target.checked)} className="accent-blue-600" />
+                      Start Here
+                    </label>
+                    <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 cursor-pointer select-none">
+                      <input type="checkbox" checked={book.hintEnabled !== false} onChange={(e) => setReadingBookField(idx, 'hintEnabled', e.target.checked)} className="accent-blue-600" />
+                      Blink pas mode Hint
+                    </label>
+                  </div>
+
+                  <div className="space-y-3 rounded-lg border border-gray-200/80 bg-white p-3 dark:border-gray-700/80 dark:bg-[#202020]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Basic Information</span>
+                    <input type="text" value={book.title} onChange={(e) => setReadingBookField(idx, 'title', e.target.value)} placeholder="Book / Work Title" className={inputClsSm} />
+                    <Field label="Role / Kontribusi Saya">
+                      <input type="text" value={book.myRoles || ''} onChange={(e) => setReadingBookField(idx, 'myRoles', e.target.value)} placeholder="Writer, Editor, Book Designer (separate with commas)" className={inputClsSm} />
+                    </Field>
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <input type="text" value={book.author || ''} onChange={(e) => setReadingBookField(idx, 'author', e.target.value)} placeholder="Author name" className={inputClsSm} />
+                      <input type="text" value={book.publisher || ''} onChange={(e) => setReadingBookField(idx, 'publisher', e.target.value)} placeholder="Penerbit / imprint" className={inputClsSm} />
+                      <input type="text" value={book.publicationDate || ''} onChange={(e) => setReadingBookField(idx, 'publicationDate', e.target.value)} placeholder="Date terbit (mis. September 2026)" className={inputClsSm} />
+                      <input type="text" value={book.isbn || ''} onChange={(e) => setReadingBookField(idx, 'isbn', e.target.value)} placeholder="ISBN (opsional)" className={inputClsSm} />
+                      <input type="text" value={book.edition || ''} onChange={(e) => setReadingBookField(idx, 'edition', e.target.value)} placeholder="Edisi (opsional)" className={inputClsSm} />
+                      <input type="text" value={book.category} onChange={(e) => setReadingBookField(idx, 'category', e.target.value)} placeholder="Category (e.g. Fiction / Essay)" className={inputClsSm} />
+                      <select value={book.status || 'published'} onChange={(e) => setReadingBookField(idx, 'status', e.target.value)} className={inputClsSm}>
+                        <option value="published">Published</option><option value="writing">In Progress</option><option value="draft">Draft</option><option value="archived">Archived</option>
+                      </select>
+                      <input type="text" value={book.year || ''} onChange={(e) => setReadingBookField(idx, 'year', e.target.value)} placeholder="Tahun (mis. 2026)" className={inputClsSm} />
+                      <input type="text" value={book.language || ''} onChange={(e) => setReadingBookField(idx, 'language', e.target.value)} placeholder="Language" className={inputClsSm} />
+                      <input type="text" value={book.format || ''} onChange={(e) => setReadingBookField(idx, 'format', e.target.value)} placeholder="Format (Novel, E-Book, Booklet...)" className={inputClsSm} />
+                      <input type="number" min="0" max="100" value={book.progress || ''} onChange={(e) => setReadingBookField(idx, 'progress', e.target.value)} placeholder="Progress naskah (%)" className={inputClsSm} />
+                      <input type="text" value={book.pageCount || ''} onChange={(e) => setReadingBookField(idx, 'pageCount', e.target.value)} placeholder="Page Count (e.g. 184)" className={inputClsSm} />
                     </div>
-                  <input type="text" value={book.title} onChange={(e) => setReadingBookField(idx, 'title', e.target.value)} placeholder="Book / Work Title" className={inputClsSm} />
-                  <Field label="Role / Kontribusi Saya">
-                    <input type="text" value={book.myRoles || ''} onChange={(e) => setReadingBookField(idx, 'myRoles', e.target.value)} placeholder="Writer, Editor, Book Designer (separate with commas)" className={inputClsSm} />
-                    <p className="mt-1 text-[10px] leading-relaxed text-gray-400">Use one or multiple roles. The order entered here becomes the chip order in Book Autopsy.</p>
-                  </Field>
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    <input type="text" value={book.author || ''} onChange={(e) => setReadingBookField(idx, 'author', e.target.value)} placeholder="Author name" className={inputClsSm} />
-                    <input type="text" value={book.publisher || ''} onChange={(e) => setReadingBookField(idx, 'publisher', e.target.value)} placeholder="Penerbit / imprint" className={inputClsSm} />
-                    <input type="text" value={book.publicationDate || ''} onChange={(e) => setReadingBookField(idx, 'publicationDate', e.target.value)} placeholder="Date terbit (mis. September 2026)" className={inputClsSm} />
-                    <input type="text" value={book.isbn || ''} onChange={(e) => setReadingBookField(idx, 'isbn', e.target.value)} placeholder="ISBN (opsional)" className={inputClsSm} />
-                    <input type="text" value={book.edition || ''} onChange={(e) => setReadingBookField(idx, 'edition', e.target.value)} placeholder="Edisi (opsional)" className={inputClsSm} />
                   </div>
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    <input type="text" value={book.category} onChange={(e) => setReadingBookField(idx, 'category', e.target.value)} placeholder="Category (e.g. Fiction / Essay)" className={inputClsSm} />
-                    <select value={book.status || 'published'} onChange={(e) => setReadingBookField(idx, 'status', e.target.value)} className={inputClsSm}>
-                      <option value="published">Published</option><option value="writing">In Progress</option><option value="draft">Draft</option><option value="archived">Archived</option>
-                    </select>
-                    <input type="text" value={book.year || ''} onChange={(e) => setReadingBookField(idx, 'year', e.target.value)} placeholder="Tahun (mis. 2026)" className={inputClsSm} />
-                    <input type="text" value={book.language || ''} onChange={(e) => setReadingBookField(idx, 'language', e.target.value)} placeholder="Language" className={inputClsSm} />
-                    <input type="text" value={book.format || ''} onChange={(e) => setReadingBookField(idx, 'format', e.target.value)} placeholder="Format (Novel, E-Book, Booklet...)" className={inputClsSm} />
-                    <input type="number" min="0" max="100" value={book.progress || ''} onChange={(e) => setReadingBookField(idx, 'progress', e.target.value)} placeholder="Progress naskah (%)" className={inputClsSm} />
+
+                  <div className="space-y-3 rounded-lg border border-gray-200/80 bg-white p-3 dark:border-gray-700/80 dark:bg-[#202020]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Content & Descriptions</span>
+                    <RichTextEditor fieldMode initialValue={book.pitch || ''} onChange={(html) => setReadingBookField(idx, 'pitch', html)} placeholder="One-line pitch — one sentence that sells the idea of the work" />
+                    <RichTextEditor fieldMode initialValue={book.summary} onChange={(html) => setReadingBookField(idx, 'summary', html)} placeholder="Ringkasan singkat" />
+                    <RichTextEditor fieldMode initialValue={book.fullDescription} onChange={(html) => setReadingBookField(idx, 'fullDescription', html)} placeholder="Full description" />
+                    <RichTextEditor fieldMode initialValue={book.whyWritten || ''} onChange={(html) => setReadingBookField(idx, 'whyWritten', html)} placeholder="Why I wrote this — personal / creative reason for writing this work" />
                   </div>
-                  <RichTextEditor fieldMode initialValue={book.pitch || ''} onChange={(html) => setReadingBookField(idx, 'pitch', html)} placeholder="One-line pitch — one sentence that sells the idea of the work" />
-                  <RichTextEditor fieldMode initialValue={book.summary} onChange={(html) => setReadingBookField(idx, 'summary', html)} placeholder="Ringkasan singkat" />
-                  <RichTextEditor fieldMode initialValue={book.fullDescription} onChange={(html) => setReadingBookField(idx, 'fullDescription', html)} placeholder="Full description" />
-                  <RichTextEditor fieldMode initialValue={book.whyWritten || ''} onChange={(html) => setReadingBookField(idx, 'whyWritten', html)} placeholder="Why I wrote this — personal / creative reason for writing this work" />
-  
+
                   <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-900 dark:bg-blue-950/20">
                     <div className="mb-2">
                       <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-blue-700 dark:text-blue-300">Book Autopsy</p>
@@ -9943,65 +9988,65 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
                       <RichTextEditor fieldMode initialValue={book.almostDeleted || ''} onChange={(html) => setReadingBookField(idx, 'almostDeleted', html)} placeholder="Almost Deleted — the part that was nearly removed" />
                     </div>
                   </div>
-  
-                  <div className="flex items-center gap-2">
-                    {book.coverImage && (
-                      <img src={book.coverImage} alt={book.title} className="w-10 h-14 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
-                    )}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      disabled={uploadingBookCover === idx}
-                      onChange={async (e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
-                        setUploadingBookCover(idx);
-                        const url = await uploadImageToStorage(file);
-                        setUploadingBookCover(null);
-                        if (url) setReadingBookField(idx, 'coverImage', url);
-                        e.target.value = '';
-                      }}
-                      className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
-                    />
-                  </div>
-                  <input type="text" value={book.coverImage} onChange={(e) => setReadingBookField(idx, 'coverImage', e.target.value)} placeholder="Or paste a Book Cover URL" className={inputClsSm} />
-  
-                  <div className="pt-1 border-t border-gray-200 dark:border-gray-700">
-                    <p className="text-[10px] text-gray-400 mb-1.5 mt-2">
-                      Foto overview — muncul di halaman kiri pas sampul buku diklik/dibuka di halaman publik (opsional)
-                    </p>
+
+                  <div className="space-y-3 rounded-lg border border-gray-200/80 bg-white p-3 dark:border-gray-700/80 dark:bg-[#202020]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Covers & Media</span>
                     <div className="flex items-center gap-2">
-                      {book.overviewImage && (
-                        <img src={book.overviewImage} alt="" className="w-14 h-10 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
+                      {book.coverImage && (
+                        <img src={book.coverImage} alt={book.title} className="w-10 h-14 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
                       )}
                       <input
                         type="file"
                         accept="image/*"
-                        disabled={uploadingBookOverview === idx}
+                        disabled={uploadingBookCover === idx}
                         onChange={async (e) => {
                           const file = e.target.files[0];
                           if (!file) return;
-                          setUploadingBookOverview(idx);
+                          setUploadingBookCover(idx);
                           const url = await uploadImageToStorage(file);
-                          setUploadingBookOverview(null);
-                          if (url) setReadingBookField(idx, 'overviewImage', url);
+                          setUploadingBookCover(null);
+                          if (url) setReadingBookField(idx, 'coverImage', url);
                           e.target.value = '';
                         }}
                         className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
                       />
                     </div>
-                    <input type="text" value={book.overviewImage || ''} onChange={(e) => setReadingBookField(idx, 'overviewImage', e.target.value)} placeholder="Or paste an overview image URL" className={`${inputClsSm} mt-2`} />
+                    <input type="text" value={book.coverImage} onChange={(e) => setReadingBookField(idx, 'coverImage', e.target.value)} placeholder="Or paste a Book Cover URL" className={inputClsSm} />
+
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <p className="text-[10px] text-gray-400 mb-1.5">Overview image — optional preview page</p>
+                      <div className="flex items-center gap-2">
+                        {book.overviewImage && (
+                          <img src={book.overviewImage} alt="" className="w-14 h-10 rounded object-cover border border-gray-300 dark:border-gray-600 shrink-0" />
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={uploadingBookOverview === idx}
+                          onChange={async (e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            setUploadingBookOverview(idx);
+                            const url = await uploadImageToStorage(file);
+                            setUploadingBookOverview(null);
+                            if (url) setReadingBookField(idx, 'overviewImage', url);
+                            e.target.value = '';
+                          }}
+                          className="flex-1 text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/40 disabled:opacity-60"
+                        />
+                      </div>
+                      <input type="text" value={book.overviewImage || ''} onChange={(e) => setReadingBookField(idx, 'overviewImage', e.target.value)} placeholder="Or paste an overview image URL" className={`${inputClsSm} mt-2`} />
+                    </div>
                   </div>
-  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <input type="text" value={book.pageCount || ''} onChange={(e) => setReadingBookField(idx, 'pageCount', e.target.value)} placeholder="Page Count (e.g. 184)" className={inputClsSm} />
-                  </div>
-  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <input type="text" value={book.actionText} onChange={(e) => setReadingBookField(idx, 'actionText', e.target.value)} placeholder="Button Text (e.g. Buy This Book)" className={inputClsSm} />
-                    <input type="text" value={book.actionUrl} onChange={(e) => setReadingBookField(idx, 'actionUrl', e.target.value)} placeholder="Link Tombol" className={inputClsSm} />
-                    <input type="text" value={book.secondaryText || ''} onChange={(e) => setReadingBookField(idx, 'secondaryText', e.target.value)} placeholder="Teks tombol kedua (opsional)" className={inputClsSm} />
-                    <input type="text" value={book.secondaryUrl || ''} onChange={(e) => setReadingBookField(idx, 'secondaryUrl', e.target.value)} placeholder="Link tombol kedua" className={inputClsSm} />
+
+                  <div className="space-y-3 rounded-lg border border-gray-200/80 bg-white p-3 dark:border-gray-700/80 dark:bg-[#202020]">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Action Links & Buttons</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <input type="text" value={book.actionText} onChange={(e) => setReadingBookField(idx, 'actionText', e.target.value)} placeholder="Primary Button Text (e.g. Buy This Book)" className={inputClsSm} />
+                      <input type="text" value={book.actionUrl} onChange={(e) => setReadingBookField(idx, 'actionUrl', e.target.value)} placeholder="Primary Button Link" className={inputClsSm} />
+                      <input type="text" value={book.secondaryText || ''} onChange={(e) => setReadingBookField(idx, 'secondaryText', e.target.value)} placeholder="Secondary Button Text (optional)" className={inputClsSm} />
+                      <input type="text" value={book.secondaryUrl || ''} onChange={(e) => setReadingBookField(idx, 'secondaryUrl', e.target.value)} placeholder="Secondary Button Link" className={inputClsSm} />
+                    </div>
                   </div>
                 </ContentCard>
               ))}
@@ -10023,9 +10068,9 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
                   {[
                     { key: 'settings', label: 'Settings Projects', icon: 'general' },
-                    { key: 'articles', label: formData.projects.articlesLabel || 'Articles', icon: 'book' },
-                    { key: 'directing', label: formData.projects.directingLabel || 'Directing', icon: 'projects' },
-                    { key: 'poster', label: formData.projects.posterLabel || 'Poster', icon: 'featuredWorks' },
+                    ...(!formData.projects.articlesDeleted ? [{ key: 'articles', label: formData.projects.articlesLabel || 'Articles', icon: 'book' }] : []),
+                    ...(!formData.projects.directingDeleted ? [{ key: 'directing', label: formData.projects.directingLabel || 'Directing', icon: 'projects' }] : []),
+                    ...(!formData.projects.posterDeleted ? [{ key: 'poster', label: formData.projects.posterLabel || 'Poster', icon: 'featuredWorks' }] : []),
                     ...formData.projects.customSections.map((section, idx) => ({ key: `custom:${section.id}`, label: section.label || `Tab Baru #${idx + 1}`, icon: 'projects' })),
                   ].map((entry) => (
                     <button key={entry.key} type="button" onClick={() => { setActiveProjectItem(null); setActiveProjectsSubTab(entry.key); bumpCmsDomRevision(); }} className="group flex min-h-[142px] flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-4 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-500 hover:shadow-md dark:border-gray-700 dark:bg-[#242424] md:min-h-[156px] md:p-5">
@@ -10072,9 +10117,9 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
 
                 <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-[#242424] md:p-6">
                   <p className="mb-4 font-[Arial] text-[10px] font-bold uppercase tracking-[0.18em] text-blue-600">Tab Setup</p>
-                  {activeProjectsSubTab==='articles'&&<div className="grid grid-cols-1 gap-4 md:grid-cols-2"><Field label={cmsCopy('Tab Name','Tab Name')} sourceValue={sourceFormData.projects.articlesLabel} cmsLanguage={cmsLanguage}><input value={formData.projects.articlesLabel||''} onChange={(e)=>setProjectsField('articlesLabel',e.target.value)} className={inputCls}/></Field><Field label={cmsCopy('Description Tab','Tab Description')} sourceValue={sourceFormData.projects.articlesDescription||''} cmsLanguage={cmsLanguage}><input value={formData.projects.articlesDescription||''} onChange={(e)=>setProjectsField('articlesDescription',e.target.value)} className={inputCls}/></Field></div>}
-                  {activeProjectsSubTab==='directing'&&<div className="grid grid-cols-1 gap-4 md:grid-cols-2"><Field label={cmsCopy('Tab Name','Tab Name')} sourceValue={sourceFormData.projects.directingLabel||''} cmsLanguage={cmsLanguage}><input value={formData.projects.directingLabel||''} onChange={(e)=>setProjectsField('directingLabel',e.target.value)} className={inputCls}/></Field><Field label={cmsCopy('Description Tab','Tab Description')} sourceValue={sourceFormData.projects.directingDescription||''} cmsLanguage={cmsLanguage}><input value={formData.projects.directingDescription||''} onChange={(e)=>setProjectsField('directingDescription',e.target.value)} className={inputCls}/></Field></div>}
-                  {activeProjectsSubTab==='poster'&&<div className="grid grid-cols-1 gap-4 md:grid-cols-2"><Field label={cmsCopy('Tab Name','Tab Name')} sourceValue={sourceFormData.projects.posterLabel||''} cmsLanguage={cmsLanguage}><input value={formData.projects.posterLabel||''} onChange={(e)=>setProjectsField('posterLabel',e.target.value)} className={inputCls}/></Field><Field label={cmsCopy('Description Tab','Tab Description')} sourceValue={sourceFormData.projects.posterDescription||''} cmsLanguage={cmsLanguage}><input value={formData.projects.posterDescription||''} onChange={(e)=>setProjectsField('posterDescription',e.target.value)} className={inputCls}/></Field></div>}
+                  {activeProjectsSubTab==='articles'&&<div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_1fr_auto] items-end"><Field label={cmsCopy('Tab Name','Tab Name')} sourceValue={sourceFormData.projects.articlesLabel} cmsLanguage={cmsLanguage}><input value={formData.projects.articlesLabel||''} onChange={(e)=>setProjectsField('articlesLabel',e.target.value)} className={inputCls}/></Field><Field label={cmsCopy('Description Tab','Tab Description')} sourceValue={sourceFormData.projects.articlesDescription||''} cmsLanguage={cmsLanguage}><input value={formData.projects.articlesDescription||''} onChange={(e)=>setProjectsField('articlesDescription',e.target.value)} className={inputCls}/></Field><div className="flex items-end pb-1"><RemoveBtn onClick={()=>{setProjectsField('articlesDeleted', true);setActiveProjectsSubTab('menu')}} label="Delete This Tab"/></div></div>}
+                  {activeProjectsSubTab==='directing'&&<div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_1fr_auto] items-end"><Field label={cmsCopy('Tab Name','Tab Name')} sourceValue={sourceFormData.projects.directingLabel||''} cmsLanguage={cmsLanguage}><input value={formData.projects.directingLabel||''} onChange={(e)=>setProjectsField('directingLabel',e.target.value)} className={inputCls}/></Field><Field label={cmsCopy('Description Tab','Tab Description')} sourceValue={sourceFormData.projects.directingDescription||''} cmsLanguage={cmsLanguage}><input value={formData.projects.directingDescription||''} onChange={(e)=>setProjectsField('directingDescription',e.target.value)} className={inputCls}/></Field><div className="flex items-end pb-1"><RemoveBtn onClick={()=>{setProjectsField('directingDeleted', true);setActiveProjectsSubTab('menu')}} label="Delete This Tab"/></div></div>}
+                  {activeProjectsSubTab==='poster'&&<div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_1fr_auto] items-end"><Field label={cmsCopy('Tab Name','Tab Name')} sourceValue={sourceFormData.projects.posterLabel||''} cmsLanguage={cmsLanguage}><input value={formData.projects.posterLabel||''} onChange={(e)=>setProjectsField('posterLabel',e.target.value)} className={inputCls}/></Field><Field label={cmsCopy('Description Tab','Tab Description')} sourceValue={sourceFormData.projects.posterDescription||''} cmsLanguage={cmsLanguage}><input value={formData.projects.posterDescription||''} onChange={(e)=>setProjectsField('posterDescription',e.target.value)} className={inputCls}/></Field><div className="flex items-end pb-1"><RemoveBtn onClick={()=>{setProjectsField('posterDeleted', true);setActiveProjectsSubTab('menu')}} label="Delete This Tab"/></div></div>}
                   {activeProjectsSubTab.startsWith('custom:')&&(()=>{const si=formData.projects.customSections.findIndex(s=>`custom:${s.id}`===activeProjectsSubTab);if(si<0)return null;const s=formData.projects.customSections[si];const ct=s.contentType||(s.layout==='articles'?'writing':'image');return <div className="grid grid-cols-1 gap-4 md:grid-cols-2"><Field label={cmsCopy('Tab Name','Tab Name')}><input value={s.label||''} onChange={(e)=>setCustomSectionLabel(si,e.target.value)} className={inputCls}/></Field><Field label={cmsCopy('Description Tab','Tab Description')}><input value={s.description||''} onChange={(e)=>setCustomSectionDescription(si,e.target.value)} className={inputCls}/></Field><Field label={cmsCopy('Type Content','Content Type')}><select value={ct} onChange={(e)=>setCustomSectionContentType(si,e.target.value)} className={inputCls}><option value="writing">Writing</option><option value="video">Video</option><option value="image">Image</option><option value="document">Document</option><option value="link">External Link</option><option value="audio">Audio</option></select></Field><div className="flex items-end"><RemoveBtn onClick={()=>{removeCustomSection(si);setActiveProjectsSubTab('menu')}} label="Remove Tab Ini"/></div></div>;})()}
                 </div>
 
@@ -10113,6 +10158,11 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
               <Field label="Lokasi Fallback" sourceValue={sourceFormData.contact.location} cmsLanguage={cmsLanguage}><input type="text" value={formData.contact.location} onChange={(e) => setContactField('location', e.target.value)} className={inputCls} /></Field>
               <Field label="Label Tombol Draft" sourceValue={sourceFormData.contact.draftButtonLabel} cmsLanguage={cmsLanguage}><input type="text" value={formData.contact.draftButtonLabel} onChange={(e) => setContactField('draftButtonLabel', e.target.value)} className={inputCls} /></Field>
               <Field label="Post-click Notification" sourceValue={sourceFormData.contact.responseNote} cmsLanguage={cmsLanguage}><input type="text" value={formData.contact.responseNote} onChange={(e) => setContactField('responseNote', e.target.value)} className={inputCls} /></Field>
+              <Field label="Label Prompt Nama" sourceValue={sourceFormData.contact.nameLabel || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.contact.nameLabel || ''} onChange={(e) => setContactField('nameLabel', e.target.value)} className={inputCls} placeholder="My name is" /></Field>
+              <Field label="Label Prompt Email" sourceValue={sourceFormData.contact.emailLabel || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.contact.emailLabel || ''} onChange={(e) => setContactField('emailLabel', e.target.value)} className={inputCls} placeholder="Reply to" /></Field>
+              <Field label="Label Prompt Pesan" sourceValue={sourceFormData.contact.messagePromptLabel || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.contact.messagePromptLabel || ''} onChange={(e) => setContactField('messagePromptLabel', e.target.value)} className={inputCls} placeholder="Here is what you should know" /></Field>
+              <Field label="Catatan Lampiran" sourceValue={sourceFormData.contact.attachmentNote || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.contact.attachmentNote || ''} onChange={(e) => setContactField('attachmentNote', e.target.value)} className={inputCls} placeholder="Drive, Dropbox, portfolio, atau referensi lain." /></Field>
+              <Field label="Label Opsi Kontak Lain" sourceValue={sourceFormData.contact.otherChannelLabel || ''} cmsLanguage={cmsLanguage}><input type="text" value={formData.contact.otherChannelLabel || ''} onChange={(e) => setContactField('otherChannelLabel', e.target.value)} className={inputCls} placeholder="Prefer another channel?" /></Field>
             </div>
 
             <CollapsibleSection sectionKey="contact-content-manager" title="Contact Content" subtitle="Inquiry paths, options, properties, social media, and additional links">
@@ -10526,6 +10576,24 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
                   placeholder="Update terbaru"
                   className={inputCls}
                 />
+              </Field>
+
+              <Field label="Accent Color (HEX)" sourceValue={sourceFormData.general.welcomeNotification.accentColor || '#2B579A'} cmsLanguage={cmsLanguage}>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(formData.general.welcomeNotification.accentColor || '') ? formData.general.welcomeNotification.accentColor : '#2B579A'}
+                    onChange={(e) => setWelcomeNotification('accentColor', e.target.value)}
+                    className="h-8 w-10 cursor-pointer rounded border border-gray-300 dark:border-gray-600 bg-transparent p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={formData.general.welcomeNotification.accentColor || ''}
+                    onChange={(e) => setWelcomeNotification('accentColor', e.target.value)}
+                    placeholder="#2B579A"
+                    className={`${inputCls} max-w-[140px] font-mono`}
+                  />
+                </div>
               </Field>
 
               <Field label="Update List">

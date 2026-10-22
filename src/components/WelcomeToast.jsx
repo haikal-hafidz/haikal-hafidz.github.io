@@ -9,6 +9,9 @@ export default function WelcomeToast({ settings, isMobileLayout, isOpen, onClose
   const items = Array.isArray(settings?.items) ? settings.items.filter((item) => item?.title?.trim() || item?.description?.trim()) : [];
   const version = String(settings?.version || '1.0.0').trim();
 
+  const isValidHex = (hex) => typeof hex === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex.trim());
+  const customAccent = isValidHex(settings?.accentColor) ? settings.accentColor.trim() : null;
+
   const patchId = version || `${title}|${message}|${items.map((item) => `${item.title}:${item.description}`).join('|')}`;
   const seenKey = `portfolio_patch_seen:${patchId}`;
 
@@ -43,7 +46,10 @@ export default function WelcomeToast({ settings, isMobileLayout, isOpen, onClose
       aria-modal="true"
     >
       <div className="bg-white dark:bg-[#242424] border border-gray-300 dark:border-gray-700 rounded-xl shadow-2xl p-4 flex gap-3 items-start">
-        <span className="shrink-0 mt-0.5 w-9 h-9 rounded-full bg-[#2b579a] dark:bg-[#3a72c4] text-white flex items-center justify-center">
+        <span
+          className="shrink-0 mt-0.5 w-9 h-9 rounded-full bg-[#2b579a] dark:bg-[#3a72c4] text-white flex items-center justify-center"
+          style={customAccent ? { backgroundColor: customAccent } : undefined}
+        >
           <svg viewBox="25 50 180 130" className="w-5 h-5" fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true">
             <path d="M116 150 Q108 152 96 149 Q106 145 114 144 Z" />
             <path d="M104 140 Q60 138 40 148 Q54 132 70 128 Q86 126 106 136 Z" />
@@ -56,7 +62,10 @@ export default function WelcomeToast({ settings, isMobileLayout, isOpen, onClose
         </span>
         <div className="flex-1 min-w-0">
           {version && (
-            <span className="block mb-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#2b579a] dark:text-[#7fb0f1]">
+            <span
+              className="block mb-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-[#2b579a] dark:text-[#7fb0f1]"
+              style={customAccent ? { color: customAccent } : undefined}
+            >
               Patch {version}
             </span>
           )}
