@@ -162,10 +162,10 @@ function UniversalWritingRenderer({ item = {}, genre = '', activeCustomSection =
   const categoryType = getWritingCategoryType(item, genre, activeCustomSection);
   const cleanHtml = sanitizeHtmlContent(html);
 
-  if (!cleanHtml) return null;
+  if (!cleanHtml && !html) return null;
 
   if (categoryType === 'song') {
-    return <SongLyricsRenderer html={cleanHtml} />;
+    return <SongLyricsRenderer html={html} />;
   }
 
   if (categoryType === 'script') {
@@ -270,7 +270,7 @@ function parseLyricsToStanzas(rawInput = '') {
   }
 
   let normalized = str
-    .replace(/<p[^>]*>\s*(?:<br\s*\/?>|&nbsp;|<span[^>]*>\s*<\/span>|\s)*\s*<\/p>/gi, '===STANZA===')
+    .replace(/<(p|div)[^>]*>\s*(?:<br\s*\/?>|&nbsp;|<span[^>]*>\s*<\/span>|\s)*\s*<\/\1>/gi, '===STANZA===')
     .replace(/(?:<br\s*\/?>\s*){2,}/gi, '===STANZA===')
     .replace(/\n{2,}/g, '===STANZA===');
 
@@ -284,23 +284,15 @@ function parseLyricsToStanzas(rawInput = '') {
   const stanzas = rawStanzaChunks.map((chunk) => {
     let lines = [];
 
-    if (/<p[^>]*>/i.test(chunk)) {
-      const pMatches = chunk.match(/<p[^>]*>[\s\S]*?<\/p>/gi) || [chunk];
-      pMatches.forEach((pStr) => {
-        const contentInside = pStr.replace(/^<p[^>]*>/gi, '').replace(/<\/p>$/gi, '');
-        const lineParts = contentInside.split(/<br\s*\/?>|\n/gi);
-        lineParts.forEach((part) => {
-          const cleanLine = part.replace(/<\/?(p|div)\b[^>]*>/gi, '').trim();
-          if (cleanLine) lines.push(cleanLine);
-        });
-      });
-    } else {
-      const lineParts = chunk.split(/<br\s*\/?>|\n/gi);
-      lineParts.forEach((part) => {
-        const cleanLine = part.replace(/<\/?(p|div)\b[^>]*>/gi, '').trim();
-        if (cleanLine) lines.push(cleanLine);
-      });
-    }
+    const blockNormalized = chunk
+      .replace(/<\/(p|div)>/gi, '\n')
+      .replace(/<(p|div)[^>]*>/gi, '');
+
+    const lineParts = blockNormalized.split(/<br\s*\/?>|\n/gi);
+    lineParts.forEach((part) => {
+      const cleanLine = part.replace(/<[^>]+>/g, '').trim();
+      if (cleanLine) lines.push(cleanLine);
+    });
 
     return lines;
   }).filter((stanzaLines) => stanzaLines.length > 0);
