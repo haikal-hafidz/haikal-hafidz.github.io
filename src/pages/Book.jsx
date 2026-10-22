@@ -37,7 +37,7 @@ function BookCover({ book, size = 'hero', priority = false, decorative = false }
   const fallbackDimensions = size === 'shelf' ? 'h-48 w-36' : 'aspect-[3/4] w-full max-w-[14rem]';
 
   if (!book?.coverImage) {
-    return <div className={`flex items-center justify-center border border-gray-200 bg-white px-5 text-center font-mono text-[0.625em] text-gray-400 shadow-xl dark:border-gray-700 dark:bg-[#181818] ${fallbackDimensions}`}>COVER IN REVISION</div>;
+    return <div className={`flex select-none items-center justify-center border border-gray-200 bg-white px-5 text-center font-mono text-[0.625em] text-gray-400 shadow-xl dark:border-gray-700 dark:bg-[#181818] ${fallbackDimensions}`}>COVER IN REVISION</div>;
   }
 
   return (
@@ -47,7 +47,9 @@ function BookCover({ book, size = 'hero', priority = false, decorative = false }
       loading={priority ? 'eager' : 'lazy'}
       decoding="async"
       fetchPriority={priority ? 'high' : 'low'}
-      className={`block h-auto w-auto rounded-sm border border-gray-200 bg-white object-contain shadow-xl dark:border-gray-700 dark:bg-[#181818] ${dimensions[size]}`}
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
+      className={`block h-auto w-auto select-none rounded-sm border border-gray-200 bg-white object-contain shadow-xl pointer-events-none dark:border-gray-700 dark:bg-[#181818] ${dimensions[size]}`}
     />
   );
 }
@@ -83,6 +85,13 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
   const selectedBook = items.find((item) => item.id === selectedId) || currentBook;
   const detailBook = items.find((item) => item.id === detailId) || null;
   const [expandedAutopsyKeys, setExpandedAutopsyKeys] = useState({});
+  const detailRef = useRef(null);
+
+  useEffect(() => {
+    if (detailId && detailRef.current) {
+      detailRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [detailId]);
 
   const toggleAutopsyKey = (key) => {
     setExpandedAutopsyKeys((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -141,62 +150,191 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
   );
 
   if (!items.length) {
-    return <div className="view-reveal w-full py-3 text-gray-900 dark:text-gray-100"><div className="mb-6">{bookTabs}</div><div className="py-14 text-center"><h1 className="text-[1.5em] font-bold"><InteractiveText text={heading} rules={interactiveWords} page="Book" onNavigate={onNavigate} /></h1><p className="mt-3 text-[0.875em] italic text-gray-400">{bookTab === 'reading' ? 'Belum ada buku bacaan.' : 'Belum ada publikasi.'}</p></div></div>;
+    return (
+      <div className="view-reveal w-full py-3 text-gray-900 dark:text-gray-100">
+        <header className="border-b border-gray-200 pb-5 dark:border-gray-700">
+          {heading && <h1 className="text-[1.75em] font-semibold tracking-tight sm:text-[2.2em]"><InteractiveText text={heading} rules={interactiveWords} page="Book" onNavigate={onNavigate} /></h1>}
+          {subheading && <p className="mt-2 max-w-2xl text-[0.8125em] leading-relaxed text-gray-500 dark:text-gray-400"><InteractiveText text={subheading} rules={interactiveWords} page="Book" onNavigate={onNavigate} /></p>}
+          <div className={(heading || subheading) ? "mt-4" : ""}>{bookTabs}</div>
+        </header>
+        <div className="py-14 text-center">
+          <p className="text-[0.875em] italic text-gray-400">{bookTab === 'reading' ? 'Belum ada buku bacaan.' : 'Belum ada publikasi.'}</p>
+        </div>
+      </div>
+    );
   }
 
   if (detailBook) {
     const status = detailBook.status || 'published';
     const detailRoles = parseRoles(detailBook.myRoles);
     return (
-      <article className="view-reveal w-full py-3 text-gray-900 dark:text-gray-100">
-        <button type="button" onClick={() => setDetailId(null)} className="mb-6 inline-flex items-center gap-2 rounded font-mono text-[0.6875em] font-bold uppercase tracking-wider text-gray-500 hover:text-[#2B579A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:text-gray-400 dark:hover:text-[#6FA8DC]">← {backButtonLabel}</button>
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-[16rem_minmax(0,1fr)] md:items-start md:gap-10">
-          <div>
-            <div className="mx-auto flex max-w-[14rem] justify-center">
-              <BookCover book={detailBook} size="detail" priority />
+      <article ref={detailRef} className="view-reveal w-full py-3 text-gray-900 dark:text-gray-100">
+        <button
+          type="button"
+          onClick={() => setDetailId(null)}
+          className="mb-6 inline-flex items-center gap-2 rounded font-mono text-[0.6875em] font-bold uppercase tracking-wider text-gray-500 hover:text-[#2B579A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:text-gray-400 dark:hover:text-[#6FA8DC]"
+        >
+          ← {backButtonLabel}
+        </button>
+
+        <div className="space-y-8">
+          <header className="border-b border-gray-200 pb-6 dark:border-gray-700">
+            <p className="font-mono text-[0.625em] font-bold uppercase tracking-[0.22em] text-[#2B579A] dark:text-[#6FA8DC]">
+              Publication dossier
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <StatusBadge status={status} />
+              {detailBook.category && (
+                <span className="font-mono text-[0.625em] font-bold uppercase tracking-widest text-gray-400">
+                  {detailBook.category}
+                </span>
+              )}
             </div>
-            {(detailBook.progress || status === 'writing' || status === 'draft') && <div className="mx-auto mt-5 max-w-[14rem]"><div className="mb-1.5 flex justify-between font-mono text-[0.5625em] uppercase tracking-wider text-gray-400"><span>Manuscript progress</span><span>{Math.max(0, Math.min(100, Number(detailBook.progress) || 0))}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700"><div className="h-full bg-[#2B579A] dark:bg-[#6FA8DC]" style={{ width: `${Math.max(0, Math.min(100, Number(detailBook.progress) || 0))}%` }} /></div></div>}
-            {detailBook.overviewImage && <figure className="mx-auto mt-7 w-fit max-w-full border-t border-gray-200 pt-5 dark:border-gray-700"><p className="mb-3 font-mono text-[0.5625em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">Selected page</p><img src={bookThumb(detailBook.overviewImage, 900)} alt={`Preview ${detailBook.title}`} loading="lazy" decoding="async" className="block h-auto max-h-[25rem] max-w-full rounded-sm border border-gray-200 bg-white object-contain shadow-lg dark:border-gray-700 dark:bg-[#181818]" /><figcaption className="mt-2 font-mono text-[0.5em] uppercase tracking-[0.14em] text-gray-400">Excerpt preview</figcaption></figure>}
+            <h1 className="mt-3 max-w-3xl text-[1.875em] font-semibold leading-[1.08] tracking-tight sm:text-[2.35em]">
+              {detailBook.title}
+            </h1>
+            {detailBook.author && (
+              <p className="mt-2 text-[0.875em] text-gray-500 dark:text-gray-400">
+                written by <span className="font-semibold text-gray-800 dark:text-gray-100">{detailBook.author}</span>
+              </p>
+            )}
+            {detailBook.pitch && (
+              <RichContent
+                value={detailBook.pitch}
+                className="mt-4 max-w-3xl text-[1em] leading-relaxed text-gray-600 dark:text-gray-300"
+              />
+            )}
+
+            {(detailBook.progress || status === 'writing' || status === 'draft') && (
+              <div className="mt-5 max-w-md">
+                <div className="mb-1.5 flex justify-between font-mono text-[0.5625em] uppercase tracking-wider text-gray-400">
+                  <span>Manuscript progress</span>
+                  <span>{Math.max(0, Math.min(100, Number(detailBook.progress) || 0))}%</span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                  <div
+                    className="h-full bg-[#2B579A] dark:bg-[#6FA8DC]"
+                    style={{ width: `${Math.max(0, Math.min(100, Number(detailBook.progress) || 0))}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </header>
+
+          <dl className="grid grid-cols-2 gap-x-5 gap-y-4 rounded-md border border-gray-200 bg-gray-50/50 p-5 sm:grid-cols-3 md:grid-cols-4 dark:border-gray-700 dark:bg-[#202020]/50">
+            {[
+              ['Publisher', detailBook.publisher],
+              ['My role', detailRoles.join(' · ')],
+              ['Published', detailBook.publicationDate || detailBook.year],
+              ['Genre', detailBook.category],
+              ['Format', detailBook.format],
+              ['Language', detailBook.language],
+              ['Length', detailBook.pageCount ? `${detailBook.pageCount} pages` : ''],
+              ['Edition', detailBook.edition],
+              ['ISBN', detailBook.isbn],
+            ].filter(([, value]) => value).map(([label, value]) => (
+              <div key={label}>
+                <dt className="font-mono text-[0.5625em] uppercase tracking-widest text-gray-400">{label}</dt>
+                <dd className="mt-1 text-[0.75em] font-semibold text-gray-800 dark:text-gray-200">{value}</dd>
+              </div>
+            ))}
+          </dl>
+
+          <div className="space-y-6">
+            {(detailBook.fullDescription || detailBook.summary) && (
+              <section>
+                <h2 className="font-mono text-[0.625em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">
+                  About this work
+                </h2>
+                <RichContent
+                  value={detailBook.fullDescription || detailBook.summary}
+                  className="mt-3 max-w-3xl text-[0.875em] leading-[1.75] text-gray-600 dark:text-gray-300"
+                />
+              </section>
+            )}
+
+            {detailBook.whyWritten && (
+              <section className="border-l-2 border-[#2B579A]/30 pl-4 dark:border-[#6FA8DC]/30">
+                <h2 className="font-mono text-[0.625em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">
+                  Why I wrote this
+                </h2>
+                <RichContent
+                  value={detailBook.whyWritten}
+                  className="mt-2 max-w-3xl text-[0.875em] italic leading-[1.75] text-gray-600 dark:text-gray-300"
+                />
+              </section>
+            )}
+
+            {detailBook.overviewImage && (
+              <figure className="mt-6 border-t border-gray-200 pt-5 dark:border-gray-700">
+                <p className="mb-3 font-mono text-[0.5625em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">
+                  Selected page
+                </p>
+                <img
+                  src={bookThumb(detailBook.overviewImage, 900)}
+                  alt={`Preview ${detailBook.title}`}
+                  loading="lazy"
+                  decoding="async"
+                  className="block h-auto max-h-[28rem] max-w-full rounded-sm border border-gray-200 bg-white object-contain shadow-lg dark:border-gray-700 dark:bg-[#181818]"
+                />
+                <figcaption className="mt-2 font-mono text-[0.5em] uppercase tracking-[0.14em] text-gray-400">
+                  Excerpt preview
+                </figcaption>
+              </figure>
+            )}
           </div>
 
-          <div className="min-w-0">
-            <p className="font-mono text-[0.625em] uppercase tracking-[0.22em] text-[#2B579A] dark:text-[#6FA8DC]">Publication dossier</p>
-            <div className="mt-3 flex flex-wrap items-center gap-2"><StatusBadge status={status} />{detailBook.category && <span className="font-mono text-[0.625em] uppercase tracking-widest text-gray-400">{detailBook.category}</span>}</div>
-            <h1 className="mt-4 max-w-2xl text-[1.875em] font-semibold leading-[1.08] tracking-tight sm:text-[2.35em]">{detailBook.title}</h1>
-            {detailBook.author && <p className="mt-2 text-[0.875em] text-gray-500 dark:text-gray-400">written by <span className="font-semibold text-gray-800 dark:text-gray-100">{detailBook.author}</span></p>}
-            {detailBook.pitch && <RichContent value={detailBook.pitch} className="mt-4 max-w-2xl text-[1em] leading-relaxed text-gray-600 dark:text-gray-300" />}
-
-            <dl className="mt-6 grid grid-cols-2 gap-x-5 gap-y-4 border-y border-gray-200 py-5 sm:grid-cols-3 dark:border-gray-700">
-              {[
-                ['Publisher', detailBook.publisher],
-                ['My role', detailRoles.join(' · ')],
-                ['Published', detailBook.publicationDate || detailBook.year],
-                ['Genre', detailBook.category],
-                ['Format', detailBook.format],
-                ['Language', detailBook.language],
-                ['Length', detailBook.pageCount ? `${detailBook.pageCount} pages` : ''],
-                ['Edition', detailBook.edition],
-                ['ISBN', detailBook.isbn],
-              ].filter(([, value]) => value).map(([label, value]) => <div key={label}><dt className="font-mono text-[0.5625em] uppercase tracking-widest text-gray-400">{label}</dt><dd className="mt-1 text-[0.75em] font-semibold">{value}</dd></div>)}
-            </dl>
-
-            <div className="mt-6 space-y-6">
-              <section><h2 className="font-mono text-[0.625em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">About this work</h2><RichContent value={detailBook.fullDescription || detailBook.summary} className="mt-3 max-w-2xl text-[0.875em] leading-[1.75] text-gray-600 dark:text-gray-300" /></section>
-              {detailBook.whyWritten && <section className="border-l-2 border-[#2B579A]/30 pl-4 dark:border-[#6FA8DC]/30"><h2 className="font-mono text-[0.625em] font-bold uppercase tracking-[0.18em] text-[#2B579A] dark:text-[#6FA8DC]">Why I wrote this</h2><RichContent value={detailBook.whyWritten} className="mt-2 max-w-2xl text-[0.875em] italic leading-[1.75] text-gray-600 dark:text-gray-300" /></section>}
-            </div>
-
-            <div className="mt-7 flex flex-wrap gap-3">
-              {detailBook.actionUrl && <a href={detailBook.actionUrl} target="_blank" rel="noopener noreferrer" {...(detailBook.hintEnabled !== false ? { 'data-hint-id': `book-action-${detailBook.id}` } : {})} className="rounded-sm bg-[#2B579A] px-4 py-2.5 font-mono text-[0.6875em] font-bold uppercase tracking-wider text-white hover:bg-[#1e3f73] dark:bg-[#6FA8DC] dark:text-[#171717]">{detailBook.actionText || 'Open document'} ↗</a>}
-              {detailBook.secondaryUrl && <a href={detailBook.secondaryUrl} target="_blank" rel="noopener noreferrer" className="rounded-sm border border-gray-300 px-4 py-2.5 font-mono text-[0.6875em] font-bold uppercase tracking-wider hover:border-[#2B579A] hover:text-[#2B579A] dark:border-gray-600 dark:hover:border-[#6FA8DC] dark:hover:text-[#6FA8DC]">{detailBook.secondaryText || 'More information'} ↗</a>}
-            </div>
+          <div className="flex flex-wrap gap-3 pt-2">
+            {detailBook.actionUrl && (
+              <a
+                href={detailBook.actionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                {...(detailBook.hintEnabled !== false ? { 'data-hint-id': `book-action-${detailBook.id}` } : {})}
+                className="rounded-sm bg-[#2B579A] px-4 py-2.5 font-mono text-[0.6875em] font-bold uppercase tracking-wider text-white hover:bg-[#1e3f73] dark:bg-[#6FA8DC] dark:text-[#171717]"
+              >
+                {detailBook.actionText || 'Open document'} ↗
+              </a>
+            )}
+            {detailBook.secondaryUrl && (
+              <a
+                href={detailBook.secondaryUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-sm border border-gray-300 px-4 py-2.5 font-mono text-[0.6875em] font-bold uppercase tracking-wider hover:border-[#2B579A] hover:text-[#2B579A] dark:border-gray-600 dark:hover:border-[#6FA8DC] dark:hover:text-[#6FA8DC]"
+              >
+                {detailBook.secondaryText || 'More information'} ↗
+              </a>
+            )}
           </div>
+
+          {externalRecommendation && !items.some((item) => item.id === externalRecommendation.id) && (
+            <aside className="mt-8 flex flex-col justify-between gap-4 rounded-lg border border-[#2B579A]/25 bg-[#2B579A]/[0.04] p-4 sm:flex-row sm:items-center dark:border-[#6FA8DC]/25 dark:bg-[#6FA8DC]/[0.05]">
+              <div>
+                <p className="font-mono text-[0.5625em] font-bold uppercase tracking-[0.2em] text-[#2B579A] dark:text-[#6FA8DC]">
+                  Recommended work
+                </p>
+                <p className="mt-1 text-[0.875em] font-semibold">{externalRecommendation.title}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setBookTab(bookTab === 'reading' ? 'works' : 'reading');
+                  setSelectedId(externalRecommendation.id);
+                  setDetailId(externalRecommendation.id);
+                }}
+                className="shrink-0 font-mono text-[0.625em] font-bold uppercase tracking-wider text-[#2B579A] hover:underline dark:text-[#6FA8DC]"
+              >
+                Open recommendation →
+              </button>
+            </aside>
+          )}
         </div>
       </article>
     );
   }
 
   const selectedStatus = selectedBook?.status || 'published';
-  const selectedRoles = parseRoles(selectedBook?.myRoles);
   const selectedIndex = Math.max(0, items.findIndex((item) => item.id === selectedBook.id));
 
   const autopsyNotes = [
@@ -205,24 +343,109 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
     { key: 'writtenDuring', label: 'Written during', value: selectedBook.writtenDuring || selectedBook.publicationDate || selectedBook.year, position: 'md:col-start-1 md:row-start-2 md:self-start md:text-right' },
     { key: 'almostDeleted', label: 'Almost deleted', value: selectedBook.almostDeleted, position: 'md:col-start-3 md:row-start-2 md:self-start' },
   ].filter((note) => note.value).slice(0, 4);
+
   return (
     <div className="view-reveal w-full py-3 text-gray-900 dark:text-gray-100">
-      <div className="mb-6">{bookTabs}</div>
-      {(heading || subheading) && <header className="border-b border-gray-200 pb-5 dark:border-gray-700">
+      <header className="border-b border-gray-200 pb-5 dark:border-gray-700">
         {heading && <h1 className="text-[1.75em] font-semibold tracking-tight sm:text-[2.2em]"><InteractiveText text={heading} rules={interactiveWords} page="Book" onNavigate={onNavigate} /></h1>}
         {subheading && <p className="mt-2 max-w-2xl text-[0.8125em] leading-relaxed text-gray-500 dark:text-gray-400"><InteractiveText text={subheading} rules={interactiveWords} page="Book" onNavigate={onNavigate} /></p>}
-      </header>}
+        <div className={(heading || subheading) ? "mt-4" : ""}>{bookTabs}</div>
+      </header>
 
-      <section className="py-8" aria-label="Book autopsy">
-        <div className="mb-7 flex flex-wrap items-center justify-between gap-3"><StatusBadge status={selectedStatus} />{items.length > 1 && <div className="flex items-center overflow-hidden rounded border border-gray-200 dark:border-gray-700"><button type="button" onClick={() => selectRelativeBook(-1)} aria-label="Buku sebelumnya" className="px-2.5 py-1.5 font-mono text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">←</button><span className="border-x border-gray-200 px-2.5 py-1.5 font-mono text-[0.5625em] tracking-wider text-gray-400 dark:border-gray-700">{String(selectedIndex + 1).padStart(2, '0')} / {String(items.length).padStart(2, '0')}</span><button type="button" onClick={() => selectRelativeBook(1)} aria-label="Buku berikutnya" className="px-2.5 py-1.5 font-mono text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">→</button></div>}</div>
+      <section className="py-8" aria-label="Book carousel and autopsy">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <StatusBadge status={selectedStatus} />
+          {items.length > 1 && (
+            <div className="flex items-center overflow-hidden rounded border border-gray-200 dark:border-gray-700">
+              <button type="button" onClick={() => selectRelativeBook(-1)} aria-label="Previous book" className="px-2.5 py-1.5 font-mono text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">←</button>
+              <span className="border-x border-gray-200 px-2.5 py-1.5 font-mono text-[0.5625em] tracking-wider text-gray-400 dark:border-gray-700">{String(selectedIndex + 1).padStart(2, '0')} / {String(items.length).padStart(2, '0')}</span>
+              <button type="button" onClick={() => selectRelativeBook(1)} aria-label="Next book" className="px-2.5 py-1.5 font-mono text-xs text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">→</button>
+            </div>
+          )}
+        </div>
 
-        <div className="grid grid-cols-1 gap-7 md:grid-cols-[minmax(0,1fr)_15rem_minmax(0,1fr)] md:grid-rows-2 md:gap-x-8 md:gap-y-10">
-          <div className="mx-auto w-full max-w-[15rem] md:col-start-2 md:row-span-2 md:row-start-1 md:self-center">
-          <button type="button" onWheel={handleWheel} onClick={() => { if (coverDidSwipe.current) { coverDidSwipe.current = false; return; } setDetailId(selectedBook.id); }} onPointerDown={(event) => { coverSwipeStart.current = event.clientX; coverDidSwipe.current = false; }} onPointerUp={(event) => { if (coverSwipeStart.current === null) return; const distance = event.clientX - coverSwipeStart.current; coverSwipeStart.current = null; if (Math.abs(distance) > 30 && items.length > 1) { coverDidSwipe.current = true; selectRelativeBook(distance < 0 ? 1 : -1); } }} onPointerCancel={() => { coverSwipeStart.current = null; coverDidSwipe.current = false; }} {...(selectedBook.hintEnabled !== false ? { 'data-hint-id': 'book-open-active' } : {})} className="group relative block w-full touch-pan-y text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] cursor-grab active:cursor-grabbing">
-            <div className="absolute -bottom-4 left-[8%] h-6 w-[84%] rounded-full bg-black/20 blur-xl dark:bg-black/50" />
-            <div className="relative flex justify-center transition duration-300 group-hover:-translate-y-1 group-hover:rotate-[-1deg]"><BookCover book={selectedBook} size="hero" priority /></div>
-          </button>
-          {items.length > 1 && <div className="mt-5"><div className="flex items-center justify-center gap-0.5" aria-label="Pilih buku">{items.map((book, index) => <button key={book.id} type="button" onClick={() => setSelectedId(book.id)} aria-label={`Pilih ${book.title}`} aria-pressed={index === selectedIndex} title={book.title} className="grid h-11 min-w-11 place-items-center rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]"><span aria-hidden="true" className={`h-2 rounded-full transition-all ${index === selectedIndex ? 'w-7 bg-[#2B579A] dark:bg-[#6FA8DC]' : 'w-2 bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500'}`} /></button>)}</div><p className="text-center font-mono text-[0.5em] uppercase tracking-[0.16em] text-gray-500 dark:text-gray-300">{selectedIndex + 1} of {items.length}</p></div>}
+        <div className="grid grid-cols-1 gap-7 md:grid-cols-[minmax(0,1fr)_16rem_minmax(0,1fr)] md:grid-rows-2 md:gap-x-8 md:gap-y-10">
+          <div className="mx-auto flex w-full max-w-[16rem] flex-col items-center md:col-start-2 md:row-span-2 md:row-start-1 md:self-center">
+            <button
+              type="button"
+              onWheel={handleWheel}
+              onClick={() => {
+                if (coverDidSwipe.current) {
+                  coverDidSwipe.current = false;
+                  return;
+                }
+                setDetailId(selectedBook.id);
+              }}
+              onPointerDown={(event) => {
+                coverSwipeStart.current = event.clientX;
+                coverDidSwipe.current = false;
+                if (event.currentTarget && event.currentTarget.setPointerCapture) {
+                  try {
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                  } catch (_) {}
+                }
+              }}
+              onPointerUp={(event) => {
+                if (event.currentTarget && event.currentTarget.releasePointerCapture) {
+                  try {
+                    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                      event.currentTarget.releasePointerCapture(event.pointerId);
+                    }
+                  } catch (_) {}
+                }
+                if (coverSwipeStart.current === null) return;
+                const distance = event.clientX - coverSwipeStart.current;
+                coverSwipeStart.current = null;
+                if (Math.abs(distance) > 25 && items.length > 1) {
+                  coverDidSwipe.current = true;
+                  selectRelativeBook(distance < 0 ? 1 : -1);
+                }
+              }}
+              onPointerCancel={(event) => {
+                if (event.currentTarget && event.currentTarget.releasePointerCapture) {
+                  try {
+                    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                      event.currentTarget.releasePointerCapture(event.pointerId);
+                    }
+                  } catch (_) {}
+                }
+                coverSwipeStart.current = null;
+                coverDidSwipe.current = false;
+              }}
+              {...(selectedBook.hintEnabled !== false ? { 'data-hint-id': 'book-open-active' } : {})}
+              className="group relative block w-full select-none touch-pan-y text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] cursor-grab active:cursor-grabbing"
+            >
+              <div className="absolute -bottom-4 left-[8%] h-6 w-[84%] rounded-full bg-black/20 blur-xl dark:bg-black/50" />
+              <div className="relative flex justify-center transition duration-300 group-hover:-translate-y-1 group-hover:rotate-[-1deg]"><BookCover book={selectedBook} size="hero" priority /></div>
+            </button>
+
+            <div className="mt-4 w-full text-center">
+              <h2 className="text-[1.25em] font-semibold leading-tight tracking-tight sm:text-[1.4em]">{selectedBook.title}</h2>
+              {selectedBook.author && (
+                <p className="mt-1 text-[0.75em] text-gray-500 dark:text-gray-400">Written by <span className="font-semibold text-gray-800 dark:text-gray-200">{selectedBook.author}</span></p>
+              )}
+              <div className="mt-3.5 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setDetailId(selectedBook.id)}
+                  className="rounded-sm bg-[#2B579A] px-4 py-2 font-mono text-[0.625em] font-bold uppercase tracking-wider text-white hover:bg-[#1e3f73] dark:bg-[#6FA8DC] dark:text-[#171717]"
+                >
+                  Open document →
+                </button>
+              </div>
+            </div>
+
+            {items.length > 1 && (
+              <div className="mt-4 flex flex-col items-center">
+                <div className="flex items-center justify-center gap-0.5" aria-label="Select book">
+                  {items.map((book, index) => (
+                    <button key={book.id} type="button" onClick={() => setSelectedId(book.id)} aria-label={`Select ${book.title}`} aria-pressed={index === selectedIndex} title={book.title} className="grid h-9 min-w-9 place-items-center rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A]">
+                      <span aria-hidden="true" className={`h-2 rounded-full transition-all ${index === selectedIndex ? 'w-6 bg-[#2B579A] dark:bg-[#6FA8DC]' : 'w-2 bg-gray-300 hover:bg-gray-400 dark:bg-gray-600 dark:hover:bg-gray-500'}`} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:contents">
@@ -246,32 +469,6 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
               );
             })}
           </div>
-        </div>
-
-        {/* Integrated About the Book details for the currently selected book */}
-        <div className="mx-auto mt-8 max-w-3xl border-t border-gray-200 pt-6 text-center dark:border-gray-700">
-          <p className="font-mono text-[0.5625em] font-bold uppercase tracking-[0.22em] text-[#2B579A] dark:text-[#6FA8DC] mb-2">About this book</p>
-          <h2 className="text-[1.75em] font-semibold leading-tight tracking-tight sm:text-[2.25em]">{selectedBook.title}</h2>
-          {selectedBook.author && (
-            <p className="mt-2 text-[0.8125em] text-gray-500 dark:text-gray-400">Written by <span className="font-semibold text-gray-800 dark:text-gray-100">{selectedBook.author}</span>{selectedBook.publisher ? ` · ${selectedBook.publisher}` : ''}</p>
-          )}
-          {selectedRoles.length > 0 && (
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-              <span className="mr-1 font-mono text-[0.5625em] font-bold uppercase tracking-[0.18em] text-gray-400">My contribution</span>
-              {selectedRoles.map((role) => (
-                <span key={role} className="rounded-full border border-[#2B579A]/30 bg-[#2B579A]/[0.04] px-2.5 py-1 font-mono text-[0.5625em] font-bold uppercase tracking-wider text-[#2B579A] dark:border-[#6FA8DC]/35 dark:bg-[#6FA8DC]/[0.06] dark:text-[#6FA8DC]">{role}</span>
-              ))}
-            </div>
-          )}
-          <RichContent value={selectedBook.pitch || selectedBook.summary || selectedBook.fullDescription} className="mx-auto mt-4 max-w-2xl text-[0.875em] leading-relaxed text-gray-600 dark:text-gray-300" />
-          <div className="mt-4 flex flex-wrap justify-center gap-x-5 gap-y-2 font-mono text-[0.625em] uppercase tracking-wider text-gray-400">
-            {(selectedBook.publicationDate || selectedBook.year) && <span>{selectedBook.publicationDate || selectedBook.year}</span>}
-            {(selectedBook.format || selectedBook.category) && <span>{selectedBook.format || selectedBook.category}</span>}
-            {selectedBook.language && <span>{selectedBook.language}</span>}
-            {selectedBook.pageCount && <span>{selectedBook.pageCount} pages</span>}
-            {selectedBook.edition && <span>{selectedBook.edition}</span>}
-          </div>
-          <button type="button" onClick={() => setDetailId(selectedBook.id)} className="mt-6 rounded-sm bg-[#2B579A] px-4 py-2.5 font-mono text-[0.6875em] font-bold uppercase tracking-wider text-white hover:bg-[#1e3f73] dark:bg-[#6FA8DC] dark:text-[#171717]">Open document →</button>
         </div>
       </section>
 
