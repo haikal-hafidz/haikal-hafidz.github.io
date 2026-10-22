@@ -240,9 +240,14 @@ function cmsBlockToHtml(block) {
   return block.text || block.html || block.content || "";
 }
 
-function cmsBlocksToHtml(cmsBlocks) {
+function cmsBlocksToHtml(cmsBlocks, filterType = null) {
   if (!Array.isArray(cmsBlocks)) return "";
-  return cmsBlocks.filter(Boolean).map(cmsBlockToHtml).filter(Boolean).join("");
+  return cmsBlocks
+    .filter(Boolean)
+    .filter((block) => (filterType ? block.type !== filterType : true))
+    .map(cmsBlockToHtml)
+    .filter(Boolean)
+    .join("");
 }
 
 function sanitizeHtmlContent(html = '') {
@@ -338,6 +343,11 @@ function SongLyricsRenderer({ html = '', rawText = '' }) {
   );
 }
 
+function getItemAudio(item = {}) {
+  const audioBlock = Array.isArray(item.cmsBlocks) ? item.cmsBlocks.find((block) => block?.type === 'audio' && block?.url) : null;
+  return audioBlock?.url || item.audioUrl || item.fileUrl || (/\.(mp3|m4a|wav|ogg|aac)(\?|$)/i.test(item.url || '') ? item.url : '');
+}
+
 function stripImageAndMediaTags(html = '') {
   if (!html) return '';
   return String(html)
@@ -358,7 +368,7 @@ function NonPosterProjectDetail({ item, genre, date, onShare }) {
   const audioUrl = getItemAudio(item);
   const isSongWork = categoryType === 'song' || !!audioUrl;
 
-  const textBlocks = cmsBlocksToHtml(item.cmsBlocks);
+  const textBlocks = cmsBlocksToHtml(item.cmsBlocks, isSongWork || audioUrl ? 'audio' : null);
 
   const lyricsBody =
     textBlocks ||
@@ -2036,7 +2046,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     const audioUrl = getItemAudio(readingWork);
     const isSongWork = categoryType === 'song' || !!audioUrl;
 
-    const textBlocks = cmsBlocksToHtml(readingWork.cmsBlocks);
+    const textBlocks = cmsBlocksToHtml(readingWork.cmsBlocks, isSongWork || audioUrl ? 'audio' : null);
 
     const lyricsBody =
       textBlocks ||
