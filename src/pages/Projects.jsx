@@ -1833,17 +1833,6 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     return null;
   }, [readingWorkId, articles, directingItems, posterItems, customSections]);
 
-  // Deep-link: kalau app dibuka lewat link hasil Share (?tab=Projects&article=ID),
-  // otomatis langsung buka artikel yang dimaksud begitu data artikel-nya kebaca.
-  useEffect(() => {
-    if (!initialArticleId || articles.length === 0) return;
-    const match = articles.find((a) => a.id === initialArticleId);
-    if (match) {
-      setActiveCategory('articles');
-      setSelectedArticle(match);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialArticleId, articles.length]);
 
   const openArticle = (art) => {
     setSelectedArticle(art);
@@ -2069,12 +2058,18 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
         setActiveCategory(targetCategory);
       }
 
+      setSelectedArticle(null);
+      setSelectedDirectingIndex(null);
+      setSelectedGalleryIndex(null);
+      setSelectedCustomIndex(null);
+
       if (onSetReadingWorkId) {
         onSetReadingWorkId(null);
       }
 
       const url = new URL(window.location.href);
       url.searchParams.delete('work');
+      url.searchParams.delete('article');
       url.searchParams.set('tab', 'Projects');
       if (targetCategory && targetCategory !== 'overview') {
         url.searchParams.set('category', targetCategory);
