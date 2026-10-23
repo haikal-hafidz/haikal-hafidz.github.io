@@ -1583,15 +1583,16 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
   const [projectQuery, setProjectQuery] = useState('');
 
   useEffect(() => {
-    if (readingWorkId) {
-      const cat = findCategoryForWork(readingWorkId);
+    const activeWorkId = readingWorkId || initialArticleId;
+    if (activeWorkId) {
+      const cat = findCategoryForWork(activeWorkId);
       if (cat) setActiveCategory(cat);
     } else if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const cat = params.get('category');
       if (cat) setActiveCategory(cat);
     }
-  }, [readingWorkId, findCategoryForWork]);
+  }, [readingWorkId, initialArticleId, findCategoryForWork]);
   const activeCustomSection =
     activeCategory.startsWith('custom:')
       ? customSections.find((cs) => `custom:${cs.id}` === activeCategory)
@@ -1861,6 +1862,11 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
   const buildShareUrl = (art) => {
     const url = new URL(window.location.origin + window.location.pathname);
     url.searchParams.set('tab', 'Projects');
+    const cat = findCategoryForWork(art.id);
+    if (cat) {
+      url.searchParams.set('category', cat);
+    }
+    url.searchParams.set('work', art.id);
     url.searchParams.set('article', art.id);
     return url.toString();
   };
@@ -2084,7 +2090,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
     };
 
     const handleShareReadingWork = async () => {
-      const shareUrl = window.location.href;
+      const shareUrl = buildShareUrl(readingWork);
       if (navigator.share) {
         try {
           await navigator.share({ title: workTitle, url: shareUrl });
@@ -2098,7 +2104,16 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
         setLinkCopied(true);
         setTimeout(() => setLinkCopied(false), 2000);
       } catch {
-        // fallback copy
+        const textarea = document.createElement('textarea');
+        textarea.value = shareUrl;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        textarea.remove();
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 2000);
       }
     };
 

@@ -520,22 +520,37 @@ export default function App() {
 
   const [readingWorkId, setReadingWorkId] = useState(initialWorkId);
 
+  const [activeTab, setActiveTab] = useState(
+    VALID_TABS.includes(urlTab)
+      ? urlTab
+      : (initialArticleId || initialWorkId)
+      ? 'Projects'
+      : 'Home'
+  );
+
   useEffect(() => {
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
       setReadingWorkId(params.get('work') || null);
       const tabParam = params.get('tab');
-      if (tabParam && VALID_TABS.includes(tabParam)) {
-        setActiveTab(tabParam);
+      const targetTab = (tabParam && VALID_TABS.includes(tabParam))
+        ? tabParam
+        : (params.get('article') || params.get('work'))
+        ? 'Projects'
+        : 'Home';
+      setActiveTab(targetTab);
+      const el = document.getElementById(`section-${targetTab}`);
+      if (el) {
+        ignoreObserverRef.current = true;
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        setTimeout(() => {
+          ignoreObserverRef.current = false;
+        }, 500);
       }
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
-
-  const [activeTab, setActiveTab] = useState(
-    VALID_TABS.includes(urlTab) ? urlTab : 'Home'
-  );
 
   const sectionRefs = useRef({});
   const ignoreObserverRef = useRef(false);
@@ -545,6 +560,16 @@ export default function App() {
     const tab = tabMap[tabInput] || tabInput;
     if (!VALID_TABS.includes(tab)) return;
     setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tab);
+      if (tab !== 'Projects') {
+        url.searchParams.delete('category');
+        url.searchParams.delete('article');
+        url.searchParams.delete('work');
+      }
+      window.history.pushState(null, '', url);
+    }
     const el = document.getElementById(`section-${tab}`);
     if (el) {
       ignoreObserverRef.current = true;
@@ -627,18 +652,6 @@ export default function App() {
     if (activeTab !== destinationTab) setWorkNavigation(null);
   }, [activeTab, workNavigation]);
 
-  // Begitu tab/article dari deep-link kepake buat nentuin tampilan awal, langsung bersihin
-  // URL-nya balik ke root (tanpa reload) pake history.replaceState. Ini SENGAJA dilakukan
-  // biar kalau visitor nge-bookmark / save-to-home-screen / browser-nya autocomplete ke
-  // URL itu lagi nanti, yang ke-save udah URL polos — bukan nyangkut permanen di tab
-  // artikel yang pernah di-share. Fitur share artikel sendiri TETEP jalan normal (link-nya
-  // masih valid sekali buka), ini cuma nyegah dia "nempel" jadi default buat kunjungan
-  // berikutnya.
-  useEffect(() => {
-    if (urlTab || initialArticleId) {
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-  }, [initialArticleId, urlTab]);
 
   // Nyalain Google Analytics (GA4) sekali pas app pertama kali kebuka — otomatis gak
   // ngapa-ngapain kalau .env belum diisi VITE_GA_MEASUREMENT_ID (lihat src/lib/analytics.js).
