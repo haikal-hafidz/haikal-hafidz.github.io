@@ -33,7 +33,7 @@ function projectThumbnail(url, width = 720) {
 // Satu pintu untuk seluruh cover Projects. Data lama dan data dari beberapa
 // editor CMS pernah menyimpan cover dengan nama field yang berbeda.
 function getProjectCover(item = {}) {
-  const explicitCover = item.posterImage || item.imageUrl || item.image || item.coverImage || item.thumbnail || '';
+  const explicitCover = item.coverImage || item.posterImage || item.imageUrl || item.image || item.thumbnail || '';
   if (explicitCover) return explicitCover;
 
   const mediaUrl = String(item.mediaUrl || item.url || '').trim();
