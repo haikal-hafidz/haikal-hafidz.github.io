@@ -56,10 +56,10 @@ function seoAndEnvPlugin() {
       }
 
       const siteName = [home.name, home.role].filter(Boolean).join(' — ') || 'Haikal A. Hafidz — Content Writer & Editor';
-      const title = website.seoTitle || website.title || siteName;
-      const description = stripTags(website.seoDescription || website.description || home.bio || '');
-      const shareTitle = website.shareTitle || title;
-      const shareDescription = stripTags(website.shareDescription || description);
+      const title = (website.seoTitle || '').trim() || (website.title || '').trim() || siteName;
+      const description = stripTags(website.seoDescription) || stripTags(website.description) || stripTags(home.bio) || '';
+      const shareTitle = (website.shareTitle || '').trim() || title;
+      const shareDescription = stripTags(website.shareDescription) || description;
       const canonicalUrl = website.canonicalUrl || website.url || 'https://haikal-hafidz.github.io/';
       const allowIndexing = website.allowIndexing !== false;
       const robots = allowIndexing ? 'index, follow' : 'noindex, nofollow';
