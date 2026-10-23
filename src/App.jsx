@@ -516,7 +516,7 @@ export default function App() {
   const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const urlTab = urlParams?.get('tab');
   const initialArticleId = urlParams?.get('article') || null;
-  const initialWorkId = urlParams?.get('work') || null;
+  const initialWorkId = urlParams?.get('work') || urlParams?.get('article') || null;
 
   const [readingWorkId, setReadingWorkId] = useState(initialWorkId);
 
@@ -531,7 +531,7 @@ export default function App() {
   useEffect(() => {
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
-      setReadingWorkId(params.get('work') || null);
+      setReadingWorkId(params.get('work') || params.get('article') || null);
       const tabParam = params.get('tab');
       const targetTab = (tabParam && VALID_TABS.includes(tabParam))
         ? tabParam
