@@ -305,6 +305,38 @@ const normalizeAbout = (raw) => ({
 const VALID_TABS = ['Home', 'About', 'Projects', 'Career', 'Book', 'Contact'];
 
 export default function App() {
+  const titleBarRef = useRef(null);
+  const [titleBarHeight, setTitleBarHeight] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = titleBarRef.current;
+    if (!el) return;
+
+    const updateHeight = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.height > 0) {
+        setTitleBarHeight(rect.height);
+      }
+    };
+
+    updateHeight();
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.borderBoxSize?.[0]?.blockSize ?? entry.target.getBoundingClientRect().height;
+        if (height > 0) {
+          setTitleBarHeight(height);
+        }
+      }
+    });
+
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
   const desktopStageRef = useRef(null);
   const desktopPageRef = useRef(null);
   const [desktopRailStyle, setDesktopRailStyle] = useState(null);
@@ -1178,6 +1210,7 @@ export default function App() {
 
         {/* 1. Baris Judul Paling Atas — otomatis nyederhanain diri di layar sempit lewat class Tailwind di dalamnya */}
         <TitleBar 
+          titleBarRef={titleBarRef}
           isAdminMode={isAdminMode}
           setIsAdminMode={handleSetIsAdminMode}
           onEnterRecordingView={() => setIsAdminModeRaw(false)}
@@ -1226,7 +1259,10 @@ export default function App() {
           <div className="flex-1 flex flex-col items-center">
             
             {/* Ribbon Menu (Cukup dipanggil sekali di sini, jangan diduplikat!) */}
-            <div className="w-full sticky top-0 z-40 shadow-sm">
+            <div 
+              className="w-full sticky z-40 shadow-sm"
+              style={{ top: titleBarHeight ? `${titleBarHeight}px` : undefined }}
+            >
               <Ribbon 
                 activeTab={activeTab}
                 setActiveTab={handleNavigate}

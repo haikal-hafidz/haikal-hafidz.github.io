@@ -18,6 +18,7 @@ export default function TitleBar({
   hasUnreadPatch = false,
   onTogglePatch,
   patchActive = false,
+  titleBarRef,
 }) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordQuality, setRecordQuality] = useState('1080');
@@ -501,7 +502,7 @@ export default function TitleBar({
   }, []);
 
   return (
-    <div className="sticky top-0 z-50 bg-[#2b579a] text-white flex justify-between items-center px-2 sm:px-3 py-1.5 text-[10pt] leading-4 select-none transition-colors duration-200 border-b border-black/10">
+    <div ref={titleBarRef} className="sticky top-0 z-50 bg-[#2b579a] text-white flex justify-between items-center px-2 sm:px-3 py-1.5 text-[10pt] leading-4 select-none transition-colors duration-200 border-b border-black/10">
       
       {/* BAGIAN KIRI: kosong di halaman publik; quick controls hanya muncul di Admin. */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
