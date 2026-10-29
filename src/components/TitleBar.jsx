@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import LanguageToggle from './LanguageToggle';
 
 export default function TitleBar({
@@ -36,6 +37,8 @@ export default function TitleBar({
   const chunksRef = useRef([]);
   const countdownTimerRef = useRef(null);
   const recordingStartedFromAdminRef = useRef(false);
+  const controlsRef = useRef(null);
+  const isRestrictedRef = useRef(false);
 
   // Virtual Camera Position & Zoom targets
   const cameraStateRef = useRef({
@@ -211,6 +214,22 @@ export default function TitleBar({
         audio: true,
       });
 
+      // Attempt Element Capture API restriction if available
+      isRestrictedRef.current = false;
+      const videoTrack = stream.getVideoTracks()[0];
+      if (typeof window.RestrictionTarget?.fromElement === 'function' && typeof videoTrack?.restrictTo === 'function') {
+        try {
+          const rootEl = document.getElementById('root');
+          if (rootEl) {
+            const restrictionTarget = await window.RestrictionTarget.fromElement(rootEl);
+            await videoTrack.restrictTo(restrictionTarget);
+            isRestrictedRef.current = true;
+          }
+        } catch (err) {
+          console.warn('Element Capture restriction failed or unsupported:', err);
+        }
+      }
+
       // Setup hidden video element to receive input stream
       const video = document.createElement('video');
       video.autoplay = true;
@@ -264,6 +283,46 @@ export default function TitleBar({
         cropY = Math.max(0, Math.min(vHeight - cropH, cropY));
 
         ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+
+        // Fallback canvas patching if Element Capture restriction is inactive and controls are present in captured stream
+        if (!isRestrictedRef.current && controlsRef.current) {
+          const cRect = controlsRef.current.getBoundingClientRect();
+          if (cRect.width > 0 && cRect.height > 0) {
+            const scaleX = vWidth / (window.innerWidth || 1);
+            const scaleY = vHeight / (window.innerHeight || 1);
+
+            const cVideoX = cRect.left * scaleX;
+            const cVideoY = cRect.top * scaleY;
+            const cVideoW = cRect.width * scaleX;
+            const cVideoH = cRect.height * scaleY;
+
+            // Check if controls box overlaps current crop region [cropX, cropY, cropW, cropH]
+            const overlapX1 = Math.max(cropX, cVideoX);
+            const overlapY1 = Math.max(cropY, cVideoY);
+            const overlapX2 = Math.min(cropX + cropW, cVideoX + cVideoW);
+            const overlapY2 = Math.min(cropY + cropH, cVideoY + cVideoH);
+
+            if (overlapX2 > overlapX1 && overlapY2 > overlapY1) {
+              const destX = (cVideoX - cropX) * (canvas.width / cropW);
+              const destY = (cVideoY - cropY) * (canvas.height / cropH);
+              const destW = cVideoW * (canvas.width / cropW);
+              const destH = cVideoH * (canvas.height / cropH);
+
+              let srcPatchY = cVideoY + cVideoH + 12 * scaleY;
+              if (srcPatchY + cVideoH > vHeight) {
+                srcPatchY = Math.max(0, cVideoY - cVideoH - 12 * scaleY);
+              }
+              srcPatchY = Math.max(0, Math.min(vHeight - cVideoH, srcPatchY));
+
+              ctx.drawImage(
+                video,
+                cVideoX, srcPatchY, cVideoW, cVideoH,
+                destX, destY, destW, destH
+              );
+            }
+          }
+        }
+
         animFrameRef.current = requestAnimationFrame(renderFrame);
       };
 
@@ -527,8 +586,9 @@ export default function TitleBar({
       )}
 
       {/* macOS-Inspired Floating Recording Controls Pill */}
-      {isRecording && (
+      {isRecording && typeof document !== 'undefined' && createPortal(
         <div
+          ref={controlsRef}
           className="fixed top-4 left-1/2 -translate-x-1/2 z-[190] flex items-center gap-3 px-4 py-2 bg-neutral-900/90 backdrop-blur-xl text-white border border-white/20 rounded-full shadow-2xl text-xs font-sans tracking-tight transition-all duration-300"
           role="region"
           aria-label="Recording Controls"
@@ -571,7 +631,8 @@ export default function TitleBar({
             <span className="h-2 w-2 rounded-sm bg-white" aria-hidden="true" />
             Stop
           </button>
-        </div>
+        </div>,
+        document.body
       )}
 
       {recordingPreview && (
