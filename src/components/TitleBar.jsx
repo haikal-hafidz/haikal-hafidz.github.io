@@ -70,17 +70,33 @@ export default function TitleBar({
       idleTimeoutRef.current = null;
     }
     if (hiddenVideoRef.current) {
-      hiddenVideoRef.current.pause();
-      hiddenVideoRef.current.srcObject = null;
+      try {
+        hiddenVideoRef.current.pause();
+        hiddenVideoRef.current.srcObject = null;
+      } catch {
+        /* ignore */
+      }
       hiddenVideoRef.current = null;
     }
     hiddenCanvasRef.current = null;
     if (canvasStreamRef.current) {
-      canvasStreamRef.current.getTracks().forEach((track) => track.stop());
+      canvasStreamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          /* ignore */
+        }
+      });
       canvasStreamRef.current = null;
     }
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          /* ignore */
+        }
+      });
       streamRef.current = null;
     }
   };
@@ -103,7 +119,15 @@ export default function TitleBar({
       } catch {
         /* ignore */
       }
-      recorder.stop();
+      try {
+        recorder.stop();
+      } catch {
+        stopAnimationAndCleanupTracks();
+        setIsRecording(false);
+        clearRecordingCountdown();
+        if (recordingStartedFromAdminRef.current) onRestoreAdminAfterRecording?.();
+        recordingStartedFromAdminRef.current = false;
+      }
     } else {
       stopAnimationAndCleanupTracks();
       setIsRecording(false);
@@ -118,12 +142,25 @@ export default function TitleBar({
     setRecordingPreview(null);
   };
 
+  // Reset virtual camera when Auto-Zoom is disabled
+  useEffect(() => {
+    if (!autoZoomEnabled) {
+      if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current);
+      cameraStateRef.current.targetZoom = 1.0;
+      cameraStateRef.current.targetX = 0.5;
+      cameraStateRef.current.targetY = 0.5;
+    }
+  }, [autoZoomEnabled]);
+
   // Event interaction handler for Smart Auto-Zoom
   const handleUserInteraction = (event) => {
     if (!isRecording || !autoZoomEnabled) return;
 
     let targetEl = event.target;
     if (!targetEl || typeof targetEl.getBoundingClientRect !== 'function') return;
+
+    // Do not auto-zoom on clicks/interactions inside floating recording controls
+    if (controlsRef.current && controlsRef.current.contains(targetEl)) return;
 
     // Find closest meaningful interactive element
     const interactiveContainer = targetEl.closest('button, a, input, select, textarea, [role="button"], [role="tab"], .project-card, section, article, header, img');
@@ -139,15 +176,15 @@ export default function TitleBar({
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
 
-    const normX = Math.max(0.1, Math.min(0.9, cx / vw));
-    const normY = Math.max(0.1, Math.min(0.9, cy / vh));
+    const normX = Math.max(0, Math.min(1, cx / vw));
+    const normY = Math.max(0, Math.min(1, cy / vh));
 
     // Determine target zoom level based on element type/size
-    let desiredZoom = 1.4;
-    if (rect.width > vw * 0.7 || rect.height > vh * 0.7) {
-      desiredZoom = 1.2;
-    } else if (rect.width < 100 && rect.height < 100) {
-      desiredZoom = 1.5;
+    let desiredZoom = 1.35;
+    if (rect.width > vw * 0.6 || rect.height > vh * 0.6) {
+      desiredZoom = 1.15;
+    } else if (rect.width < 120 && rect.height < 120) {
+      desiredZoom = 1.45;
     }
 
     cameraStateRef.current.targetX = normX;
@@ -172,7 +209,7 @@ export default function TitleBar({
     const onFocus = (e) => handleUserInteraction(e);
     const onScroll = () => {
       if (!autoZoomEnabled) return;
-      // Slight follow zoom during scroll
+      // Follow zoom during scroll
       cameraStateRef.current.targetZoom = 1.15;
       cameraStateRef.current.targetX = 0.5;
       if (idleTimeoutRef.current) clearTimeout(idleTimeoutRef.current);
@@ -244,7 +281,6 @@ export default function TitleBar({
       canvas.width = target.width;
       canvas.height = target.height;
       hiddenCanvasRef.current = canvas;
-      const ctx = canvas.getContext('2d', { alpha: false });
 
       // Reset camera initial state
       cameraStateRef.current = {
@@ -260,20 +296,45 @@ export default function TitleBar({
       const renderFrame = () => {
         if (!hiddenCanvasRef.current || !hiddenVideoRef.current) return;
 
+        const currentCanvas = hiddenCanvasRef.current;
+        const currentVideo = hiddenVideoRef.current;
+        const ctx = currentCanvas.getContext('2d', { alpha: false });
+        if (!ctx) return;
+
         const cam = cameraStateRef.current;
         // Smooth lerping interpolation
         cam.currentZoom += (cam.targetZoom - cam.currentZoom) * 0.08;
         cam.currentX += (cam.targetX - cam.currentX) * 0.08;
         cam.currentY += (cam.targetY - cam.currentY) * 0.08;
 
-        const vWidth = video.videoWidth || canvas.width;
-        const vHeight = video.videoHeight || canvas.height;
+        const vWidth = currentVideo.videoWidth || currentCanvas.width;
+        const vHeight = currentVideo.videoHeight || currentCanvas.height;
 
-        const cropW = vWidth / cam.currentZoom;
-        const cropH = vHeight / cam.currentZoom;
+        // Clear canvas on every frame to prevent ghosting & stale pixel trails
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, currentCanvas.width, currentCanvas.height);
 
-        const centerX = cam.currentX * vWidth;
-        const centerY = cam.currentY * vHeight;
+        // Compute aspect ratio matched dimensions
+        const canvasAspect = currentCanvas.width / currentCanvas.height;
+        const vAspect = vWidth / vHeight;
+
+        let baseW = vWidth;
+        let baseH = vHeight;
+
+        if (vAspect > canvasAspect) {
+          baseW = vHeight * canvasAspect;
+        } else {
+          baseH = vWidth / canvasAspect;
+        }
+
+        const cropW = Math.max(1, baseW / cam.currentZoom);
+        const cropH = Math.max(1, baseH / cam.currentZoom);
+
+        const baseOffsetX = (vWidth - baseW) / 2;
+        const baseOffsetY = (vHeight - baseH) / 2;
+
+        const centerX = baseOffsetX + cam.currentX * baseW;
+        const centerY = baseOffsetY + cam.currentY * baseH;
 
         let cropX = centerX - cropW / 2;
         let cropY = centerY - cropH / 2;
@@ -282,7 +343,7 @@ export default function TitleBar({
         cropX = Math.max(0, Math.min(vWidth - cropW, cropX));
         cropY = Math.max(0, Math.min(vHeight - cropH, cropY));
 
-        ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(currentVideo, cropX, cropY, cropW, cropH, 0, 0, currentCanvas.width, currentCanvas.height);
 
         // Fallback canvas patching if Element Capture restriction is inactive and controls are present in captured stream
         if (!isRestrictedRef.current && controlsRef.current) {
@@ -290,11 +351,12 @@ export default function TitleBar({
           if (cRect.width > 0 && cRect.height > 0) {
             const scaleX = vWidth / (window.innerWidth || 1);
             const scaleY = vHeight / (window.innerHeight || 1);
+            const pad = 20; // Expanded padding to fully cover shadows, blur, and border effects
 
-            const cVideoX = cRect.left * scaleX;
-            const cVideoY = cRect.top * scaleY;
-            const cVideoW = cRect.width * scaleX;
-            const cVideoH = cRect.height * scaleY;
+            const cVideoX = Math.max(0, (cRect.left - pad) * scaleX);
+            const cVideoY = Math.max(0, (cRect.top - pad) * scaleY);
+            const cVideoW = (cRect.width + 2 * pad) * scaleX;
+            const cVideoH = (cRect.height + 2 * pad) * scaleY;
 
             // Check if controls box overlaps current crop region [cropX, cropY, cropW, cropH]
             const overlapX1 = Math.max(cropX, cVideoX);
@@ -303,22 +365,26 @@ export default function TitleBar({
             const overlapY2 = Math.min(cropY + cropH, cVideoY + cVideoH);
 
             if (overlapX2 > overlapX1 && overlapY2 > overlapY1) {
-              const destX = (cVideoX - cropX) * (canvas.width / cropW);
-              const destY = (cVideoY - cropY) * (canvas.height / cropH);
-              const destW = cVideoW * (canvas.width / cropW);
-              const destH = cVideoH * (canvas.height / cropH);
+              const destX = (cVideoX - cropX) * (currentCanvas.width / cropW);
+              const destY = (cVideoY - cropY) * (currentCanvas.height / cropH);
+              const destW = cVideoW * (currentCanvas.width / cropW);
+              const destH = cVideoH * (currentCanvas.height / cropH);
 
-              let srcPatchY = cVideoY + cVideoH + 12 * scaleY;
-              if (srcPatchY + cVideoH > vHeight) {
-                srcPatchY = Math.max(0, cVideoY - cVideoH - 12 * scaleY);
+              // Sample clean background strip immediately adjacent to the control pill
+              let sampleX = Math.max(0, cVideoX - 8 * scaleX);
+              let sampleW = Math.min(4 * scaleX, cVideoX - sampleX);
+              if (sampleW <= 0) {
+                sampleX = Math.min(vWidth - 4 * scaleX, cVideoX + cVideoW + 4 * scaleX);
+                sampleW = 4 * scaleX;
               }
-              srcPatchY = Math.max(0, Math.min(vHeight - cVideoH, srcPatchY));
 
-              ctx.drawImage(
-                video,
-                cVideoX, srcPatchY, cVideoW, cVideoH,
-                destX, destY, destW, destH
-              );
+              if (sampleW > 0 && cVideoH > 0) {
+                ctx.drawImage(
+                  currentVideo,
+                  sampleX, cVideoY, sampleW, cVideoH,
+                  destX, destY, destW, destH
+                );
+              }
             }
           }
         }
@@ -384,12 +450,21 @@ export default function TitleBar({
           return;
         }
         clearRecordingCountdown();
-        recorder.start(1000);
-        setIsRecording(true);
-        setRecordingDuration(0);
-        durationIntervalRef.current = setInterval(() => {
-          setRecordingDuration((prev) => prev + 1);
-        }, 1000);
+        try {
+          recorder.start(1000);
+          setIsRecording(true);
+          setRecordingDuration(0);
+          durationIntervalRef.current = setInterval(() => {
+            setRecordingDuration((prev) => prev + 1);
+          }, 1000);
+        } catch (err) {
+          console.error('Gagal memulai recorder:', err);
+          stopAnimationAndCleanupTracks();
+          recorderRef.current = null;
+          setIsRecording(false);
+          if (recordingStartedFromAdminRef.current) onRestoreAdminAfterRecording?.();
+          recordingStartedFromAdminRef.current = false;
+        }
       }, 1000);
     } catch (error) {
       if (error?.name !== 'NotAllowedError') console.error('Screen recording gagal:', error);
@@ -413,15 +488,20 @@ export default function TitleBar({
   }, [isAdminMode, isRecording, countdown, recordQuality]);
 
   useEffect(() => () => {
-    if (countdownTimerRef.current) window.clearInterval(countdownTimerRef.current);
+    clearRecordingCountdown();
     const recorder = recorderRef.current;
-    if (recorder && recorder.state !== 'inactive') recorder.stop();
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    if (recordingPreview?.url) URL.revokeObjectURL(recordingPreview.url);
-  }, [recordingPreview?.url]);
+    if (recorder && recorder.state !== 'inactive') {
+      try {
+        recorder.stop();
+      } catch {
+        /* ignore */
+      }
+    }
+    stopAnimationAndCleanupTracks();
+  }, []);
 
   return (
-    <div className="relative z-50 bg-[#2b579a] text-white flex justify-between items-center px-2 sm:px-3 py-1.5 text-[10pt] leading-4 select-none transition-colors duration-200 border-b border-black/10">
+    <div className="sticky top-0 z-50 bg-[#2b579a] text-white flex justify-between items-center px-2 sm:px-3 py-1.5 text-[10pt] leading-4 select-none transition-colors duration-200 border-b border-black/10">
       
       {/* BAGIAN KIRI: kosong di halaman publik; quick controls hanya muncul di Admin. */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -470,7 +550,7 @@ export default function TitleBar({
           </svg>
         </button>
 
-        {/* Tombol Help / Hint Toggle — dipindah dari floating button bawah ke TitleBar di samping LanguageToggle */}
+        {/* Tombol Help / Hint Toggle */}
         <button
           type="button"
           onClick={onToggleHelp}
@@ -509,9 +589,7 @@ export default function TitleBar({
             )}
           </button>
         </div>
-        {/* Tombol Toggle Light / Dark Mode — di layar sempit cuma nampilin ikon, teksnya disembunyiin.
-            data-hint-id cuma dipasang pas activeTab === 'Home' (lihat App.jsx: HintToggle & CSS
-            .hint-mode-active), biar mode Hint di luar A4 sengaja dibatasin ke tab Home doang. */}
+
         <button 
           onClick={() => setDarkMode(!darkMode)}
           data-hint-id="titlebar-dark-mode"
@@ -527,10 +605,6 @@ export default function TitleBar({
           )}
         </button>
 
-        {/* Tombol Toggle Full Screen — expand seluruh web (title bar, ribbon, dokumen,
-            status bar) pake Fullscreen API browser (logic-nya di App.jsx, dikirim ke
-            sini lewat props isFullscreen & onToggleFullscreen). Sama kayak tombol Dark
-            Mode: di layar sempit cuma nampilin ikon, teksnya disembunyiin. */}
         <button
           onClick={onToggleFullscreen}
           data-hint-id="titlebar-fullscreen"
@@ -546,7 +620,6 @@ export default function TitleBar({
           )}
         </button>
 
-        {/* Pintu Masuk Admin Only */}
         <button
           type="button"
           onClick={() => setIsAdminMode(!isAdminMode)}
@@ -568,7 +641,6 @@ export default function TitleBar({
           </svg>
         </button>
 
-        {/* Tombol minimize/maximize standar windows — cuma dekorasi, disembunyiin di layar sempit biar gak numpuk */}
         <div className="hidden sm:flex items-center gap-1 pl-2 border-l border-white/25 text-white/70">
           <span className="px-2 py-0.5 hover:bg-white/15 rounded cursor-pointer">&#8211;</span>
           <span className="px-2 py-0.5 hover:bg-white/15 rounded cursor-pointer">&#9633;</span>
@@ -651,7 +723,7 @@ export default function TitleBar({
               <button type="button" onClick={closeRecordingPreview} className="grid h-8 w-8 place-items-center rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors" aria-label="Tutup dan buang rekaman">×</button>
             </div>
 
-            <video src={recordingPreview.url} controls autoPlay className="max-h-[65vh] w-full rounded-xl bg-black border border-white/10 shadow-inner" />
+            <video src={recordingPreview.url} controls autoPlay playsInline className="max-h-[65vh] w-full rounded-xl bg-black border border-white/10 shadow-inner" />
 
             <div className="flex items-center justify-between pt-1">
               <span className="text-xs font-mono text-neutral-400">{recordingPreview.filename}</span>
