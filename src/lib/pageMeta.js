@@ -172,31 +172,120 @@ function upsertMeta(attr, key, content) {
 }
 
 /**
+ * Resolves social sharing metadata following the strict priority rules:
+ * 1. Explicit social sharing image (socialImage / shareImage)
+ * 2. Assigned thumbnail / cover image (coverImage / thumbnail)
+ * 3. Relevant content image (posterImage / imageUrl / image / mediaUrl / first gallery item)
+ * 4. Website default social sharing image
+ */
+export function resolveSocialMeta(item = {}, options = {}) {
+  const globalSiteUrl = options.siteUrl || canonicalSiteUrl;
+  const globalDefaultShareImage = options.defaultShareImage || defaultShareImage;
+  const globalSiteName = options.siteName || siteName;
+
+  const rawTitle = item.title || item.name || options.title || '';
+  const title = String(rawTitle).trim();
+  const shareTitle = String(item.shareTitle || title || options.shareTitle || globalSiteName).trim();
+
+  const rawDescription =
+    item.shareDescription ||
+    item.seoDescription ||
+    item.description ||
+    item.snippet ||
+    item.premise ||
+    item.summary ||
+    item.bio ||
+    options.description ||
+    defaultDescription ||
+    '';
+  const description = metaPlainText(rawDescription);
+
+  // 1. Explicit social sharing image
+  let resolvedImage = item.socialImage || item.shareImage || options.socialImage || options.shareImage || '';
+
+  // 2. Assigned thumbnail / cover image
+  if (!resolvedImage) {
+    resolvedImage = item.coverImage || item.thumbnail || options.coverImage || '';
+  }
+
+  // 3. Content image / media image
+  if (!resolvedImage) {
+    resolvedImage = item.posterImage || item.imageUrl || item.image || '';
+    if (!resolvedImage && Array.isArray(item.gallery) && item.gallery[0]) {
+      resolvedImage = typeof item.gallery[0] === 'string' ? item.gallery[0] : item.gallery[0]?.url || item.gallery[0]?.imageUrl || '';
+    }
+    if (!resolvedImage && Array.isArray(item.items) && item.items[0]) {
+      resolvedImage = typeof item.items[0] === 'string' ? item.items[0] : item.items[0]?.url || item.items[0]?.imageUrl || '';
+    }
+    if (!resolvedImage) {
+      const mediaUrl = String(item.mediaUrl || item.url || '').trim();
+      const youtubeMatch = mediaUrl.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/))([^?&#/]+)/i);
+      if (youtubeMatch?.[1]) {
+        resolvedImage = `https://i.ytimg.com/vi/${youtubeMatch[1]}/hqdefault.jpg`;
+      }
+    }
+  }
+
+  // 4. Default website share image fallback
+  if (!resolvedImage) {
+    resolvedImage = globalDefaultShareImage;
+  }
+
+  // Ensure absolute URL if relative path provided
+  if (resolvedImage && !resolvedImage.startsWith('http://') && !resolvedImage.startsWith('https://')) {
+    const base = globalSiteUrl.replace(/\/$/, '');
+    const path = resolvedImage.startsWith('/') ? resolvedImage : `/${resolvedImage}`;
+    resolvedImage = `${base}${path}`;
+  }
+
+  const canonicalUrl = options.url || item.canonicalUrl || item.url || globalSiteUrl;
+  const contentType = item.contentType || options.type || (title ? 'article' : 'website');
+  const twitterCard = resolvedImage ? 'summary_large_image' : 'summary';
+
+  return {
+    title,
+    shareTitle: title && title !== globalSiteName ? `${title} — ${globalSiteName}` : (shareTitle || globalSiteName),
+    description,
+    image: resolvedImage,
+    url: canonicalUrl,
+    type: contentType === 'writing' || contentType === 'article' || contentType === 'book' ? 'article' : 'website',
+    card: twitterCard,
+    siteName: globalSiteName,
+  };
+}
+
+/**
  * Set judul tab browser + meta tags SEO/OG/Twitter buat halaman/artikel yang lagi aktif.
  * @param {Object} opts
- * @param {string} [opts.title] - Judul spesifik (halaman/artikel). Kosong = pakai SITE_NAME polos.
+ * @param {string} [opts.title] - Judul spesifik (halaman/artikel). Kosong = pakai browserTitle.
  * @param {string} [opts.description] - Deskripsi singkat (buat meta description & og:description).
  * @param {string} [opts.image] - URL gambar (buat og:image / twitter:image).
  * @param {string} [opts.url] - URL kanonis halaman ini (default: URL saat ini).
+ * @param {Object} [opts.item] - Optional content item to resolve via resolveSocialMeta.
  */
-export function setPageMeta({ title, description, image, url } = {}) {
-  // Website Title dari CMS adalah judul tab final untuk seluruh halaman.
-  // `title` tetap dipakai oleh metadata/description callers, tetapi tidak lagi
-  // ditempelkan ke document.title saat pengunjung berpindah tab portfolio.
-  const fullTitle = browserTitle;
-  const resolvedImage = image || defaultShareImage;
-  const resolvedDescription = metaPlainText(description || defaultDescription || '');
-  document.title = fullTitle;
+export function setPageMeta(opts = {}) {
+  const { title, description, image, url, item } = opts;
+  const resolved = item ? resolveSocialMeta(item, opts) : null;
+
+  const targetTitle = resolved ? resolved.shareTitle : (title ? `${title} — ${siteName}` : browserTitle);
+  const resolvedImage = resolved ? resolved.image : (image || defaultShareImage);
+  const resolvedDescription = resolved ? resolved.description : metaPlainText(description || defaultDescription || '');
+  const resolvedUrl = resolved ? resolved.url : (url || canonicalSiteUrl);
+  const resolvedType = resolved ? resolved.type : 'website';
+  const resolvedCard = resolved ? resolved.card : (resolvedImage ? 'summary_large_image' : 'summary');
+
+  // Website Title tetap menjadi title tab browser utama untuk portfolio
+  document.title = browserTitle;
 
   upsertMeta('name', 'description', resolvedDescription);
   upsertMeta('property', 'og:site_name', browserTitle);
-  upsertMeta('property', 'og:title', fullTitle);
+  upsertMeta('property', 'og:title', targetTitle);
   upsertMeta('property', 'og:description', resolvedDescription);
   upsertMeta('property', 'og:image', resolvedImage);
-  upsertMeta('property', 'og:url', url || canonicalSiteUrl);
-  upsertMeta('property', 'og:type', 'website');
-  upsertMeta('name', 'twitter:card', title && resolvedImage ? 'summary_large_image' : 'summary');
-  upsertMeta('name', 'twitter:title', fullTitle);
+  upsertMeta('property', 'og:url', resolvedUrl);
+  upsertMeta('property', 'og:type', resolvedType);
+  upsertMeta('name', 'twitter:card', resolvedCard);
+  upsertMeta('name', 'twitter:title', targetTitle);
   upsertMeta('name', 'twitter:description', resolvedDescription);
   upsertMeta('name', 'twitter:image', resolvedImage);
 }

@@ -5418,6 +5418,7 @@ const emptyArticle = () => ({
   snippet: '',
   content: '',
   image: '',
+  coverImage: '',
   hintEnabled: true,
 });
 
@@ -5427,6 +5428,7 @@ const emptyPosterItem = () => ({
   category: '',
   dimensions: '',
   imageUrl: '',
+  coverImage: '',
   description: '',
   hintEnabled: true,
 });
@@ -5434,7 +5436,7 @@ const emptyPosterItem = () => ({
 const emptyDirectingItem = () => ({
   id: `film-${Date.now()}`,
   title: '', premise: '', role: 'Director', year: '', runtime: '',
-  mediaType: 'youtube', mediaUrl: '', posterImage: '', videoRatio: 'auto', videoSnippets: [],
+  mediaType: 'youtube', mediaUrl: '', posterImage: '', coverImage: '', videoRatio: 'auto', videoSnippets: [],
   contribution: '', credits: '', externalLabel: '', externalUrl: '', hintEnabled: true,
 });
 
@@ -5451,6 +5453,7 @@ const emptyCustomItem = () => ({
   title: '',
   category: '',
   imageUrl: '',
+  coverImage: '',
   description: '',
   wordContent: '',
   wordFileName: '',
@@ -5528,9 +5531,15 @@ function normalizeProjectsData(raw) {
     articlesDeleted: projects.articlesDeleted === true,
     directingDeleted: projects.directingDeleted === true,
     posterDeleted: projects.posterDeleted === true,
-    articles,
-    directing: { items: Array.isArray(projects.directing?.items) ? projects.directing.items : [] },
-    poster: { items },
+    articles: articles.map((art) => ({ ...emptyArticle(), ...art })),
+    directing: {
+      items: Array.isArray(projects.directing?.items)
+        ? projects.directing.items.map((it) => ({ ...emptyDirectingItem(), ...it }))
+        : [],
+    },
+    poster: {
+      items: items.map((it) => ({ ...emptyPosterItem(), ...it })),
+    },
     // Tab tambahan bebas (di luar Articles & Poster) — kalau data lama belum punya
     // field ini sama sekali, defaultnya array kosong (bukan ilang pas disave ulang).
     customSections: Array.isArray(projects.customSections)
@@ -5542,7 +5551,9 @@ function normalizeProjectsData(raw) {
             ? s.contentType
             : (s.layout === 'articles' ? 'writing' : 'image'),
           layout: s.layout === 'articles' ? 'articles' : 'gallery',
-          items: Array.isArray(s.items) ? s.items : [],
+          items: Array.isArray(s.items)
+            ? s.items.map((it) => ({ ...emptyCustomItem(), ...it }))
+            : [],
         }))
       : [],
   };
