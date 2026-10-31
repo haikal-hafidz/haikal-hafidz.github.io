@@ -5044,6 +5044,7 @@ const emptyMiniGameSlot = (position = 2, existing = {}) => ({
   projectsCtaLabel: existing.projectsCtaLabel || '',
   contactCtaLabel: existing.contactCtaLabel || '',
   drafts: Array.isArray(existing.drafts) ? existing.drafts.map((draft) => ({ ...draft, issues: Array.isArray(draft?.issues) ? draft.issues : [] })) : [],
+  cases: Array.isArray(existing.cases) ? [...existing.cases] : [],
 });
 
 const normalizeHomeData = (raw) => ({
@@ -5136,6 +5137,17 @@ const hangmanWordErrors = (draft) => {
   const errors = [];
   if (!String(draft?.label || '').trim()) errors.push('Kata masih kosong.');
   if (!String(draft?.passage || '').trim()) errors.push('Instructions masih kosong.');
+  return errors;
+};
+
+const plagiarismPoliceCaseErrors = (c) => {
+  const errors = [];
+  if (!String(c?.label || '').trim()) errors.push('Label kasus masih kosong.');
+  if (!String(c?.source || '').trim()) errors.push('Sumber asli masih kosong.');
+  if (!String(c?.writerText || '').trim()) errors.push('Teks penulis masih kosong.');
+  const allowed = new Set(['original', 'ethical', 'close', 'plagiarism']);
+  if (!c?.correctVerdict || !allowed.has(c.correctVerdict)) errors.push('Putusan yang benar belum dipilih.');
+  if (!String(c?.report || '').trim()) errors.push('Laporan investigasi / analisis masih kosong.');
   return errors;
 };
 
@@ -6918,12 +6930,20 @@ export default function CmsDashboard({ data, onSave, onExitAdmin }) {
     // Mini Game draft that the admin is not currently editing.
     if (activeTab === 'miniGame') {
       const miniGamesToValidate = [formData.miniGame, ...(formData.miniGame?.gameSlots || [])];
-      const invalidDrafts = miniGamesToValidate.flatMap((game) => (game?.drafts || []).flatMap((draft, index) => {
-        if (draft.enabled === false) return [];
-        const isHangman = game?.gameType === 'hangman' || String(game?.gameName || '').trim().toLowerCase() === 'the hangman';
-        const itemLabel = isHangman ? `Kata ${index + 1}` : `Draft ${index + 1}`;
-        return miniGameContentErrors(game, draft).map((error) => `${game.gameName || 'Game baru'} · ${itemLabel}: ${error}`);
-      }));
+      const invalidDrafts = miniGamesToValidate.flatMap((game) => {
+        if (game?.gameType === 'plagiarismPolice') {
+          return (game?.cases || []).flatMap((c, index) => {
+            if (c.enabled === false) return [];
+            return plagiarismPoliceCaseErrors(c).map((error) => `${game.gameName || 'Plagiarism Police'} · Kasus ${index + 1}: ${error}`);
+          });
+        }
+        return (game?.drafts || []).flatMap((draft, index) => {
+          if (draft.enabled === false) return [];
+          const isHangman = game?.gameType === 'hangman' || String(game?.gameName || '').trim().toLowerCase() === 'the hangman';
+          const itemLabel = isHangman ? `Kata ${index + 1}` : `Draft ${index + 1}`;
+          return miniGameContentErrors(game, draft).map((error) => `${game.gameName || 'Game baru'} · ${itemLabel}: ${error}`);
+        });
+      });
       if (invalidDrafts.length) {
         setNotice(`Mini Game belum bisa disimpan. ${invalidDrafts[0]}`);
         return;
