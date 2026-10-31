@@ -1953,18 +1953,17 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
   // default tab Projects (heading/subheading), bukan dibiarin nyangkut ke meta artikel
   // terakhir yang dibuka.
   useEffect(() => {
-    if (!selectedArticle) return;
+    const activeItem = readingWork || selectedArticle;
+    if (!activeItem) return;
     setPageMeta({
-      title: selectedArticle.title,
-      description: selectedArticle.snippet,
-      image: selectedArticle.image,
-      url: buildShareUrl(selectedArticle),
+      item: activeItem,
+      url: buildShareUrl(activeItem),
     });
     return () => {
       setPageMeta({ title: heading, description: subheading });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedArticle]);
+  }, [selectedArticle, readingWork]);
 
   // Navigasi keyboard pas lagi di mode detail gallery: Esc balik ke grid,
   // panah kiri/kanan gonta-ganti item
@@ -2525,7 +2524,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                                   aria-label={`Sorot ${item.title || `poster ${idx + 1}`}`}
                                   className={`group shrink-0 overflow-hidden rounded-[8px] border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC] ${isActive ? 'border-[#2B579A] shadow-sm dark:border-[#6FA8DC]' : 'border-gray-200 dark:border-gray-700'}`}
                                 >
-                                  <img src={projectThumbnail(item.imageUrl, 360)} alt="" aria-hidden="true" loading="lazy" decoding="async" className={`block h-28 w-auto max-w-none rounded-[7px] object-contain transition ${isActive ? 'opacity-100' : 'opacity-65 group-hover:opacity-100'}`} style={{ objectPosition: item.coverPosition || item.imagePosition || item.objectPosition || '50% 50%' }} />
+                                  <img src={projectThumbnail(getProjectCover(item) || item.imageUrl, 360)} alt="" aria-hidden="true" loading="lazy" decoding="async" className={`block h-28 w-auto max-w-none rounded-[7px] object-contain transition ${isActive ? 'opacity-100' : 'opacity-65 group-hover:opacity-100'}`} style={{ objectPosition: item.coverPosition || item.imagePosition || item.objectPosition || '50% 50%' }} />
                                 </button>
                               );
                             })}
@@ -2536,7 +2535,7 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
                       <div className="relative flex min-w-0 items-center justify-center px-12">
                         <button type="button" onClick={() => moveSpotlight(-1)} aria-label="Poster sebelumnya" className="absolute left-0 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-[1.45em] text-gray-700 shadow-sm transition hover:-translate-x-0.5 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:border-gray-700 dark:bg-[#202020]/90 dark:text-gray-200 dark:hover:bg-[#202020] dark:focus-visible:ring-[#6FA8DC]">‹</button>
                         <button type="button" onClick={() => setSelectedGalleryIndex(featuredIndex)} className="group flex w-full items-center justify-center rounded-[10px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:focus-visible:ring-[#6FA8DC]" aria-label={`Buka ${featured.title || `poster ${featuredIndex + 1}`}`}>
-                          <img src={projectThumbnail(featured.imageUrl, 1200)} alt={featured.title} loading="lazy" decoding="async" className="block max-h-[35rem] w-auto max-w-full rounded-[10px] object-contain shadow-sm transition duration-300 group-hover:scale-[1.008]" style={{ objectPosition: featured.coverPosition || featured.imagePosition || featured.objectPosition || '50% 50%' }} />
+                          <img src={projectThumbnail(getProjectCover(featured) || featured.imageUrl, 1200)} alt={featured.title} loading="lazy" decoding="async" className="block max-h-[35rem] w-auto max-w-full rounded-[10px] object-contain shadow-sm transition duration-300 group-hover:scale-[1.008]" style={{ objectPosition: featured.coverPosition || featured.imagePosition || featured.objectPosition || '50% 50%' }} />
                         </button>
                         <button type="button" onClick={() => moveSpotlight(1)} aria-label="Poster berikutnya" className="absolute right-0 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 bg-white/90 text-[1.45em] text-gray-700 shadow-sm transition hover:translate-x-0.5 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2B579A] dark:border-gray-700 dark:bg-[#202020]/90 dark:text-gray-200 dark:hover:bg-[#202020] dark:focus-visible:ring-[#6FA8DC]">›</button>
                       </div>
@@ -2612,9 +2611,9 @@ export default function Projects({ data, initialArticleId, initialWorkTarget, na
           >
             {/* Preview card artikel yang mau di-share */}
             <div className="relative">
-              {shareArticle.image ? (
+              {(getProjectCover(shareArticle) || shareArticle.image) ? (
                 <div className="w-full aspect-[16/9] bg-gray-100 dark:bg-black/40">
-                  <img src={shareArticle.image} alt={shareArticle.title} loading="lazy" decoding="async" className="w-full h-full object-cover" style={{ objectPosition: getCoverPosition(shareArticle) }} />
+                  <img src={getProjectCover(shareArticle) || shareArticle.image} alt={shareArticle.title} loading="lazy" decoding="async" className="w-full h-full object-cover" style={{ objectPosition: getCoverPosition(shareArticle) }} />
                 </div>
               ) : (
                 <div className="w-full aspect-[16/9] bg-gradient-to-br from-[#2B579A] to-[#6FA8DC] flex items-center justify-center">
