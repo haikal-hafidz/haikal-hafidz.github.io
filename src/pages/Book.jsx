@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import InteractiveText from '../components/InteractiveText';
 import RichContent from '../components/RichContent';
+import { setPageMeta } from '../lib/pageMeta';
 
 const STATUS_STYLE = {
   published: { label: 'Published', className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-800' },
@@ -127,6 +128,21 @@ export default function Book({ data, interactiveWords = [], onNavigate, initialB
     setSelectedId(null);
     setDetailId(null);
   }, [bookTab]);
+
+  useEffect(() => {
+    if (!detailBook) return;
+    const url = new URL(window.location.origin + window.location.pathname);
+    url.searchParams.set('tab', 'Book');
+    url.searchParams.set('work', detailBook.id);
+    setPageMeta({
+      item: detailBook,
+      type: 'book',
+      url: url.toString(),
+    });
+    return () => {
+      setPageMeta({ title: heading || 'Book', description: subheading });
+    };
+  }, [detailBook, heading, subheading]);
 
   const wheelLockRef = useRef(false);
   const selectRelativeBook = useCallback((offset) => {

@@ -659,10 +659,28 @@ export default function App() {
       }
 
       if (!source) return null;
+
+      // Prioritas gambar carousel: coverImage (dari CMS ProjectCoverControl / thumbnail)
+      // lalu posterImage, imageUrl, image, thumbnail, lalu ekstrak thumbnail youtube jika ada.
+      const resolvedImage =
+        source.coverImage ||
+        (entry.type === 'book'
+          ? (source.coverImage || source.thumbnail || '')
+          : (source.posterImage || source.imageUrl || source.image || source.thumbnail || ''));
+
+      let finalImage = resolvedImage;
+      if (!finalImage) {
+        const mediaUrl = String(source.mediaUrl || source.url || '').trim();
+        const youtubeMatch = mediaUrl.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/))([^?&#/]+)/i);
+        if (youtubeMatch?.[1]) {
+          finalImage = `https://i.ytimg.com/vi/${youtubeMatch[1]}/hqdefault.jpg`;
+        }
+      }
+
       return {
         ...entry,
         title: source.title,
-        image: entry.type === 'book' ? source.coverImage : (entry.type === 'article' ? source.image : entry.type === 'directing' ? source.posterImage : source.imageUrl),
+        image: finalImage,
         typeLabel: source.category || (entry.type === 'book' ? 'Book' : entry.type === 'article' ? 'Article' : entry.type === 'directing' ? 'Directing' : entry.type === 'poster' ? 'Poster' : 'Project'),
         teaser: entry.teaser || source.summary || source.snippet || source.premise || source.description || '',
       };
